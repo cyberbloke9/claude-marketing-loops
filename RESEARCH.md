@@ -1,0 +1,161 @@
+# TERREM Marketing Loops — Verified Research Base
+
+Date: 2026-07-02
+Method: Deep-research harness — 5 search angles, 21 sources fetched, 100 claims extracted, 25 verified with 3-vote adversarial verification (19 confirmed, 6 refuted).
+
+## Confirmed findings
+
+### 1. Retention loops are the highest-leverage growth mechanism (Duolingo)
+**Confidence: high** — [Lenny's Newsletter — Jorge Mazal, former Duolingo CPO](https://www.lennysnewsletter.com/p/how-duolingo-reignited-user-growth)
+
+- Duolingo grew DAU 4.5x over four years (from single-digit YoY growth in mid-2018) by modeling user states and targeting **CURR (current-user retention)**, lifted 21% — cutting daily churn of best users by >40%.
+- Sensitivity analysis found CURR ~5x more impactful than any other growth lever.
+- **TERREM implication:** the publish/measure loop should optimize for *returning* readers/subscribers, not new-follower counts.
+
+### 2. Specific gamification mechanics with quantified lifts
+**Confidence: high** — same source
+
+- Leaderboards: +17% overall learning time, tripled highly engaged users (D1/D7/D14 retention +1/2/3%).
+- Streak mechanic iteration (esp. streak-saver notifications) nearly tripled the share of DAU with 7+ day streaks — to more than half of all DAU.
+- **TERREM analogues:** city price-tracker leaderboards, "market watch streak" nudges, loss-aversion notifications ("your locality report expires").
+
+### 3. The "unhinged mascot" is a durable operating model, not a stunt
+**Confidence: medium** — [The Drum interview with Zaria Parvez](https://www.thedrum.com/news/duolingo-s-tiktok-mastermind-its-unhinged-social-strategy-and-killing-its-mascot)
+
+- TikTok: 50,000 → 16M followers in ~4 years.
+- "Killing Duo" campaign: concept → execution in **six days**; earned CNN and New Yorker coverage.
+- **TERREM implication:** consistent brand character + days-not-weeks reactive turnaround is what compounds.
+
+### 4. "Duo is dead" campaign — measurable outcomes
+**Confidence: high** — [Meltwater social-listening data](https://www.meltwater.com/en/blog/duolingo-dead-mascot-campaign)
+
+- ~169,000 mascot mentions Feb 4–17, 2025; ~25,560% mention spike on launch day (Feb 11).
+- #ripduo used 45,000+ times; daily brand mentions ~5.4x'd (≈11,000 → 59,900+).
+- Benchmark for what a narrative-arc campaign does to baseline brand conversation.
+
+### 5. Growth LOOPS beat linear funnels for real estate (Trulia)
+**Confidence: high** — [NFX — Pete Flint, Trulia founder/CEO](https://www.nfx.com/post/the-nfx-of-trulia-building-a-3-5-billion-marketplace)
+
+- SEO-driven content loop: index listing data, send referral traffic back to source agents → very large audience with ~zero paid spend.
+- Self-reinforcing data loop: more market info → more valuable site → users contribute more data.
+- Demand-side growth converted supply acquisition into an organic loop (agents began submitting listings directly).
+- **TERREM blueprint:** locality intelligence → SEO/content assets → traffic → data contributions/partnerships → richer intelligence. ($3.5B outcome.)
+- Verifier note: the data loop was one of several stacked network effects; supply side alone was not a durable moat.
+
+### 6. Indian buyer personas & pain points (ANAROCK H1 2025, ~8,250 respondents, 14 cities)
+**Confidence: high** — [ANAROCK Homebuyer Sentiment Survey H1 2025 (PDF)](https://websitemedia.anarock.com/media/Homebuyer_Sentiment_Survey_H1_2025_770cb18d6a.pdf)
+
+- 63% prefer real estate as top investment asset class (+4% YoY; stocks 22%, gold 7%).
+- Market splits 65% end-use vs 35% investor.
+- Premiumization: 36% prefer ₹90L–1.5Cr (vs 18% pre-COVID); affordable <₹45L demand down to 17% (from >40% in H2 2020).
+- 45% prefer 3BHK vs 40% 2BHK. 3BHK dominant: Ahmedabad, Hyderabad, Chennai, Delhi-NCR, Bengaluru. 2BHK-leaning: MMR, Pune. (Kolkata is a 46/46 tie.)
+- **Pain-point hooks:** 81% worried about rising prices (only 21% will buy as planned; 71% face delays); 98% demand timely-completion assurance; 93% demand construction quality; among dissatisfied affordable-home seekers, 92% cite poor location and 90% poor construction/design.
+- Caveat: online panel skews property-interested Indians — matches TERREM's audience but not the general population.
+
+### 7. Short-form hook craft — quantified
+**Confidence: medium** — [VidMob–TikTok study, 1,678 ads / 7.3B impressions, Jan–Oct 2023](https://vidmob.com/resource/tiktok-hook-analysis)
+
+- Everyday creators outperform celebrities as hook talent: 1.7x more likely to hook; celebrity-led ads see −13% 6-second view-through.
+- Direct-to-camera conversational footage: +14% 2-second view rate, +50% "hooking power".
+- **TERREM implication:** founder/analyst-on-camera style, not paid celebrity fronting.
+- Caveats: correlational vendor benchmark, proprietary metric, 2023 data — directional.
+
+### 8. Posting-time signal for professional audiences (LinkedIn)
+**Confidence: medium** — [Buffer, 4.8M+ posts](https://buffer.com/resources/best-time-to-post-on-linkedin/)
+
+- Late afternoon/evening (3–8 p.m.) drives highest engagement — contradicts the business-morning default.
+- Contested: Sprout Social 2026 still recommends Tue–Thu 8–10 a.m. Global data, not India-specific.
+- **Treat as a hypothesis to A/B test against TERREM's own IST engagement data.**
+
+## Refuted claims — DO NOT USE
+
+- "Best LinkedIn slots are Wed 4 p.m. / Fri 3–4 p.m." (0-3)
+- "Professionals engage with LinkedIn mostly during evening commute/leisure" (0-3)
+- "Hooked ads 2x engagement and +43% purchase intent" (VidMob) (0-3)
+- "90% of ad recall is captured in the first 6 seconds" (TikTok 2020) (1-2)
+- "TikTok-first native ads catch 74% attention and drive 3.3x actions" (0-3)
+- "Duolingo runs its viral social with a tiny in-house team / one-week turnaround" (0-3)
+
+## Gaps from round 1 (gap-fill round 2 in progress)
+
+1. Stanford GSB / top-B-school real-estate marketing case frameworks (picture-driven formulas) — zero surviving claims. **FILLED (negative result + replacement evidence base), see Round 2 below.**
+2. Typography, font pairing, visual hierarchy, brand-consistency systems for social graphics — **FILLED, see Round 2 below.**
+
+## Round 2 gap-fill: B-school cases & the photo-first evidence base
+
+### HEADLINE NEGATIVE RESULT
+**Stanford GSB has no verifiable real-estate marketing case, and no top business school teaches a named "picture-driven formula" for real-estate campaigns.** Direct search of the GSB case catalog (keyword "real estate") returned nothing on marketing — the closest is Keller Williams Realty (A)/(B) (HR29B, Baron/Larcker/Tayan 2011), an org-behavior/accounting case about the 2008–09 downturn. Any claim of a school-endorsed picture formula should be treated as unsourced. **High confidence.**
+
+### Actual b-school proptech cases (all strategy, none visual-marketing)
+- HBS **"Pricing and Partnership at Zillow"** (913-021, Coles & Edelman 2012) — multi-sided-platform pricing. [hbs.edu](https://www.hbs.edu/faculty/Pages/item.aspx?num=43532)
+- HBS **"Redfin"** (218051, Di Maggio & Kelley 2018) — market share vs profitability post-IPO. [store.hbr.org](https://store.hbr.org/product/redfin/218051)
+- Kellogg **"Neighborhood Watch: The Rise of Zillow"** (KE1008, Walker & Green 2017) — pivot from disrupting agents to partnering with them; the closest thing to a top-school RE growth case. [store.hbr.org](https://store.hbr.org/product/neighborhood-watch-the-rise-of-zillow/KE1008)
+
+### The REAL "specific picture" playbook — peer-reviewed & industry evidence
+- **B1. Photos are viewed first and predict perceived value** — eye-tracking of homebuyers: photo dwell time/fixation significantly explain buyer's opinion of home and value; photo viewed first, then quantitative facts, then agent remarks. Seiler, Madhavan & Liechty, *J. of Real Estate Research* 34(2), 2012. **High.** [SSRN](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2029823)
+- **B2. More photos → higher price but longer time-on-market, at diminishing rates.** Benefield, Cain & Johnson, *JREFE* 43(3), 2011. **High.** [Springer](https://link.springer.com/article/10.1007/s11146-009-9219-6)
+- **B3. Professional DSLR photography premium** — Redfin study: +$3,400–$11,200 vs list ($200K–$1M homes); $400K homes sold ~3 weeks faster; 64% vs 46% sell-through. **High (industry, not peer-reviewed).** [redfin.com](https://www.redfin.com/blog/professional-real-estate-photos-sell-homes-for-more/)
+- **B4. Curb appeal worth up to 7% of sale price** — deep learning on Street View photos, 88,980 Denver sales; own curb appeal worth ~2x neighbor's; premium bigger in weak markets. *JREFE*, peer-reviewed. **High.** [Springer](https://link.springer.com/article/10.1007/s11146-019-09713-z)
+- **B5. Staging (NAR 2025 official research):** 83% of buyers' agents say staging helps buyers visualize; 29% report 1–10% higher offers; 49% of sellers' agents report faster sales. Most-staged: living room 91%, primary bedroom 83%. **High.** [nar.realtor](https://www.nar.realtor/research-and-statistics/research-reports/profile-of-home-staging)
+- **B6. Listing-language premiums (Zillow Research):** regression on ~2M 2022 sales, 271 features, controlled for pre-listing Zestimate — e.g., "steam ovens" +5.3% (~$17,400); 2016: "barn doors" +13.4% and 57 days faster. Zillow cautions: quality *signals*, not causal ROI. **High.** [zillow.com/research](https://www.zillow.com/research/home-features-that-sell-2023-32394/)
+- **B7. Virtual tours: ~+1% price, declining post-COVID as they became table stakes** (NBER WP w33204, 2024). **High (WP, not journal-published).** [nber.org](https://www.nber.org/papers/w33204)
+- **B8. Photo-attention dominance is replicated**, not a one-off (Buildings 14(7):2106, 2024, eye-tracking). **Medium.** [mdpi.com](https://www.mdpi.com/2075-5309/14/7/2106)
+
+**Synthesis:** the sourced "picture formula" = photo-first attention (B1) + professional photography (B3) + curated photo count with diminishing returns (B2) + exterior hero shot (B4) + staged living/bedroom/kitchen (B5) + design-signal keywords in copy (B6) + virtual tours as hygiene (B7). For TERREM (intelligence, not listings): the analogue is **chart-first content** — the data visual is TERREM's "listing photo."
+
+## Round 2 gap-fill: Design, typography & readability (for the design/QA loop)
+
+### D1. WCAG contrast minimums — **High** ([W3C](https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html))
+- 4.5:1 for normal text, 3:1 for large text (≥18pt or 14pt bold ≈ 24px/18.5px CSS). AAA: 7:1 / 4.5:1.
+
+### D2. Line length 45–90 characters — **High** ([Butterick's Practical Typography](https://practicaltypography.com/line-length.html))
+- "Aim for an average line length of 45–90 characters, including spaces." WCAG AAA caps at 80.
+
+### D3. Serif faces and perceived believability — **High (directional)** ([Design Observer / Errol Morris NYT experiment](https://designobserver.com/the-typeface-of-truth/))
+- Baskerville had the highest agreement rate vs Computer Modern, Georgia, Helvetica, Comic Sans, Trebuchet (~45,000 NYT readers; exact N medium-confidence). Comic Sans drew "contempt and summary dismissal."
+- Counterweight (medium): a peer-reviewed e-commerce study found serif vs sans-serif both trusted, no significant difference — execution matters more than category.
+
+### D4. Glanceable text (social overlays) — **High** ([NN/g glanceable fonts](https://www.nngroup.com/articles/glanceable-fonts/))
+- Lowercase-only +26% reading time; condensed faces +11.2%; larger sizes win (all p<0.01). Avoid condensed/thin faces for overlays. Mixed case still better for longer passages.
+
+### D5. Minimum type sizes on 1080px canvases — **Low-Medium** (practitioner consensus)
+- Headlines 48–72px (1080×1080), Story text 36–60px (1080×1920), body 24–32px min, line height 1.4–1.6x. Always preview at 360px mobile width.
+
+### D6. Type scale — **Medium**
+- Modular scale, Major Third (1.25) most common default (Material Design); base 16px. Minor Third (1.2) for dense UI, Perfect Fourth (1.333) for editorial punch. Tool: typescale.com.
+
+### D7. Fintech font pairings — **Medium** (practitioner consensus)
+- Two-font system: confident heading face + highly legible body. Documented: IBM Plex Sans 600 + Open Sans 400 (banks/enterprise); Montserrat 700 + Lato 400 (fintech/neobanks); Inter + IBM Plex Serif ("institutional weight without stuffiness"). Inter/Manrope favored for open apertures and generous x-heights (digit legibility in data-dense layouts).
+
+### D8. Carousel hook-slide conventions — **Low-Medium** (practitioner heuristics)
+- First slide carries the swipe decision: ≤8–10 words, one idea, high contrast; answer "Is this for me?" / "What do I get if I swipe?". One idea per slide ("flashcard, not blog paragraph"); open loops (question on slide 1 answered slide 5–6); slide 2 is a second hook. Benchmark (medium): carousels avg 1.92% engagement vs 0.50% Reels, 0.45% static (Metricool 2026).
+
+### D9. Platform safe zones — **Medium** ([LinkedIn official help](https://www.linkedin.com/help/linkedin/answer/a563309/) + reputable secondary for Instagram)
+- Instagram feed: 1080×1350 (4:5) prioritized; grid crops toward 3:4 → keep critical content in ~1000×1270 center. Reels/Stories: bottom ~400px carries UI; keep critical content >250px from top, >440px from bottom. Rule: central 70–80% of frame. LinkedIn: 1200×627 link images; carousel PDFs 1080×1080 or 1080×1350.
+
+### D10. Brand consistency at volume — **Medium**
+- Consistent branding associated with up to 33% revenue lift (Lucidpress/Marq survey — vendor survey, cite with caveat). Operationalize via locked brand templates (Canva Brand Kit / Figma libraries) so non-designers ship on-brand at scale (Salesforce, Marriott case examples — vendor-sourced).
+
+### D11. Chart credibility (Tufte) — **High (definitions)** ([EU data-viz guide](https://data.europa.eu/apps/data-visualisation-guide/chart-junk-and-data-ink-origins))
+- Maximize data-ink ratio; strip chartjunk; representation proportional to quantities; show data variation not design variation; clear labeling. For market-data content: source + as-of date printed on every chart, no undisclosed truncated y-axes.
+
+**Design/QA loop synthesis (each element individually sourced):** WCAG 4.5:1 contrast + 45–90 char lines + no condensed/thin overlay faces + two-font system (IBM Plex Sans / Inter family) on a 1.25 type scale + locked brand templates + Tufte-clean charts with on-graphic source/date attribution.
+
+## Open questions
+
+- India-specific posting-time/attention windows (IST; Instagram/Shorts/WhatsApp, not just global LinkedIn data).
+- Duolingo's actual content-team size and turnaround process (small-team claim refuted) — minimum viable content-ops model.
+- How Trulia-style data/SEO loops translate to India (RERA data, broker fragmentation, no MLS): what supply-side content can TERREM index, and what referral value can it return to sources?
+
+## Source quality ledger
+
+| Source | Quality | Angle |
+|---|---|---|
+| lennysnewsletter.com (Mazal) | primary | Duolingo playbook |
+| meltwater.com | primary (own listening data) | Duolingo campaign metrics |
+| thedrum.com (Parvez interview) | secondary | Duolingo ops model |
+| nfx.com (Flint) | primary | Trulia growth loops |
+| anarock.com survey PDF | primary | Indian buyer personas |
+| vidmob.com | primary (vendor) | Hook craft |
+| buffer.com | primary (vendor) | Posting times |
+| reforge.com (growth loops) | secondary/blog | Loop theory |
