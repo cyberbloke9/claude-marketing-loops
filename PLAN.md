@@ -22,7 +22,7 @@ Three conclusions drive everything:
 | **The Upgrader** (end-use) | ~65% | ₹90L–1.5Cr budget (36% of market), wants 3BHK in Bengaluru/Hyderabad/NCR/Chennai, 2BHK in MMR/Pune | 81% price anxiety ("did I miss the window?"), 98% completion-assurance demand ("will it be delivered?"), 93% construction quality |
 | **The Investor** | ~35% | RE is #1 preferred asset class (63%, beating stocks 22%, gold 7%) | Yield vs appreciation by locality, exit liquidity, regulatory (RERA) risk |
 
-Channel map: Instagram Reels + YouTube Shorts for Upgraders; LinkedIn + email/WhatsApp digest for Investors/NRIs. Posting windows are **[hypothesis — A/B test]**: Buffer says LinkedIn 3–8 p.m., Sprout says Tue–Thu 8–10 a.m., neither is India-specific — measure your own IST data from week 1.
+Channel map: Instagram Reels + YouTube Shorts for Upgraders; LinkedIn + email/WhatsApp digest for Investors/NRIs. Posting windows remain **[hypothesis — A/B test]**, now on verified ground (Round 3 R1): **no credible India-specific posting-time data exists anywhere** — Sprout's 2026 benchmarks normalize to "Local Time" with no IST edition, and Buffer/Sprout global windows even disagree (3–8 p.m. vs Tue–Thu 8–10 a.m.). First-party A/B in Loop 5 is not a nice-to-have; it is the only way to get IST priors.
 
 ---
 
@@ -47,7 +47,9 @@ Each loop = input → agent/process → output artifact on disk → feeds the ne
 - **Output:** `personas/personas.md` + `personas/hook-bank.md` — a living pain-point → hook mapping (e.g., "98% want completion assurance" → hook: *"This builder has delayed 3 of its last 4 projects. Here's how to check yours in 2 minutes."*).
 
 ### Loop 3 — Content creation loop (assets)
-*Cadence: 2–3 assets/week (capacity-realistic for a 2-person team). Automation: agent drafts, human records/approves.*
+*Cadence: 2–3 assets/week. Automation: agent drafts, human records/approves.*
+
+Capacity is now evidence-backed (Round 3 R6–R8): Duolingo's breakout channel ran on ~1.5 FTE (2020) and 2 FTE + contractors day-to-day (2025); Surreal runs on 4 with production outsourced, winning with low-production static assets. Two enablers make 2–3 assets/week + the 48h reactive lane work on a 2-person team, and both are policy choices, not hires: **(a) approval authority stays inside the team** (Duolingo: "we approve the content within the team ourselves") — no external sign-off in the loop; **(b) low-production default** — carousels and static-chart assets first (Surreal: "the simpler the better"), talking-head video only when the take needs a face.
 
 - **Inputs:** top signal (Loop 1) × matching hook (Loop 2) × format template.
 - **Formats, in priority order:**
@@ -113,4 +115,9 @@ Repo: this folder (`~/Downloads/terrem-marketing-loops/`) — init git, artifact
 4. **Retention before reach.** Made WRR the north star and Phase 0 = measurement, because the single highest-confidence finding in the whole research base is that returning-user retention beats every other lever ~5x.
 5. **Capacity honesty.** 2-person team → one hero format shipped consistently beats five formats shipped raggedly. Consistency is itself the streak mechanic — the audience's habit forms around *your* cadence.
 6. **Marked every unverified assumption** [hypothesis — A/B test]: posting times, streak nudges for content, carousel heuristics. The measure loop exists to burn these down with TERREM's own data.
-7. **Open flywheel question (from research):** India has no MLS; RERA data is fragmented. What supply-side data can TERREM index at scale, and what referral value can it return to sources (builders? brokers? buyers themselves)? This determines how strong the Trulia analogue can get — worth a dedicated design session before Phase 3.
+7. **The India flywheel — designed (Round 3 replaces the open question):**
+   - **What to index:** registration/IGR transaction data aggregated to **project/society level** — the proven unit of content in India (Zapkey's 145k pages, Square Yards' quarterly studies both use it) — plus state RERA project registries, with **all personal identifiers stripped** (GODL excludes personal data; DPDP-prudent). TERREM already holds the Hyderabad seed: 302k transactions, 55 locality metric series.
+   - **Value back to sources (Trulia's mechanic, translated):** builders get named rankings/visibility in data studies (Square Yards proves builders accept and amplify this); buyers get price discovery on real transacted — not asking — prices (Zapkey's utility); media gets syndicable quarterly studies (Hindu Business Line et al. already run Square Yards' — data studies earn distribution).
+   - **What is defensible — and what is not:** raw registration data is NOT a moat (Zapkey: 145k pages, ~15 employees, ₹1.75Cr revenue, shrinking). Square Yards and PropEquity already have multi-city raw coverage. **The defensible layer is synthesis + media quality + retained audience** — no incumbent pairs registration data with a lean, Candid-Analyst-grade content operation. That pairing is TERREM's whole thesis, and rounds 1–3 verify each half independently.
+   - **Sequencing:** own Hyderabad completely first (data already in hand), expand city-by-city only when the Hyderabad loop demonstrably converts (traffic → sign-ups → data partnerships).
+   - **Hard precondition before Phase-3 scale:** legal review of state-portal ToS + DPDP Act 2023 implications for registration records. Incumbent practice is de facto tolerance, not clearance (Round 3 caveat). Until then, publish aggregates and project-level stats, never named natural persons.

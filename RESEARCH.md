@@ -143,9 +143,57 @@ Method: Deep-research harness — 5 search angles, 21 sources fetched, 100 claim
 
 ## Open questions
 
-- India-specific posting-time/attention windows (IST; Instagram/Shorts/WhatsApp, not just global LinkedIn data).
-- Duolingo's actual content-team size and turnaround process (small-team claim refuted) — minimum viable content-ops model.
-- How Trulia-style data/SEO loops translate to India (RERA data, broker fragmentation, no MLS): what supply-side content can TERREM index, and what referral value can it return to sources?
+- ~~India-specific posting-time/attention windows~~ → **RESOLVED (negative), Round 3 R1.**
+- ~~Duolingo's actual content-team size and turnaround — minimum viable content-ops model~~ → **RESOLVED, Round 3 R6–R8.**
+- ~~How Trulia-style data/SEO loops translate to India~~ → **RESOLVED, Round 3 R2–R5, R9.**
+
+## Round 3 (2026-07-03): posting windows, content-ops, India data-flywheel
+
+Method: same harness — 5 angles, 3-vote adversarial verification, 103 agents.
+
+### R1. NEGATIVE RESULT — no credible India-specific posting-time data exists
+**High** — [Sprout Social 2026 benchmarks](https://sproutsocial.com/insights/best-times-to-post-on-social-media/) (largest-N study, published 2026-03-31) normalizes ALL times to "Local Time" with zero India/IST breakdown; Sprout publishes UK/Australia editions but no India edition. Only unsourced blogs make India timing claims. **IST windows are hypotheses to A/B test first-party — there is no prior to import.**
+
+### R2. GODL-India open license covers CENTRAL government data only
+**High** — [License text](https://data.gov.in/Godl) verified verbatim: worldwide royalty-free grant incl. commercial derivatives, BUT scoped to Government-of-India agency data; state portals (state RERA registries, Telangana Dharani/IGRS, circle rates) are NOT automatically covered; **personal information is explicitly excluded** (buyer/seller names fall outside the safe harbor even on govt portals).
+
+### R3. Square Yards proves the India registration-data content play end-to-end
+**High** — quarterly IGR-data "studies" across Pune/MMR/Hyderabad/Bangalore (nine-city through Dec 2025), analysis at developer/project granularity (e.g., Kolte Patil #1 Q3 2024 Pune, 430 units / ₹425Cr, project named), syndicated into Hindu Business Line, Free Press Journal, Construction Week. Builder visibility returned to sources = Trulia's referral mechanic, working in India. [squareyards.com/data-intelligence](https://www.squareyards.com/data-intelligence). Caveat: self-promotional PR syndication; proves de facto practice, not legal clearance.
+
+### R4. Zapkey: registration-data programmatic SEO at scale — and it is NOT a moat
+**High** — verifier independently downloaded the 34.6MB sitemap (2026-07-03): 148,939 URLs, ~145,005 per-project transaction pages across 11+ cities (Mumbai 48.7k, Hyderabad 27.4k, Bangalore 24k), unit of content = project/society, refreshed through July 2026. **Yet Zapkey is ~15 employees, ₹1.75Cr revenue FY2025, −60% YoY** — raw registration data alone has not produced a business. [zapkey.com](https://www.zapkey.com/)
+
+### R5. PropEquity: 44-city coverage, but data provenance undisclosed
+**High** — NSE-listed parent tracks ~150–170k projects across 44 cities; reports page discloses nothing about underlying sources (per-URL negative result). Whether it runs a registration-data *content* play vs a paid-data product is unconfirmed.
+
+### R6. Duolingo's real lean-team numbers (corrects round-1 refuted claim)
+**Medium** — breakout TikTok built at **~1.5 FTE** in 2020 (Parvez + a manager split 50/50 PR/social); as of Mar 2025, day-to-day content = **2 FTE + contractors**, embedded in a larger brand org (art/copy specialists, ~3 FTE core social). Not proof a standalone 2-person team suffices — but close. Sources: [Contagious](https://www.contagious.com/news-and-views/duolingo-social-media-marketing), [Technical.ly 2025-03-25](https://technical.ly/company-culture/duolingo-viral-marketing-strategy-lessons/). ("Team of six by 2023" claim REFUTED 0-3.)
+
+### R7. The 48-hour reactive lane is precedented — the enabler is delegated approval, not headcount
+**Medium** — Duolingo runs a two-day production cycle: weekly brainstorm day one, next-day shoot, and crucially "we approve the content within the team ourselves, so we're not waiting for senior leadership." 2–3 assets/week + 48h lane on a 2-person team is realistic IF approval stays in-team and heavy production is externalized or avoided (inference the sources support but don't literally state).
+
+### R8. Surreal: 4-person team, zero paid media, low-production static wins
+**Medium** — UK cereal brand: in-house team of four, video production outsourced, standout LinkedIn results entirely organic and mostly static images/carousels ("the simpler the better"). [Creative Salon interview](https://creative.salon/articles/features/surreal-cereal-brand-linkedin-marketing-strategy). NEGATIVE: no source anywhere gives numeric time-per-asset benchmarks.
+
+### R9. Trulia's no-feed cold start maps directly onto no-MLS India
+**High** — verified sequence: (a) crawl/index listings from broker sites because no feeds existed (2005); (b) send referral traffic back to each source + sell lead-gen to agents; (c) once consumer traffic scaled (Trulia = agents' #2 traffic source after Google), supply flipped to voluntary submission. ("Trulia's XML feed standard originated listing syndication" — REFUTED, do not repeat.)
+
+### R10. Phase-3 flywheel synthesis
+**Medium (strategic inference on high-confidence parts)** — What to index: registration/IGR data at **project/society granularity** (the proven content unit), personal identifiers stripped; state-data access rests on **de facto tolerance** (incumbents operate openly for years), not license. Value back: builder rankings/visibility (Square Yards mechanic) + buyer price discovery (Zapkey mechanic) + earned-media syndication. **Defensibility: raw data is NOT defensible** (R4); the defensible layer is editorial synthesis + media quality + audience — which no incumbent pairs with a lean Duolingo/Surreal-style content op.
+
+### Round 3 additions to the DO-NOT-USE blacklist
+- "Duolingo's social team was six people by 2023" (0-3)
+- "Trulia's XML feed standard originated real-estate listing syndication" (1-2)
+- "PropEquity has a decade-deep (2015–2026) quarterly report archive as a content moat" (1-2)
+
+### Round 3 caveats
+State-data legality is the weakest link: incumbent practice is precedent, not clearance; GODL excludes state portals and personal data; **DPDP Act 2023 implications for named buyer/seller records were not researched — legal review required before Phase 3 scale.** Content-ops figures are self-reported trade-press interviews. Q1 negative rests on one large primary study + search absence.
+
+### Round 3 open questions (v2)
+1. State-portal ToS/access mechanisms + enforcement history (Dharani/IGRS, Maharashtra IGR, Karnataka Kaveri, state RERAs); DPDP Act 2023 constraints on republishing records with natural-person names even aggregated.
+2. How incumbents actually acquire registration data (scraping vs paid agreements vs RTI/bulk) and whether any government body has objected or licensed it.
+3. Does registration-data content convert? (No traffic/conversion data found for Zapkey's 145k pages or Square Yards' studies.)
+4. First-party IST priors: 4–6 week structured posting A/B on TERREM's own channels (already in Loop 5).
 
 ## Source quality ledger
 
