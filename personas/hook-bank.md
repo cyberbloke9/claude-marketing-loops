@@ -37,6 +37,10 @@ Legend: **[P1]** Upgrader · **[P2]** Investor · pain codes: PRICE (81% anxiety
 17. **[P2·EXIT]** "Every resale in __ this quarter, on one chart."
 18. **[P1·DELIVERY]** "We tracked 40 Bengaluru builders' delivery records. Screenshot this list."
 
+## Divergence (city ≠ market) — NEW
+
+21. **[P1·PRICE / P2·YIELD]** "<Premium locality> got cheaper this quarter. <Budget locality> rose __%." — *same-city divergence; the city average is a lie. First used: 2026-07-03 Weekly Ledger (Jubilee Hills / Medchal).* NEW
+
 ## Challenge / utility CTA
 
 19. **[P1·all]** "Check your builder in 2 minutes. If this chart is red, walk."

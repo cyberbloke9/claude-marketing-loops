@@ -45,6 +45,6 @@ From this directory in Claude Code:
 
 - [x] Phase 0 — brand kit (real product tokens), templates, hook bank v1, repo scaffolding
 - [ ] Phase 0 — analytics plumbing (UTM scheme, per-channel dashboards)
-- [ ] Phase 1 (weeks 2–5) — ship The Weekly Ledger only, prove the pipeline
+- [x] Phase 1 started — first signals run + first Weekly Ledger drafted (2026-07-03, QA PASS pending data refresh)
 - [ ] Phase 2 (weeks 6–9) — scorecards + posting-time A/B + reactive lane
 - [ ] Phase 3 (week 10+) — City Leaderboard + SEO locality pages (Trulia engine)
