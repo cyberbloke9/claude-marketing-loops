@@ -19,8 +19,9 @@ Register check: would a skeptical CA aunt and a 29-year-old Bengaluru PM both tr
 
 ## 2. Typography
 
-- **Headings:** IBM Plex Sans, weight 600 (fintech standard, open apertures)
+- **Headings:** Inter, weight 600–700 — matches the product (intel.terrem.in uses Inter via `--font-inter`); brand consistency beats a novel pairing
 - **Body / data:** Inter, weight 400–500 (generous x-height, digit legibility)
+- **Optional editorial accent:** IBM Plex Serif for pull-quotes only ("institutional weight without stuffiness")
 - **Scale:** Major Third (1.25). Base 16 → 20 → 25 → 31 → 39 → 49 → 61
 - **Canvas minimums (1080px canvases):**
   - Feed/carousel headline: 48–72px; body ≥24px
@@ -30,16 +31,21 @@ Register check: would a skeptical CA aunt and a 29-year-old Bengaluru PM both tr
 
 ## 3. Color
 
-Tokens must match the live intel.terrem.in palette — pull hex values from the deployed site before first use and record them here (do not invent new brand colors; see TERREM v4 visual-preservation constraint).
+Tokens pulled from the TERREM product (`terrem_intelligence/frontend/src/app/globals.css`, light theme, 2026-07-03). Do not invent new brand colors (TERREM v4 visual-preservation constraint).
 
 ```
---bg:            <from site>   # canvas background
---ink:           <from site>   # primary text — must hit 4.5:1 on --bg
---ink-muted:     <from site>   # secondary text — must hit 4.5:1 on --bg
---accent:        <from site>   # one accent only; used for THE number/line that matters
---chart-up:      <from site>   # gains
---chart-down:    <from site>   # declines
+--bg:            #faf8f3   # warm cream canvas (product --background)
+--surface:       #ffffff   # cards/panels (product --card)
+--ink:           #1c1917   # primary text (product --foreground) — ~13:1 on --bg ✓
+--ink-muted:     #57534e   # secondary text (product --muted-foreground) — ~6.5:1 ✓
+--accent:        #0f766e   # TERREM teal (product --primary) — ~5:1 on --bg ✓; THE number/line
+--accent-deep:   #0d3d38   # deep teal (product --sidebar) — dark panels, wordmark blocks
+--chart-up:      #0d9488   # gains (product --sidebar-primary) — large elements only (≥3:1)
+--chart-down:    #dc2626   # declines (product --destructive) — large elements only
+--border:        #e0dbd3   # hairlines/axes (product --border)
 ```
+
+Dark-panel variant: --accent-deep background, #ffffff text (product sidebar pairing).
 
 Rules: WCAG AA — ≥4.5:1 normal text, ≥3:1 large text (≥24px / 18.5px bold). One accent color per asset. Plain backgrounds behind text — no textures/photos under type.
 
