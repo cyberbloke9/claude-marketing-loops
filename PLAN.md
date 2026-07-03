@@ -90,6 +90,16 @@ Brand kit (build once, then lock as templates):
 
 ## 2. Rollout sequence (don't launch five loops at once)
 
+> **Content-data constraint (2026-07-03, from the Ledger #1 kill):** TERREM's Hyderabad
+> transactions table is 95.4% synthetic (calibrated model expansion); only 22 of 55
+> localities have ≥30 real rows, and the premium localities have the least real data.
+> **DB-derived price-trend content is BLOCKED** until Path A is productionized and/or
+> registry data (Propstack/IGRS/SqyAI) is licensed — which round-3 research independently
+> identified as the Phase-3 flywheel unlock. Until then, Ledgers run on public, verifiable
+> data (report reconciliation, RERA enforcement, registration monthlies) synthesized in the
+> Candid Analyst voice. The moat is temporarily the *synthesis*, not the data — which
+> rounds 1–3 showed is the defensible layer anyway.
+
 - **Phase 0 (week 1):** Brand kit + templates (Loop 4 assets), analytics plumbing (UTM links, per-channel dashboards), hook-bank v1 from ANAROCK pain points. Nothing publishes without measurement in place — the Duolingo playbook is unrunnable without retention data.
 - **Phase 1 (weeks 2–5):** Loops 1 + 3 minimal — ship **only The Weekly Ledger** (1 carousel + 1 short/week). Prove the pipeline end-to-end on one format.
 - **Phase 2 (weeks 6–9):** Turn on Loop 5 scorecards + posting-time A/B; add the reactive lane; first monthly Loop 2 refresh.

@@ -45,6 +45,6 @@ From this directory in Claude Code:
 
 - [x] Phase 0 — brand kit (real product tokens), templates, hook bank v1, repo scaffolding
 - [ ] Phase 0 — analytics plumbing (UTM scheme, per-channel dashboards)
-- [x] Phase 1 started — first signals run + first Weekly Ledger drafted (2026-07-03, QA PASS pending data refresh)
+- [x] Phase 1 started — first signals run (2026-07-03); Ledger #1 KILLED at QA (synthetic-data provenance); TGRERA reactive take drafted + QA PASS; Ledger on public data queued (ANAROCK vs PropEquity)
 - [ ] Phase 2 (weeks 6–9) — scorecards + posting-time A/B + reactive lane
 - [ ] Phase 3 (week 10+) — City Leaderboard + SEO locality pages (Trulia engine)

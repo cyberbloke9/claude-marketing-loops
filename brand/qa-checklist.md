@@ -18,6 +18,11 @@ Run per asset before publish. Every check is mechanical — pass/fail, no taste 
 - [ ] Critical content inside safe zone (center ~1000×1270 feed; clear of top 250px / bottom 440px on vertical)
 - [ ] Legible when previewed at 360px width
 
+## Data provenance (any asset citing TERREM data) — added 2026-07-03 after Ledger #1 kill
+- [ ] Every published number traced to REAL source rows (source column checked; synthetic/`calibrated_*` rows excluded)
+- [ ] Localities/entities cited have `data_coverage='sufficient'` (≥30 real rows) in the Path A sense
+- [ ] Attribution names the actual source class (registry / listings / index-model) — never call modeled data "transactions"
+
 ## Chart integrity (any asset containing a chart)
 - [ ] One chart, one claim
 - [ ] Y-axis from zero, or break explicitly marked
