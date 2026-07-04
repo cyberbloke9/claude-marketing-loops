@@ -1,0 +1,63 @@
+{
+  "schema_version": "1",
+  "slug": "fx-low-contrast",
+  "surfaces": [
+    {
+      "axis_min": null,
+      "break_disclosed": null,
+      "canvas": {
+        "h": 1920,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            90,
+            727,
+            519,
+            26
+          ],
+          "bg": "#0d3d38",
+          "color": "#57534e",
+          "font_px": 27,
+          "role": "body",
+          "text": "Low contrast body copy on a dark panel.",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            1384,
+            442,
+            17
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 20,
+          "role": "source-stamp",
+          "text": "Source: NewsMeter · orders as of 2026-06-30",
+          "weight": 400
+        },
+        {
+          "bbox": [
+            888,
+            1806,
+            102,
+            19
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 25,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "has_axis": false,
+      "id": "chart-card",
+      "png": "chart-card.png",
+      "role": "chart-card",
+      "zero_based": null
+    }
+  ]
+}

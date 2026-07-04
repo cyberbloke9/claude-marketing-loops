@@ -3,7 +3,7 @@
 Run per asset before publish. Every check is mechanical — pass/fail, no taste debates. A single FAIL blocks publish. Verdict is appended to the asset's `meta.md`.
 
 ## Typography
-- [ ] Headings IBM Plex Sans 600; body Inter 400–500
+- [ ] Headings Inter 600; body Inter 400–500
 - [ ] Headline ≥48px (1080×1080/1350) or ≥36px (story/reel); body ≥24px
 - [ ] No condensed/thin faces on video overlays; no all-lowercase overlay text
 - [ ] Line length 45–90 chars; line height 1.4–1.6×

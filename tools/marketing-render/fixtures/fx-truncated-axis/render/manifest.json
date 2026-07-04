@@ -1,0 +1,77 @@
+{
+  "schema_version": "1",
+  "slug": "fx-truncated-axis",
+  "surfaces": [
+    {
+      "axis_min": 20,
+      "break_disclosed": false,
+      "canvas": {
+        "h": 1920,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            90,
+            329,
+            895,
+            105
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 44,
+          "role": "headline",
+          "text": "Telangana's regulator hit three builders in nine days.",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            726,
+            824,
+            26
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 27,
+          "role": "body",
+          "text": "Jun 22 — R Homes ordered to refund with interest; sales frozen.",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            1384,
+            703,
+            17
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 20,
+          "role": "source-stamp",
+          "text": "Source: NewsMeter · Siasat · Deccan Chronicle · orders as of 2026-06-30",
+          "weight": 400
+        },
+        {
+          "bbox": [
+            888,
+            1806,
+            102,
+            19
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 25,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "has_axis": true,
+      "id": "chart-card",
+      "png": "chart-card.png",
+      "role": "chart-card",
+      "zero_based": null
+    }
+  ]
+}

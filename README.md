@@ -48,3 +48,52 @@ From this directory in Claude Code:
 - [x] Phase 1 started — first signals run (2026-07-03); Ledger #1 KILLED at QA (synthetic-data provenance); TGRERA reactive take drafted + QA PASS; Ledger on public data queued (ANAROCK vs PropEquity)
 - [ ] Phase 2 (weeks 6–9) — scorecards + posting-time A/B + reactive lane
 - [ ] Phase 3 (week 10+) — City Leaderboard + SEO locality pages (Trulia engine)
+
+## Asset Renderer + QA Gate
+
+A deterministic, no-network CLI toolchain under `tools/marketing-render/` renders an
+authored asset folder (`content/<slug>/`) into brand-locked PNGs plus a `manifest.json`,
+then mechanically validates the PNGs + specs against `brand/qa-checklist.md`, emitting a
+machine-readable `qa-verdict.json` and a human verdict block in the asset's `meta.md`.
+
+### Render
+
+Render an asset folder to PNGs and a manifest:
+
+```
+python3 tools/marketing-render/render.py content/2026-07-03-tgrera-enforcement-wave
+```
+
+Writes `content/2026-07-03-tgrera-enforcement-wave/render/{chart-card.png, manifest.json}`.
+
+### Validate
+
+Validate the rendered asset against the QA checklist:
+
+```
+python3 tools/marketing-render/validate.py content/2026-07-03-tgrera-enforcement-wave --checked-on 2026-07-04
+```
+
+Writes `render/qa-verdict.json` and appends the verdict block to `meta.md`.
+Exit `0` = PASS, `1` = FAIL, `2` = usage/precondition error.
+
+### End-to-end acceptance
+
+Prove the whole gate in one run (TGRERA render + validate PASS; every committed
+adversarial fixture FAILs on its named check; the positive-control fixture PASSes):
+
+```
+python3 tools/marketing-render/acceptance.py --checked-on 2026-07-04
+```
+
+Exit `0` iff the full gate holds.
+
+### Determinism & no network
+
+Fonts are vendored under `tools/marketing-render/fonts/` (Inter, SIL OFL, `OFL.txt`
+present). No network is accessed at render or validate time; re-rendering the same input
+yields pixel-identical PNGs (R8). The `--checked-on` date only affects the `checked_on`
+field of `qa-verdict.json`, never the PNG bytes.
+
+For agent-based validation, the `/loop-qa` skill wraps `validate.py`, consuming
+`qa-verdict.json` mechanically.

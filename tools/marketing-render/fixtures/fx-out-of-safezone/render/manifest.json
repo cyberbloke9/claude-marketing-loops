@@ -1,0 +1,35 @@
+{
+  "schema_version": "1",
+  "slug": "fx-out-of-safezone",
+  "surfaces": [
+    {
+      "axis_min": null,
+      "break_disclosed": null,
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            90,
+            21,
+            765,
+            130
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 54,
+          "role": "headline",
+          "text": "Three TGRERA orders in nine days reset builder risk.",
+          "weight": 700
+        }
+      ],
+      "has_axis": false,
+      "id": "carousel-01",
+      "png": "carousel-01.png",
+      "role": "carousel-slide",
+      "zero_based": null
+    }
+  ]
+}

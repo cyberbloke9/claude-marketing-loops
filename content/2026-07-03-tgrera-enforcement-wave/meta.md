@@ -15,3 +15,15 @@ QA: PASS (specs level) — provenance check ✓ (all figures from cited public o
   synthetic-data exposure). Checked by agent (Loop 4) on 2026-07-03.
 Published: —
 ```
+
+<!-- provenance:start -->
+sources: NewsMeter · Siasat · Deccan Chronicle
+terrem_db_numbers: none — public regulator orders only (no TERREM DB numbers used)
+as_of: 2026-06-30
+<!-- provenance:end -->
+
+<!-- qa-verdict:start -->
+QA: PASS
+Failed checks: none
+Checked by: validator-cli on 2026-07-04
+<!-- qa-verdict:end -->

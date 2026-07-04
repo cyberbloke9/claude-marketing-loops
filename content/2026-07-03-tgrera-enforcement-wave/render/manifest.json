@@ -1,0 +1,106 @@
+{
+  "schema_version": "1",
+  "slug": "2026-07-03-tgrera-enforcement-wave",
+  "surfaces": [
+    {
+      "axis_min": null,
+      "break_disclosed": null,
+      "canvas": {
+        "h": 1920,
+        "w": 1080
+      },
+      "chart_ref": null,
+      "elements": [
+        {
+          "bbox": [
+            90,
+            593,
+            895,
+            115
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 44,
+          "role": "headline",
+          "text": "Telangana's regulator hit three builders in nine days.",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            739,
+            875,
+            70
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 27,
+          "role": "body",
+          "text": "Jun 22 — R Homes: ordered to refund Rs 14.95L + 10.7% interest for pre-registration collection; project sales frozen.",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            828,
+            881,
+            70
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 27,
+          "role": "body",
+          "text": "Jun 27 — Maharshi's Estates: penalty proceedings for selling plots in a project that was never registered.",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            917,
+            837,
+            70
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 27,
+          "role": "body",
+          "text": "Jun 30 — Jayatri Infrastructure: refund with interest on a delayed Gopanpally project; 45 days to pay.",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            1380,
+            874,
+            24
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 20,
+          "role": "source-stamp",
+          "text": "Source: NewsMeter · Siasat · Deccan Chronicle · TGRERA orders as of 2026-06-22 / 27 / 30",
+          "weight": 400
+        },
+        {
+          "bbox": [
+            888,
+            1800,
+            102,
+            30
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 25,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "has_axis": false,
+      "id": "chart-card",
+      "png": "chart-card.png",
+      "role": "chart-card",
+      "zero_based": null
+    }
+  ]
+}

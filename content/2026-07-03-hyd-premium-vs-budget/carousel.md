@@ -14,7 +14,8 @@ Body: The city moved in opposite directions by 28 points last quarter. Which dir
 
 **S3 — THE CHART**
 [Diverging bar chart, chart-spec.md]
-Caption: 3-month price change, every tracked locality. Source: TERREM Intelligence · 302,156 Hyderabad transactions · as of 2026-03-08.
+Caption: 3-month price change, every tracked locality.
+Source: TERREM Intelligence · 302,156 Hyderabad transactions · as of 2026-03-08
 
 **S4 — WHAT IT MEANS FOR YOU (P1 language)**
 > The premium core blinked.
@@ -31,9 +32,9 @@ Body: Over 12 months most "falling" localities are still up (Gopanpally: −5.9%
 **S7 — CTA**
 > Check your locality before your next site visit.
 Body: Every locality, every trend, updated continuously. Free.
-Link: intel.terrem.in/markets (UTM per channel — see meta.md)
+Link: intel.terrem.in/markets  <!-- UTM per channel — see meta.md -->
 
 **S8 — SOURCE**
 Source: TERREM Intelligence · 302,156 Hyderabad transactions · as of 2026-03-08
-intel.terrem.in/markets (small, --ink-muted)
+Link: intel.terrem.in/markets  <!-- small, --ink-muted -->
 TERREM wordmark, --accent-deep #0d3d38

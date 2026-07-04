@@ -1,0 +1,49 @@
+{
+  "schema_version": "1",
+  "slug": "fx-11-word-hook",
+  "surfaces": [
+    {
+      "axis_min": null,
+      "break_disclosed": null,
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            90,
+            211,
+            765,
+            130
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 54,
+          "role": "headline",
+          "text": "Three TGRERA orders in nine days reset builder risk.",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            710,
+            896,
+            114
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 48,
+          "role": "hook",
+          "text": "This hook has exactly eleven words to trip the counter now",
+          "weight": 700
+        }
+      ],
+      "has_axis": false,
+      "id": "carousel-01",
+      "png": "carousel-01.png",
+      "role": "carousel-slide",
+      "zero_based": null
+    }
+  ]
+}

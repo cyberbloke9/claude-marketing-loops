@@ -1,0 +1,274 @@
+{
+  "schema_version": "1",
+  "slug": "fx-size-lie",
+  "verdict": "FAIL",
+  "checked_on": "2026-07-04",
+  "checked_by": "validator-cli",
+  "checks": [
+    {
+      "id": "V2-canvas",
+      "surface": "chart-card",
+      "status": "PASS",
+      "detail": "1080x1920 matches format",
+      "rule": "qa-checklist.md §Layout"
+    },
+    {
+      "id": "V3-ink",
+      "surface": "chart-card",
+      "status": "PASS",
+      "detail": "2085 ink px >= 50",
+      "rule": "spec §5.2 V3",
+      "element_bbox": [
+        90,
+        325,
+        431,
+        22
+      ]
+    },
+    {
+      "id": "V4-contrast",
+      "surface": "chart-card",
+      "status": "PASS",
+      "detail": "ratio 16.48:1 >= 3.0:1 (large)",
+      "rule": "brand-kit.md §3",
+      "element_bbox": [
+        90,
+        325,
+        431,
+        22
+      ]
+    },
+    {
+      "id": "V5-floor",
+      "surface": "chart-card",
+      "status": "PASS",
+      "detail": "font_px 44 >= 36",
+      "rule": "qa-checklist.md §Typography",
+      "element_bbox": [
+        90,
+        325,
+        431,
+        22
+      ]
+    },
+    {
+      "id": "V5-crosscheck",
+      "surface": "chart-card",
+      "status": "FAIL",
+      "detail": "declared 44px vs measured ~24.1px (band 20px) outside +/-25%",
+      "rule": "spec §5.2 V5",
+      "element_bbox": [
+        90,
+        325,
+        431,
+        22
+      ]
+    },
+    {
+      "id": "V6-safezone",
+      "surface": "chart-card",
+      "status": "PASS",
+      "detail": "within safe zone",
+      "rule": "qa-checklist.md §Layout",
+      "element_bbox": [
+        90,
+        325,
+        431,
+        22
+      ]
+    },
+    {
+      "id": "V3-ink",
+      "surface": "chart-card",
+      "status": "PASS",
+      "detail": "1073 ink px >= 50",
+      "rule": "spec §5.2 V3",
+      "element_bbox": [
+        90,
+        1384,
+        442,
+        17
+      ]
+    },
+    {
+      "id": "V4-contrast",
+      "surface": "chart-card",
+      "status": "PASS",
+      "detail": "ratio 7.19:1 >= 4.5:1 (normal)",
+      "rule": "brand-kit.md §3",
+      "element_bbox": [
+        90,
+        1384,
+        442,
+        17
+      ]
+    },
+    {
+      "id": "V5-floor",
+      "surface": "chart-card",
+      "status": "skipped",
+      "detail": "role 'source-stamp' exempt from size floor",
+      "rule": "qa-checklist.md §Typography",
+      "element_bbox": [
+        90,
+        1384,
+        442,
+        17
+      ]
+    },
+    {
+      "id": "V5-crosscheck",
+      "surface": "chart-card",
+      "status": "PASS",
+      "detail": "declared 20px vs measured ~18.1px (band 15px) within +/-25%",
+      "rule": "spec §5.2 V5",
+      "element_bbox": [
+        90,
+        1384,
+        442,
+        17
+      ]
+    },
+    {
+      "id": "V6-safezone",
+      "surface": "chart-card",
+      "status": "skipped",
+      "detail": "role 'source-stamp' exempt from safe zone",
+      "rule": "qa-checklist.md §Layout",
+      "element_bbox": [
+        90,
+        1384,
+        442,
+        17
+      ]
+    },
+    {
+      "id": "V3-ink",
+      "surface": "chart-card",
+      "status": "PASS",
+      "detail": "804 ink px >= 50",
+      "rule": "spec §5.2 V3",
+      "element_bbox": [
+        888,
+        1806,
+        102,
+        19
+      ]
+    },
+    {
+      "id": "V4-contrast",
+      "surface": "chart-card",
+      "status": "PASS",
+      "detail": "ratio 11.36:1 >= 3.0:1 (large)",
+      "rule": "brand-kit.md §3",
+      "element_bbox": [
+        888,
+        1806,
+        102,
+        19
+      ]
+    },
+    {
+      "id": "V5-floor",
+      "surface": "chart-card",
+      "status": "skipped",
+      "detail": "role 'wordmark' exempt from size floor",
+      "rule": "qa-checklist.md §Typography",
+      "element_bbox": [
+        888,
+        1806,
+        102,
+        19
+      ]
+    },
+    {
+      "id": "V5-crosscheck",
+      "surface": "chart-card",
+      "status": "PASS",
+      "detail": "declared 25px vs measured ~21.7px (band 18px) within +/-25%",
+      "rule": "spec §5.2 V5",
+      "element_bbox": [
+        888,
+        1806,
+        102,
+        19
+      ]
+    },
+    {
+      "id": "V6-safezone",
+      "surface": "chart-card",
+      "status": "skipped",
+      "detail": "role 'wordmark' exempt from safe zone",
+      "rule": "qa-checklist.md §Layout",
+      "element_bbox": [
+        888,
+        1806,
+        102,
+        19
+      ]
+    },
+    {
+      "id": "V8-source-stamp",
+      "surface": "chart-card",
+      "status": "PASS",
+      "detail": "source-stamp carries source + date",
+      "rule": "qa-checklist.md §Chart integrity",
+      "element_bbox": [
+        90,
+        1384,
+        442,
+        17
+      ]
+    },
+    {
+      "id": "V10-chart-integrity",
+      "surface": "chart-card",
+      "status": "skipped",
+      "detail": "no plotted axis (has_axis=false) — N/A",
+      "rule": "qa-checklist.md §Chart integrity"
+    },
+    {
+      "id": "V7-hook-words",
+      "surface": "asset",
+      "status": "skipped",
+      "detail": "no hook element (no carousel slide-1) — N/A",
+      "rule": "qa-checklist.md §Carousel"
+    },
+    {
+      "id": "V9-blacklist",
+      "surface": "asset",
+      "status": "PASS",
+      "detail": "no blacklisted stats (5 phrases scanned)",
+      "rule": "brand-kit.md §8"
+    },
+    {
+      "id": "V11-provenance",
+      "surface": "asset",
+      "status": "PASS",
+      "detail": "attestation block present with sources/terrem_db_numbers/as_of",
+      "rule": "qa-checklist.md §Data provenance"
+    }
+  ],
+  "failed_checks": [
+    {
+      "id": "V5-crosscheck",
+      "surface": "chart-card",
+      "detail": "declared 44px vs measured ~24.1px (band 20px) outside +/-25%",
+      "rule": "spec §5.2 V5"
+    }
+  ],
+  "needs_review": [
+    {
+      "prompt": "Every published number traced to REAL source rows (source column checked; synthetic/`calibrated_*` rows excluded)",
+      "rule": "qa-checklist.md §Data provenance"
+    },
+    {
+      "prompt": "Localities/entities cited have `data_coverage='sufficient'` (≥30 real rows) in the Path A sense",
+      "rule": "qa-checklist.md §Data provenance"
+    },
+    {
+      "prompt": "Attribution names the actual source class (registry / listings / index-model) — never call modeled data \"transactions\"",
+      "rule": "qa-checklist.md §Data provenance"
+    }
+  ]
+}

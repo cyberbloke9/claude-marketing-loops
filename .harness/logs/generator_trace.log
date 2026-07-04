@@ -1,0 +1,283 @@
+
+[2026-07-04 09:30]
+Action: CONTRACT mode — authored Sprint 001 contract (measurement core: WCAG contrast, large/normal threshold, type-size minimums, glyph-size band, safe-zone containment, token validation, single-source blacklist parser). Pure Python stdlib, no rendering, no network.
+Files changed: .harness/sprints/sprint_001/contract.md (created)
+Command: read spec.md, brand/brand-kit.md, brand/qa-checklist.md; hand-computed WCAG luminance for anchor pairs.
+Result: contract PROPOSED, ready to route to Evaluator.
+Evidence path/output: Verified by hand-computation that WCAG contrast(#1c1917,#faf8f3) ≈ 16.48:1 (NOT the brand-kit's approximate "~13:1"); (#0f766e,#faf8f3) ≈ 5.15:1; (#0d9488,#faf8f3) ≈ 3.53:1 — a clean large/normal boundary anchor. Contract requires the WCAG formula, not brand-kit annotations.
+Known risk: (a) unittest discover fails on hyphenated 'marketing-render' dir if __init__.py present — contract now forbids __init__.py and mandates sys.path insert in test file. (b) size_consistent measured_px must be em-scale not cap-height or a truthful render false-fails in S004 — contract records this seam note. (c) 'hook'→headline-minimum is a defensible extrapolation of V5 via brand-kit §6.
+Next: BUILD after Evaluator accepts contract.
+
+[2026-07-04 09:20]
+Action: BUILD Sprint 001 — Measurement core (pure, unit-tested, no rendering).
+Files changed:
+  - tools/marketing-render/measure.py (new; pure measurement library, stdlib-only, import: re)
+  - tools/marketing-render/tests/test_measure.py (new; 43 stdlib unittest cases)
+Command / Result:
+  (1) python3 -m unittest discover -s tools/marketing-render/tests -v
+      -> Ran 43 tests, OK (exit 0)
+  (2) import-purity AST check (allowed stdlib set)
+      -> imports: ['re']; purity exit: 0
+  (3) determinism: unittest run twice -> tail identical ('OK' / 'OK')
+  (4) §6 Evaluator adversarial attack script (independent asserts)
+      -> "OK — all measurement-core assertions passed"; attack exit: 0
+Evidence:
+  - contrast_ratio(#1c1917,#faf8f3) in [16.0,17.0] (WCAG ~16.5, not brand-kit's ~13 annotation)
+  - contrast symmetric; identical color -> 1.0; white/black -> 21.0
+  - is_large_text boundaries: 24/400 True, 23.9/400 False, 18.5/700 True, 18.5/400 False
+  - contrast_check passes on raw ratio (not rounded); ratio field display-rounded to 2dp
+  - type_min_ok: carousel headline/hook >=48, chart-card headline >=36, body >=24; source-stamp/wordmark/chart-label exempt
+  - size_consistent ±25% band: (48,45) True, (48,24) False
+  - safe_zone_ok: carousel [40..1040]x[40..1310] fits, +1px over bottom fails; vertical y[250..1480]
+  - parse_blacklist(brand/brand-kit.md) -> exactly 5 verbatim phrases (en-dash preserved), missing '## 8' -> ValueError
+  - scan_blacklist case/dash/whitespace-insensitive; clean copy -> []
+  - normalize_hex rejects #12, ' zzz', #1234567, 12g4f6, #fff (3-digit), non-str -> ValueError
+Known risk:
+  - size_consistent is band-math only; the measured_px em-scale mapping is a Sprint 004 seam (documented in docstring). Not exercisable end-to-end this sprint.
+  - normalize_for_scan collapses whitespace but does not strip leading/trailing (per contract wording); harmless for substring scans.
+Non-goals honored: no PNG/Pillow/fonts, no manifest, no CLI, no README, no edits to brand/content/other tools. __pycache__ artifacts removed.
+Next: Sprint 002 — carousel renderer + manifest.
+
+[2026-07-04 09:24]
+Action: Post-review hardening (advisor).
+Files changed:
+  - tools/marketing-render/tests/test_measure.py (added test_not_hardcoded_parses_synthetic_section)
+Command / Result: python3 -m unittest discover -s tools/marketing-render/tests -> Ran 44 tests, OK (exit 0)
+Note: contract §9 says "four files"; §2 lists exactly two (measure.py + test_measure.py). Built to §2 — the two named files. §9 wording is a typo, no missing files.
+Evidence: new test proves parse_blacklist is single-source (a synthetic '## 8' with different quoted phrases returns exactly those, not the brand-kit constants).
+
+[2026-07-04 09:45]
+Action: CONTRACT mode — authored Sprint 002 contract (Carousel renderer + manifest). Python + Pillow deterministic raster; vendored Inter; locked tokens; §5.3 manifest emission; decoded-RGBA determinism; anti-stub ink check; CLI + fail-loud error states.
+Files changed: .harness/sprints/sprint_002/contract.md (created)
+Command: read spec.md, brand-kit.md, qa-checklist.md, sprint_001 contract/findings, measure.py, existing carousel.md/chart-spec.md/meta.md/TEMPLATE.md; probed Pillow/freetype; verified Inter weights (400/500/600/700) + glyph coverage (₹ − ≠ — – curly-quotes • all PRESENT) empirically; confirmed no OFL bundled (write standard SIL OFL 1.1, no network).
+Result: contract PROPOSED, ready to route to Evaluator.
+Evidence path/output:
+  - Pillow 11.3.0, freetype2 True, raqm False (Latin-only Inter fine).
+  - Inter static TTFs at local ruflo path (SHA-256 pinned in contract §2.1); vendor via LOCAL COPY (not network) -> R4 satisfied.
+  - Empirical glyph probe: all special chars in hyd copy render real glyphs (not .notdef).
+  - Advisor consulted before writing: steered parse-vs-normalize to MIDDLE PATH (canonical grammar matching existing conventions + 3 minimal copy-preserving edits, not a wholesale rewrite); set bbox convention (em_height=1.2*font_px, resolves Sprint 001 Risk-4 cap-height false-fail seam); baked V3 anti-stub ink check into THIS sprint's Evaluator script; chart-in-carousel declared non-goal (Sprint 003).
+Known risk:
+  (a) hyd asset is KILLED on provenance — contract states Sprint 002 proves RENDER correctness only, not a QA PASS (that would fail V11 in S004). Scope-honesty note added so Evaluator doesn't mis-score.
+  (b) OFL.txt written from standard SIL OFL 1.1 text at BUILD (no network) — must confirm exact license body during BUILD; not a blocker (redistributable, well-known).
+  (c) Sprint 004 V5 em-recovery relies on re-wrapping via shared layout module (no extra manifest field) — seam documented; must land the shared wrap import in S004.
+  (d) Determinism is same-machine (freetype version-sensitive); R8 is same-machine re-render per spec — decoded-RGBA SHA-256 check used (immune to PNG-container variance).
+Next: BUILD Sprint 002 after Evaluator accepts contract.
+
+[2026-07-04 00:00]
+Action: CONTRACT mode revision — sprint 002 contract rejected; applied both contract_review.md fixes in place.
+Files changed: /Users/prithviputta/Downloads/terrem-marketing-loops/.harness/sprints/sprint_002/contract.md
+Command: (contract edit only, no code)
+Result:
+  - CR-001 (Blocker): removed dead `bgc` line (the `__import__('random')...if False else` obfuscation), replaced with deterministic strided sample `bgc=sum(... near(px[(7*_)%W,(13*_)%H], BG))` and added `assert bgc >= 1800` per surface (90% bg-dominance gate). Closes the wrong/omitted/gradient-background loophole that V3 (ink-present) does not cover.
+  - CR-002 (High): added exact-text assertion block to §9 attack script — `expected` dict enumerates every authored (role,text) pair for all 8 slides from §5, matched by (role,text) membership (handles slides with two body elements) plus a per-slide element-count check to reject phantom/dropped text. Enforces §5 "MUST contain" claim that previously had zero enforcement.
+  - Updated final OK print line to include bg-dominance + exact-copy.
+Evidence path/output: /Users/prithviputta/Downloads/terrem-marketing-loops/.harness/sprints/sprint_002/contract.md §9
+Known risk: exact-text assertions hardcode §5 copy; if authoring copy in carousel.md legitimately changes, both §5 and the expected dict must move together (single-sprint scope, acceptable).
+Next: await re-review of contract.md; on ACCEPT proceed to BUILD.
+
+[2026-07-04 10:12]
+Action: BUILD Sprint 002 — carousel renderer + manifest (contract fully implemented)
+Files changed:
+  CREATED tools/marketing-render/render.py
+  CREATED tools/marketing-render/fonts/Inter-Regular.ttf (sha256 16: 3127f0b873387ee3)
+  CREATED tools/marketing-render/fonts/Inter-Medium.ttf  (sha256 16: a645f55492d1c8cd)
+  CREATED tools/marketing-render/fonts/Inter-SemiBold.ttf(sha256 16: b0b540e69bf67170)
+  CREATED tools/marketing-render/fonts/Inter-Bold.ttf    (sha256 16: 412c068eab6f36e6)
+  CREATED tools/marketing-render/fonts/OFL.txt (SIL OFL 1.1, Inter copyright)
+  CREATED tools/marketing-render/tests/test_render.py
+  MODIFIED content/2026-07-03-hyd-premium-vs-budget/carousel.md (the 3 s3.4 disambiguation edits only)
+  GENERATED (by tool, not source) content/2026-07-03-hyd-premium-vs-budget/render/carousel-0[1-8].png + manifest.json
+Font provenance: TTFs copied locally from the machine's ruflo fonts dir into the repo's
+  fonts/ (local file copy, NOT a network fetch — R4 satisfied). render.py loads fonts ONLY
+  from fonts/ resolved via __file__; source contains no /opt/homebrew, /System/Library, /Library path.
+Command: python3 -m unittest discover -s tools/marketing-render/tests -v
+Result: Ran 70 tests ... OK (exit 0). Covers parse, style-assignment, layout/safe-zone,
+  glyph-guard, font SHA pin, and all error states with no-partial-write assertions.
+Command: python3 tools/marketing-render/render.py content/2026-07-03-hyd-premium-vs-budget
+Result: exit 0 — wrote 8x carousel-0N.png (1080x1350) + manifest.json under render/, nowhere else.
+Command: §8(2) determinism (render twice, decoded-RGBA + manifest SHA-256 compare)
+Result: "DETERMINISTIC — decoded-RGBA + manifest identical across re-render" (cross-process).
+Command: §8(3) import purity
+Result: imports = [PIL, argparse, json, math, measure, pathlib, re, sys] — exit 0 (subset of allowed).
+Command: §8(4) fonts vendored + no external font path
+Result: "fonts vendored, OFL present, no external font path".
+Command: §9 adversarial attack script (dims/tokens/schema/bg-dominance/exact-copy/one-hook/
+  hook<=10w/safe-zones/ink-present)
+Result: "OK — ... all hold".
+Evidence path/output: manifest at content/2026-07-03-hyd-premium-vs-budget/render/manifest.json;
+  visual inspection of carousel-05 (₹, en-dashes, · render; bold headline; muted body) and
+  carousel-08 (muted link since wordmark present; TERREM wordmark accent-deep bottom-right).
+Known risk: Inter raster is Pillow/freetype-version sensitive; determinism holds for identical
+  input on THIS toolchain (Pillow 11.3.0). Font SHA pin test guards byte drift. bbox h is
+  formula-derived (em_height=1.2*font_px) per s4.5 seam; Sprint 004 re-wraps to recover n_lines.
+  .gitignore NOT modified (scope §2 lists only carousel.md as modified; not a git repo here).
+Next: Sprint 003 — chart-card renderer + TGRERA chart-spec.md.
+
+[2026-07-04 10:15]
+Action: Re-verify §8(2) determinism on FINAL code (post source-stamp-prefix fix)
+Command: §8(2) render twice, compare decoded-RGBA + manifest SHA-256 (cross-process)
+Result: "DETERMINISTIC (final code) — manifest sha: 9fdc805fe008879a" — matches shipped bytes.
+Note: source-stamp fix (stores full "Source: ..." line) is determinism-neutral; confirmed here.
+
+[2026-07-04 10:40]
+Action: CONTRACT mode — authored Sprint 003 contract (chart-card renderer + TGRERA receipts chart-spec).
+Files changed: .harness/sprints/sprint_003/contract.md (created)
+Command: read spec.md, sprint_002 contract+findings, render.py, measure.py, TGRERA meta/script, hyd chart-spec, test_render.py
+Result: Contract PROPOSED. Scoped to has_axis:false receipts card only; plotted-axis engine declared explicit non-goal (advisor-confirmed: no required downstream test renders a plotted axis; R8 determinism risk with zero payoff). Chart-card trigger = explicit 'Surface: chart-card' marker so hyd's old free-form chart-spec is skipped (byte-identical hyd non-regression). render_asset generalized so missing carousel.md is non-fatal when a chart-spec is present. Enumerated exact 6-element manifest; vertical safe-zone fit by construction (band [280,1300] within [250,1480]); source-stamp+wordmark R6; reused Sprint002 determinism/atomicity/anti-tofu. §8 commands + §9 attack script + §8.3 hyd non-regression probe provided.
+Evidence path/output: .harness/sprints/sprint_003/contract.md
+Known risk: (1) merged main()/render_asset flow must not regress Sprint002 carousel tests — mitigated: empty-folder still exits 1, hyd renders only carousel; new tests in separate test_chart_card.py leaving test_render.py untouched. (2) order-line wrap must fit the [280,1300] band — BUILD must verify actual fit (fail-loud overflow specified). (3) currency rendered as 'Rs' not ₹ to dodge glyph risk — declared.
+Next: await contract_review.md routing; then BUILD.
+
+[2026-07-04 10:40]
+Action: BUILD Sprint 003 — chart-card renderer + TGRERA receipts chart-spec.
+Files changed:
+  - content/2026-07-03-tgrera-enforcement-wave/chart-spec.md (NEW; has_axis:false receipts card, §4 exact copy)
+  - tools/marketing-render/render.py (MODIFIED additively: chart-card constants/styles, parse_chart_spec, _layout_chart_card, render_chart_card, generalized render_asset for carousel and/or chart card)
+  - tools/marketing-render/tests/test_chart_card.py (NEW; 24 tests)
+  - render outputs (tool-written): content/2026-07-03-tgrera-enforcement-wave/render/{chart-card.png,manifest.json}
+  measure.py + test_render.py byte-untouched (SHA verified); hyd asset source files untouched.
+Command: python3 -m unittest discover -s tools/marketing-render/tests -v
+Result: Ran 93 tests, OK (69 Sprint-001/002 + 24 new chart-card).
+Command: python3 tools/marketing-render/render.py content/2026-07-03-tgrera-enforcement-wave
+Result: exit 0; wrote render/chart-card.png + render/manifest.json only.
+Evidence path/output:
+  - §9 attack script -> "OK — dims, tokens, schema, bg-dominance, type-min, vertical safe-zone, anti-stub ink, source-stamp+date, wordmark right-anchored, exact-copy all hold"
+  - §8(2) determinism -> "DETERMINISTIC — decoded-RGBA + manifest identical across re-render"
+  - §8(3) hyd non-regression -> "HYD intact — 8 carousel surfaces, no chart card"
+  - §8(4) import purity exit 0; imports: PIL, argparse, json, math, measure, pathlib, re, sys
+  - visual read of chart-card.png: bold ink headline (2 lines), 3 ink receipts, muted source stamp w/ dates, accent-deep TERREM wordmark bottom-right, flat cream bg
+Known risk:
+  - Fence-parsing rule: when chart-spec.md has a fenced block, only inside-fence lines are parsed (outside-fence prose/title ignored, not fail-loud). §3.5 garbage-line fail-loud is proven only for garbage INSIDE the fence (test_unparseable_line_in_fence_rejected). No §8/§9 test exercises outside-fence garbage; a clean authored file never hits it. Flagged, not blocking.
+  - _assert_glyphs receives "chart-card" as its slide_no arg, so a tofu message reads "on slide chart-card role <r>" — names surface+role+char (fail-loud intact) but reuses the "slide" wording (kept func signature unchanged to avoid touching carousel path).
+Next: Sprint 004 validator consumes this chart-card manifest (V2–V12); provenance/meta.md verdict + qa-checklist Inter edit are Sprint 004.
+
+[2026-07-04 11:05]
+Action: CONTRACT mode — authored Sprint 004 contract (Validator CLI + verdict, V2-V12).
+Files changed: .harness/sprints/sprint_004/contract.md (created)
+Command: read spec.md, s003 findings/contract, measure.py, render.py CLI, TGRERA manifest.json + meta.md, brand/qa-checklist.md, brand/brand-kit.md §8, loop-qa SKILL.md; advisor() consulted before authoring.
+Result: Contract written. Pins the load-bearing decisions: V3 ink-present (pixel, calibrated INK_TOL/INK_MIN_PX vs blank fixture); V5 glyph cross-check measured from PNG pixels (per-line median ink band / K_INTER, ±25%, 2x-lie discrimination) NOT manifest-vs-manifest; V4 stays on declared hex; meta.md verdict block idempotent via delimited markers; V11 provenance grammar pinned (provenance:start/end block, keys sources/terrem_db_numbers/as_of); applicability gating (V7/V10 skipped for TGRERA, not FAIL/silent); qa-verdict.json to §5.4 with --checked-on override for determinism; Inter precedence corrects qa-checklist.md IBM Plex line, no font-family raster check. Scope: validator + fail-path fixtures IN; 005 adversarial content assets, README wiring, loop-qa skill update OUT.
+Evidence path/output: contract at .harness/sprints/sprint_004/contract.md
+Known risk: V5 K_INTER + V3 thresholds require empirical calibration on real render (disclosed §12 R-A/R-B) — a BUILD-time concern, must be measured not guessed.
+Next: await Evaluator contract_review.md; then BUILD validate.py + fixtures + tests.
+
+[2026-07-04 —]
+Action: BUILD Sprint 004 — Validator CLI + verdict (V2–V12).
+Files changed:
+  + tools/marketing-render/validate.py (validator CLI)
+  + tools/marketing-render/tests/test_validate.py (fail-path unittest, 24 new test methods)
+  + tools/marketing-render/fixtures/make_fixtures.py (deterministic fixture generator)
+  + tools/marketing-render/fixtures/fx-* (12 fixtures: 11 fail-one-check + fx-good-min PASS)
+  ~ brand/qa-checklist.md (Risk 1: "Headings IBM Plex Sans 600" -> "Headings Inter 600")
+  ~ content/2026-07-03-tgrera-enforcement-wave/meta.md (added provenance:start/end block)
+  Not modified: measure.py, render.py, test_render.py, test_chart_card.py, test_measure.py.
+Calibration (measured on the real S003 TGRERA render, chart-card.png):
+  INK_TOL=60 (Euclidean RGB). INK_MIN_PX=50. Real element ink counts:
+    headline 13186 | body 6366/5928/5670 | source-stamp 2045 | wordmark 804 (smallest, 16x margin) | blank crop 0.
+  K_INTER=0.83. Measured band/font_px ratios: headline 0.955, body 0.926,
+    source-stamp 0.850, wordmark(all-caps) 0.720. With K=0.83 every real element's
+    effective_px lands inside +/-25% (wordmark 0.867, headline 1.151 — tightest, both clear);
+    a 2x-declared and 0.5x-declared font_px both fall outside the band (fx-size-lie proves it).
+  BAND_GAP=3 blank rows separate text-line ink bands.
+Command: python3 tools/marketing-render/validate.py content/2026-07-03-tgrera-enforcement-wave --checked-on 2026-07-04
+Result: exit 0; "VERDICT: PASS (36 checks, 0 failed, 6 skipped)"; V7 + V10 recorded skipped (N/A for has_axis:false chart-card, no hook).
+Command: python3 -m unittest discover -s tools/marketing-render/tests -v
+Result: Ran 117 tests — OK. Suite total 117 = 93 pre-existing (S001/002/003) + 24 new.
+  No-regression proof: only NEW file added (test_validate.py); the two source edits touched
+  qa-checklist.md + TGRERA meta.md only (no existing test file modified), and the FULL suite
+  ran green AFTER those edits — empirically closing the risk that the "IBM Plex Sans"->"Inter"
+  line edit or the meta provenance block broke any pre-existing test asserting old content.
+Note on qa-verdict.json checks[] order: emitted in deterministic generation order
+  (surface -> element -> check-id). §5.4's "surface, then check id, then element" tuple order
+  is underspecified for asset-level (V7/V9/V11, surface="asset") and element-less surface checks
+  (V2/V8/V10) which carry no element index; generation-order is the deterministic realization
+  (proven byte-identical across runs by the determinism test + Evaluator probe).
+Command: for fx in fixtures/fx-*: python3 validate.py <fx>
+Result: each fx-* exits 1 failing exactly its intended check (V2..V11) with rule cited; fx-good-min exits 0 PASS. Isolation verified: every fx fails only its one check family (fx-blank-png fails V3 on all 4 elements).
+Evidence:
+  - TGRERA qa-verdict.json verdict=PASS, failed_checks=[], needs_review=3 provenance prompts.
+  - Idempotency: two runs -> meta.md has exactly one qa-verdict block + one provenance block; qa-verdict.json byte-identical.
+  - Error states: nonexistent folder / deleted manifest / non-token color all exit 2 with named path/field on stderr.
+  - Purity probe: validate.py imports {PIL, argparse, datetime, json, measure, pathlib, re, sys} — NO network module.
+  - Acceptance #7: source-stamp #57534e/#faf8f3 @20px/400 treated as normal text (threshold 4.5), passes 7.19:1 (exempt from size floor, NOT from contrast).
+Known risk:
+  - R-A: K_INTER/±25% band calibrated on TGRERA glyph mix; extreme all-caps/all-descender assets could drift effective_px (mitigated by wide band + 2x discrimination target).
+  - R-C: V8 date detection is regex presence (ISO + "Mon DD"), not a date parser; exotic formats could miss.
+  - V9 scans carousel/script/chart-spec + manifest text only (NOT meta.md — it receives appended blocks, circular).
+Next: Sprint 005 — adversarial content asset folders, README wiring, /loop-qa skill update, cross-fixture end-to-end.
+
+[2026-07-04 12:05]
+Action: CONTRACT mode — authored Sprint 005 contract (final sprint: adversarial fixtures + wiring + end-to-end acceptance).
+Files changed: .harness/sprints/sprint_005/contract.md (created)
+Command: (exploration) find tools/content; read spec §11 + S004 contract/findings; grep render.py guards; advisor()
+Result: Contract written. Scope fixed to 3 genuinely-new deliverables + one acceptance run:
+  (1) README "Asset Renderer + QA Gate" section (runnable render/validate/acceptance cmds);
+  (2) /loop-qa SKILL.md rewrite to invoke validate.py + consume qa-verdict.json (content-based verification, stated);
+  (3) tools/marketing-render/acceptance.py end-to-end runner (fresh-render TGRERA PASS + R8 hash determinism; 5 named fixtures FAIL on the RIGHT check+rule; fx-good-min PASS) + test_acceptance.py.
+Key exploration finding (load-bearing, documented in contract §0.1): render.py is compliant-by-construction —
+  it raises ValueError on has_axis:true (L343-347), requires a source element (L357-358), locks tokens per role,
+  never emits blank. So 4/5 adversarial cases CANNOT round-trip the real renderer. The S004 contract promised
+  "real content/ adversarial folders" for S005; that is physically impossible for those 4. Resolved per spec's
+  own language (§1/§11 call them "fixtures"; end-to-end reserved for TGRERA): consume the committed S004 fixtures,
+  do NOT author new content/ adversarial folders, do NOT gut renderer guards.
+Advisor guidance applied: dropped the render-through 11-word-hook content asset (scope creep); consume committed
+  fixtures (no make_fixtures regeneration as a gate step); fresh-render TGRERA as positive path + R8 proof; fixed
+  --checked-on; skill verification declared content-based; auto-render-only-when-render/-absent decided explicitly.
+Evidence path/output: .harness/sprints/sprint_005/contract.md
+Known risk: R-A S004-contract discrepancy vs spec plain reading (contract argues spec governs, cites render.py lines);
+  R-B exact validator id/rule strings read from real qa-verdict.json, not guessed; R-C skill non-executable;
+  R-D determinism is on-stack (vendored fonts, no network), matching prior sprints' scope.
+Next: await contract_review.md; on ACCEPT proceed to BUILD.
+
+[2026-07-04 10:20]
+Action: CONTRACT mode — revised sprint_005/contract.md in place per contract_review.md (REJECT: 3 blockers, 4 high).
+Files changed: .harness/sprints/sprint_005/contract.md
+Command: dumped every committed fixture qa-verdict.json failed_checks id/rule via python3; grep'd validate.py/render.py argparse + exit codes.
+Result:
+  B-001 fixed — corrected V7-hook -> V7-hook-words; removed all wildcard notation (V8-*, V10-*) in favor of literal full check ids.
+  B-002 fixed — added complete normative 12-row expectation table (fixture, expected_exit, expected_check_id, expected_rule_substring, tier); stated ALL 12 mandatory.
+  B-003 fixed — added §4.1 exact README text with three fenced commands (real slug 2026-07-03-tgrera-enforcement-wave, --checked-on 2026-07-04) + exit-code line + determinism/no-network + /loop-qa note.
+  H-001 fixed — Option B: pinned baseline --checked-on 2026-07-04 (matches committed fixture checked_on); documented PNG determinism is date-independent, JSON byte-identity only at baseline date (R-E).
+  H-002 fixed — §5 rewritten into 6 grep-testable behaviors with exact phrases + accepted equivalents; §7 step 5 enumerates (a)-(f).
+  H-003 fixed — §8 purity probe is now a complete runnable heredoc AST scan (exit 0 PASS / 1 FAIL).
+  H-004 fixed — moved adversarial fixture-vs-end-to-end boundary from old §0.1 into §2.2 as an upfront design-choice scope boundary; deleted the "during exploration found impossible" framing.
+Evidence path/output: ground-truth check ids confirmed exact against committed fixtures: V7-hook-words, V10-chart-integrity, V4-contrast, V8-source-stamp, V3-ink, V5-crosscheck, V5-floor, V6-safezone, V9-blacklist, V11-provenance, V2-canvas; fx-good-min PASS.
+Known risk: R-A (S004 aspiration vs spec fixtures reading) is the contestable point; R-D determinism is on-stack only.
+Next: await CONTRACT_REVIEW re-review; if accepted, BUILD acceptance.py + test_acceptance.py + README section + loop-qa SKILL.md rewrite.
+
+[2026-07-04 11:59]
+Action: BUILD Sprint 005 — adversarial fixtures wiring + end-to-end acceptance runner + /loop-qa rewrite + README section.
+Files changed:
+  - tools/marketing-render/acceptance.py (NEW, stdlib-only end-to-end runner)
+  - tools/marketing-render/tests/test_acceptance.py (NEW, 22 unittest cases for runner decision logic + purity)
+  - .claude/skills/loop-qa/SKILL.md (rewritten: mechanical validate.py wrapper, all six s5 behaviors)
+  - README.md (added "## Asset Renderer + QA Gate" section, verbatim per contract s4.1)
+Command / Result:
+  - python3 -m unittest discover -s tools/marketing-render/tests -> Ran 139 tests, OK (S001-004 unchanged + 22 new).
+  - python3 tools/marketing-render/acceptance.py --checked-on 2026-07-04 -> exit 0, "ACCEPTANCE: PASS (14/14 expectations met)".
+    TGRERA re-render pixel-identical (R8), TGRERA validate PASS, all 12 fixtures hit expected check+rule per s6.2 table.
+  - Purity AST probe -> "PASS: no network imports", exit 0.
+  - Determinism: chart-card.png SHA-256 stable across two acceptance runs (91f8407f...); tracked PNG only ?? (untracked), no byte drift.
+  - README commands runnable as written: render exit 0, validate exit 0 PASS, acceptance exit 0.
+  - SKILL.md six-item grep: (a)-(f) all OK.
+Evidence path/output:
+  - Verdict JSONs under tools/marketing-render/fixtures/fx-*/render/qa-verdict.json (real emitted id/rule strings match table).
+  - content/2026-07-03-tgrera-enforcement-wave/render/{chart-card.png,manifest.json,qa-verdict.json}.
+Tamper probes (contract s8):
+  - Tamper1: deleted fx-11-word-hook/render/qa-verdict.json -> acceptance regenerated it (validate.py re-invoked), row still PASS. Confirmed not trusting stale file.
+  - Tamper2: scratch copy with fx-11-word-hook expected_check_id flipped to V4-contrast -> runner exit 1, "some FAIL" rejected, only the NAMED FAIL accepted.
+Scope: measure.py/render.py/validate.py/make_fixtures.py + prior test_*.py byte-unchanged (mtimes pre-11:58); no new content/ adversarial folders; no writes outside repo.
+Known risk:
+  - R8 determinism is on-stack (this machine's Pillow/font build); documented in contract R-D. Different Pillow build could shift PNG bytes.
+  - qa-verdict.json byte-identity to committed fixtures holds only at --checked-on 2026-07-04 (baseline); other dates change only checked_on field.
+  - acceptance.py appends idempotent verdict block to fixture meta.md (markers) and TGRERA meta.md on each run — no growth, but meta.md bytes are run-touched (not PNG).
+Next: hand to Evaluator; primary attack surface is the CLI + acceptance runner per contract s7/s8.
+
+[2026-07-04 12:05]
+Action: REPAIR (self, pre-handoff) — advisor flagged --verbose as a dead flag (parsed, never read). Threaded verbose through run_validate/run_tgrera/run_fixtures/run_gate so it echoes invoked validate.py stdout under each row; default terse rows unchanged.
+Files changed: tools/marketing-render/acceptance.py (run_validate now returns stdout; --verbose help text updated to describe real behavior).
+Command / Result:
+  - python3 -m unittest discover -s tools/marketing-render/tests -> Ran 139 tests, OK (no regression; test_acceptance tests pure logic, not run_validate signature).
+  - acceptance.py --checked-on 2026-07-04 -> exit 0, ACCEPTANCE: PASS (14/14).
+  - acceptance.py --checked-on 2026-07-04 --verbose -> exit 0; prints "    | FAIL V7-hook-words ..." validate stdout under each row.
+Known risk: none new. --verbose is now a live control, not a stub.
+Next: hand to Evaluator.

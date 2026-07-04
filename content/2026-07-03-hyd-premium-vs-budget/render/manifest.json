@@ -1,0 +1,386 @@
+{
+  "schema_version": "1",
+  "slug": "2026-07-03-hyd-premium-vs-budget",
+  "surfaces": [
+    {
+      "axis_min": null,
+      "break_disclosed": null,
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "chart_ref": null,
+      "elements": [
+        {
+          "bbox": [
+            90,
+            554,
+            881,
+            158
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 61,
+          "role": "hook",
+          "text": "Jubilee Hills just got cheaper. Medchal rose 19%.",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            755,
+            324,
+            30
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 25,
+          "role": "body",
+          "text": "Same city. Same 3 months.",
+          "weight": 400
+        }
+      ],
+      "has_axis": false,
+      "id": "carousel-01",
+      "png": "carousel-01.png",
+      "role": "carousel-slide",
+      "zero_based": null
+    },
+    {
+      "axis_min": null,
+      "break_disclosed": null,
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "chart_ref": null,
+      "elements": [
+        {
+          "bbox": [
+            90,
+            556,
+            788,
+            128
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 49,
+          "role": "headline",
+          "text": "\"Hyderabad prices are rising\" is a meaningless sentence.",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            718,
+            832,
+            65
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 25,
+          "role": "body",
+          "text": "The city moved in opposite directions by 28 points last quarter. Which direction did YOUR locality move?",
+          "weight": 400
+        }
+      ],
+      "has_axis": false,
+      "id": "carousel-02",
+      "png": "carousel-02.png",
+      "role": "carousel-slide",
+      "zero_based": null
+    },
+    {
+      "axis_min": null,
+      "break_disclosed": null,
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "chart_ref": "chart-spec.md",
+      "elements": [
+        {
+          "bbox": [
+            90,
+            634,
+            542,
+            30
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 25,
+          "role": "body",
+          "text": "3-month price change, every tracked locality.",
+          "weight": 400
+        },
+        {
+          "bbox": [
+            90,
+            682,
+            789,
+            24
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 20,
+          "role": "source-stamp",
+          "text": "Source: TERREM Intelligence · 302,156 Hyderabad transactions · as of 2026-03-08",
+          "weight": 400
+        }
+      ],
+      "has_axis": false,
+      "id": "carousel-03",
+      "png": "carousel-03.png",
+      "role": "carousel-slide",
+      "zero_based": null
+    },
+    {
+      "axis_min": null,
+      "break_disclosed": null,
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "chart_ref": null,
+      "elements": [
+        {
+          "bbox": [
+            90,
+            573,
+            638,
+            59
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 49,
+          "role": "headline",
+          "text": "The premium core blinked.",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            666,
+            844,
+            100
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 25,
+          "role": "body",
+          "text": "Banjara Hills −3.0% · Punjagutta −3.4% · Jubilee Hills −6.1% · Begumpet −8.0%. If you've been priced out of these localities, this is the first soft quarter in a while.",
+          "weight": 400
+        }
+      ],
+      "has_axis": false,
+      "id": "carousel-04",
+      "png": "carousel-04.png",
+      "role": "carousel-slide",
+      "zero_based": null
+    },
+    {
+      "axis_min": null,
+      "break_disclosed": null,
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "chart_ref": null,
+      "elements": [
+        {
+          "bbox": [
+            90,
+            573,
+            883,
+            59
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 49,
+          "role": "headline",
+          "text": "Meanwhile, the budget corridors ran.",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            666,
+            898,
+            100
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 25,
+          "role": "body",
+          "text": "Medchal +19.2% · Ameerpet +12.7% · Tarnaka +12.7% · Dilsukhnagar +11.3%. Waiting has been expensive at the entry level — ₹-per-sqft there is climbing fastest.",
+          "weight": 400
+        }
+      ],
+      "has_axis": false,
+      "id": "carousel-05",
+      "png": "carousel-05.png",
+      "role": "carousel-slide",
+      "zero_based": null
+    },
+    {
+      "axis_min": null,
+      "break_disclosed": null,
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "chart_ref": null,
+      "elements": [
+        {
+          "bbox": [
+            90,
+            573,
+            838,
+            59
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 49,
+          "role": "headline",
+          "text": "Before you panic-buy or panic-sell:",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            666,
+            878,
+            100
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 25,
+          "role": "body",
+          "text": "Over 12 months most \"falling\" localities are still up (Gopanpally: −5.9% this quarter, +11.6% on the year). This is a 3-month turn, not a crash. Trends ≠ guarantees.",
+          "weight": 400
+        }
+      ],
+      "has_axis": false,
+      "id": "carousel-06",
+      "png": "carousel-06.png",
+      "role": "carousel-slide",
+      "zero_based": null
+    },
+    {
+      "axis_min": null,
+      "break_disclosed": null,
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "chart_ref": null,
+      "elements": [
+        {
+          "bbox": [
+            90,
+            550,
+            866,
+            128
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 49,
+          "role": "headline",
+          "text": "Check your locality before your next site visit.",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            712,
+            658,
+            30
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 25,
+          "role": "body",
+          "text": "Every locality, every trend, updated continuously. Free.",
+          "weight": 400
+        },
+        {
+          "bbox": [
+            90,
+            760,
+            273,
+            30
+          ],
+          "bg": "#faf8f3",
+          "color": "#0f766e",
+          "font_px": 25,
+          "role": "body",
+          "text": "intel.terrem.in/markets",
+          "weight": 500
+        }
+      ],
+      "has_axis": false,
+      "id": "carousel-07",
+      "png": "carousel-07.png",
+      "role": "carousel-slide",
+      "zero_based": null
+    },
+    {
+      "axis_min": null,
+      "break_disclosed": null,
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "chart_ref": null,
+      "elements": [
+        {
+          "bbox": [
+            90,
+            636,
+            789,
+            24
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 20,
+          "role": "source-stamp",
+          "text": "Source: TERREM Intelligence · 302,156 Hyderabad transactions · as of 2026-03-08",
+          "weight": 400
+        },
+        {
+          "bbox": [
+            90,
+            674,
+            273,
+            30
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 25,
+          "role": "body",
+          "text": "intel.terrem.in/markets",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            888,
+            1220,
+            102,
+            30
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 25,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "has_axis": false,
+      "id": "carousel-08",
+      "png": "carousel-08.png",
+      "role": "carousel-slide",
+      "zero_based": null
+    }
+  ]
+}
