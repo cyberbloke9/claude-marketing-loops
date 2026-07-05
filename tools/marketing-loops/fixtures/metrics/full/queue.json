@@ -1,0 +1,65 @@
+{
+  "rows": [
+    {
+      "channel": "instagram",
+      "package_path": "content/2026-07-03-tgrera-enforcement-wave/publish/instagram.json",
+      "permalink": null,
+      "posted_date": null,
+      "schedule_slot": "2026-W27/evening/18:00",
+      "slug": "2026-07-03-tgrera-enforcement-wave",
+      "state": "queued",
+      "week": "2026-W27"
+    },
+    {
+      "channel": "linkedin",
+      "package_path": "content/2026-07-03-tgrera-enforcement-wave/publish/linkedin.json",
+      "permalink": null,
+      "posted_date": null,
+      "schedule_slot": "2026-W27/evening/17:30",
+      "slug": "2026-07-03-tgrera-enforcement-wave",
+      "state": "queued",
+      "week": "2026-W27"
+    },
+    {
+      "channel": "youtube",
+      "package_path": "content/2026-07-03-tgrera-enforcement-wave/publish/youtube.json",
+      "permalink": null,
+      "posted_date": null,
+      "schedule_slot": "2026-W27/morning/11:00",
+      "slug": "2026-07-03-tgrera-enforcement-wave",
+      "state": "queued",
+      "week": "2026-W27"
+    },
+    {
+      "channel": "instagram",
+      "package_path": "content/2026-07-10-rera-refund-timeline/publish/instagram.json",
+      "permalink": null,
+      "posted_date": null,
+      "schedule_slot": "2026-W27/evening/18:00",
+      "slug": "2026-07-10-rera-refund-timeline",
+      "state": "queued",
+      "week": "2026-W27"
+    },
+    {
+      "channel": "linkedin",
+      "package_path": "content/2026-07-10-rera-refund-timeline/publish/linkedin.json",
+      "permalink": null,
+      "posted_date": null,
+      "schedule_slot": "2026-W27/evening/17:30",
+      "slug": "2026-07-10-rera-refund-timeline",
+      "state": "queued",
+      "week": "2026-W27"
+    },
+    {
+      "channel": "youtube",
+      "package_path": "content/2026-07-10-rera-refund-timeline/publish/youtube.json",
+      "permalink": null,
+      "posted_date": null,
+      "schedule_slot": "2026-W27/morning/11:00",
+      "slug": "2026-07-10-rera-refund-timeline",
+      "state": "queued",
+      "week": "2026-W27"
+    }
+  ],
+  "schema_version": "1"
+}

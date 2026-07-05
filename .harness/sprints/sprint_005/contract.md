@@ -1,262 +1,537 @@
-# Sprint 005 Contract — Adversarial fixtures, wiring & end-to-end acceptance
+# Contract — Sprint 005: Scorecard compiler → `metrics/YYYY-Www.md`
 
-Status: PROPOSED (revised per contract_review.md — B-001, B-002, B-003, H-001, H-002, H-003, H-004 addressed)
-Sprint: 005 (final sprint)
-Depends on: Sprint 001 (`measure.py`, PASSED), 002 (carousel renderer, PASSED), 003 (chart-card renderer + TGRERA `chart-spec.md`, PASSED), 004 (`validate.py` + `qa-verdict.json` + `meta.md` verdict block + the 12 committed fixtures under `tools/marketing-render/fixtures/`, PASSED score 4.8).
-Spec refs: §4 (stories 3 "trust the gate", 4 "ship the reference asset"), §5.1 R8 (determinism), §5.4 (`qa-verdict.json` seam consumed by `/loop-qa`), §9 (verdict-consumption, no-network, in-repo only), §11 (Sprint 005), §1 verification standard ("validator attacked with violating **fixtures** … **and the TGRERA asset passing end-to-end**").
+> Closes the **compile half** of Gap 3 (spec §5.2, §11). Consumes the frozen
+> Sprint-004 **INGEST** structure (`build_ingest(...)`) plus the optional
+> Sprint-002 **QUEUE** document (`content/publish-queue.json`) and renders the
+> weekly scorecard `metrics/YYYY-Www.md`, section-for-section faithful to
+> `metrics/TEMPLATE.md`, with an appended **Missing data** section listing every
+> blanked input. Implements B-A5 (WRR, incl. the no-partial-sum critical edge),
+> B-A6 (flywheel), B-A7 (craft diagnostics + hook #), B-A8 (posting-time A/B),
+> B-A9 (decisions fed back), B-A10 (output fidelity), B-A11 (UTM flagging), and
+> B-A12 (the `loop-measure` SKILL update).
+>
+> **This sprint reads INGEST + QUEUE and writes Markdown. It defines NO new JSON
+> schema, invents NO metric, and never modifies a Sprint-001..004 module.** It is
+> the last build slice before the Sprint-006 acceptance runner.
+>
+> This is a **CLI + importable pure library** deliverable — no routes, screens,
+> components, or Playwright paths. Verification is exact CLI invocations + exit
+> codes + stdout/stderr substrings + **byte-for-byte golden-Markdown** assertions,
+> mirroring the DNA of `tools/marketing-render/` and the PASSED Sprints 001–004.
 
-## 0. Purpose & why there is no Playwright path
+## 1. Scope (this sprint only)
 
-This sprint closes the toolchain with three genuinely-new deliverables and one end-to-end acceptance run:
+Deliver the scorecard-compiler layer of the Gap-3 analytics toolchain:
 
-1. **README wiring** — a documented, copy-paste-runnable section for the render + validate CLIs and the acceptance runner. The README today (~50 lines) does not mention `tools/marketing-render/` at all.
-2. **`/loop-qa` skill rewrite** — replace the manual "walk the checklist by hand" prose prompt with one that invokes `validate.py` and consumes `qa-verdict.json` mechanically.
-3. **`tools/marketing-render/acceptance.py`** — a single deterministic, no-network command that proves the whole gate in one run: TGRERA renders + validates **PASS** end-to-end, and every committed fixture reaches its expected verdict on the correct check with the correct rule cited.
+- A **pure builder** `build_scorecard(ingest, queue_or_none, week) -> (markdown, missing)`
+  that turns the validated INGEST dict (Sprint-004 §3.5) plus an optional loaded
+  QUEUE dict (Sprint-002) into the scorecard Markdown string and the ordered list
+  of Missing-data entries. No I/O, no wall-clock, no network in the builder.
+- A **CLI** `scorecard.py` that reuses `ingest.run(args)` to build the INGEST
+  structure (thereby **inheriting every B-A3 corrupt-CSV rejection** → exit 2 with
+  no output), optionally loads the QUEUE via the frozen `queue.load_queue`, calls
+  `build_scorecard`, and writes `metrics/<week>.md` (or a `--out` path, or stdout).
+- The **template-faithful renderer**: North star (WRR), Flywheel, Craft
+  diagnostics, Posting-time A/B, Vanity, Decisions fed back — heading-for-heading
+  with `metrics/TEMPLATE.md` — plus an appended `## Missing data` section.
+- The **B-A5 WRR critical edge**: WRR is filled **only** when all three component
+  inputs are present; if **any** is absent, WRR is **blank** and each missing
+  component is listed under Missing data. A partial sum is forbidden.
+- The **B-A12** update to `.claude/skills/loop-measure/SKILL.md` to invoke the new
+  CLI and state the malformed-CSV-vs-missing-input distinction + never-invent rule.
+- Unit tests + **golden-Markdown fixtures** under `tools/marketing-loops/`.
 
-It is a **headless Python CLI toolchain** — same as Sprints 002/003/004. There is **no browser and no web UI, therefore no Playwright click-path exists.** The Evaluator attacks the CLIs directly from the shell and probes `qa-verdict.json` / `meta.md` / the acceptance summary with the commands in §7 and the Python probes in §8. This is intentional and stated so the contract is fully testable.
+**Explicitly OUT of this sprint** (Sprint 006, §11): the end-to-end
+`acceptance.py` runner across both gaps, the adversarial cross-gap fixture suite,
+and the `README.md` Phase-0 rollout-box update. See §7.
 
-## 1. Language / runtime decision
+## 2. Files created / affected
 
-- **Python 3** (`/usr/bin/python3`, 3.9.6) — same runtime as S002/003/004. `acceptance.py` imports only Python stdlib (`argparse`, `json`, `subprocess`, `sys`, `pathlib`, `shutil`, `hashlib`) to invoke the existing CLIs as subprocesses and parse their `qa-verdict.json` output. **No new third-party dependency; no network.** Pillow is used only transitively by the invoked `render.py`/`validate.py`, not imported by `acceptance.py`.
-- Invoking the CLIs as subprocesses (not importing their `main()`) means the acceptance runner exercises the exact shell contract a real operator or the `/loop-qa` skill uses — exit codes and stdout included.
+New, under `tools/marketing-loops/`:
 
-## 2. Scope (including the adversarial-case boundary — set upfront, not discovered)
+- `scorecard.py` — the scorecard CLI **and** its pure builder
+  `build_scorecard(ingest, queue, week)`. Imports the frozen `ingest` (to build
+  the INGEST structure and inherit CSV rejection) and the frozen `queue` (to load
+  the optional publish queue) and `schedule` only if a documented constant is
+  needed. No new schema, no `schema_version` (output is Markdown). Parses args →
+  validates (inherited) → builds → renders → writes. Maps errors to exit codes.
+- `tests/test_scorecard.py` — unit tests over the pure builder + the CLI (via
+  `subprocess` or `main(argv)`), asserting golden-Markdown byte-equality,
+  determinism, exit codes, and every §9 row.
+- `fixtures/metrics/expected/<name>.md` — **golden scorecard Markdown** files
+  (byte-for-byte expected outputs) for the full, partial, empty, wrong-UTM,
+  wrr-partial, and unmatched cases. Fixtures live **under `tools/`, never under
+  `content/` or the real `metrics/`.**
+- New input fixtures under `tools/marketing-loops/fixtures/metrics/` **only where a
+  Sprint-004 fixture does not already cover the case** — specifically a
+  `wrr-partial/` site CSV (one WRR component column blank, the other two present)
+  and a small `queue.json` fixture for the A/B table. Reuse existing `full/`,
+  `wrong-utm/`, `unmatched/`, `blank-cell/`, `zero-cell/`, `header-only/`,
+  `truncated/`, `wrong-header/` fixtures as-is.
 
-### 2.1 In scope (Sprint 005)
-- `README.md` — add a runnable "Asset Renderer + QA Gate" section (§4, exact text in §4.1). Additive only; no existing loop docs removed.
-- `.claude/skills/loop-qa/SKILL.md` — rewrite to invoke `validate.py` and consume `qa-verdict.json` (§5).
-- `tools/marketing-render/acceptance.py` — the end-to-end acceptance runner (§6).
-- `tools/marketing-render/tests/test_acceptance.py` — stdlib `unittest` tests for the runner's expectation table + exit logic (§3).
-- Verified end-to-end acceptance: TGRERA fresh-render → validate PASS; all 12 committed fixtures reach their expected verdict on the right rule (§6.2 table, §7).
+**Read-only — imported, NOT modified** (Sprints 001–004 are frozen and PASSED):
+`utm.py`, `gate.py`, `queue.py`, `channels.py`, `captions.py`, `schedule.py`,
+`package.py`, `mark_posted.py`, `enqueue.py`, `verify_utm.py`, `csvspec.py`,
+`assetmap.py`, `ingest.py`, and all existing tests + fixtures. No function is
+added to any frozen module; `scorecard.py` only *imports* them. No PASSED contract
+may regress: the full Sprint 001–004 unit suite must still pass unchanged.
 
-### 2.2 Scope boundary on adversarial cases (design choice, declared upfront)
+**No new machine schema is introduced.** The scorecard output is human-readable
+Markdown; its only machine inputs are the existing INGEST (built in-process) and
+QUEUE (loaded via `queue.load_queue`). The single tracked write is the scorecard
+`.md` file where the operator points `--out` (default `metrics/<week>.md`).
 
-The renderer is **compliant-by-construction**: `render.py` refuses to emit a non-compliant asset. This is a design strength, not a gap, and it fixes which adversarial cases are end-to-end vs. fixtures:
+## 3. Exact behaviors
 
-- `render.py` raises `ValueError` on `has_axis: true` (cannot emit a truncated/undisclosed-axis card).
-- `render.py` requires a `source-stamp` element and raises `ValueError` if absent (cannot emit a missing-source card).
-- `render.py` binds locked brand tokens to fixed roles and never emits an author-chosen low-contrast pair.
-- `render.py` always inks real vendored-Inter glyphs; it never emits a blank/near-blank PNG.
+### 3.1 CLI shape
 
-Therefore, **only the 11-word-hook case can round-trip the renderer end-to-end** (the carousel renderer draws whatever hook text it is given; V7 is a spec-level word-count check). The other named adversarial cases (truncated-axis, low-contrast, missing-source, blank-png) and all robustness fixtures are **pre-crafted manifest + PNG combinations already committed in Sprint 004**. The acceptance runner tests these fixtures directly by invoking `validate.py` against them — it does **not** render them (which would require disabling the renderer's guards). The **TGRERA asset is the positive end-to-end case** (authored spec → render → validate → PASS).
-
-This boundary is grounded in the spec's own wording: §1 verification standard names these as "violating **fixtures**" and reserves "**end-to-end**" for the TGRERA asset; §11 lists them under "Adversarial **fixtures**." The prior Sprint 004 contract's aspiration to author full `content/` adversarial folders is superseded here because it would contradict the spec's non-goals (§8, no auto-fix / no compliance-gutting) and the compliant-by-construction renderer. If the Evaluator holds the literal S004 aspiration over the spec's plain reading, this §2.2 is the intended point of contest — the contract argues the spec governs.
-
-### 2.3 Explicitly NOT in this sprint (declared, not silently omitted)
-- **No new `content/` adversarial asset folders** (§2.2 rationale). The adversarial cases are the committed S004 fixtures.
-- **No new render-through adversarial asset** (e.g. a real `content/` 11-word-hook carousel). The render-through positive path is TGRERA.
-- **No source changes to `render.py`, `validate.py`, `measure.py`, `make_fixtures.py`,** or any existing `tools/marketing-render/tests/test_*.py` from prior sprints, or any `brand/`, `signals/`, `personas/`, `metrics/`, `PLAN.md`, `RESEARCH.md`. The acceptance runner is a new consumer that invokes them unchanged.
-- **No fixture regeneration as a gate step.** `acceptance.py` does NOT run `make_fixtures.py`; it consumes the committed fixture artifacts as-is (regenerating would rewrite committed bytes and add a determinism dependency to the gate).
-- No video/animation, no LinkedIn/PDF surfaces, no auto-fixing, no content generation, no network at any time, no CI/scheduler integration beyond CLI-runnability + README docs (spec §8). No changes to any other repo or to the live TERREM product.
-
-## 3. Test plan (`test_acceptance.py`, stdlib unittest)
-
-Run the whole suite: `python3 -m unittest discover -s tools/marketing-render/tests -v` — S001–004 tests must still pass unchanged (no regression), plus the new acceptance tests.
-
-Coverage:
-1. **Expectation table completeness** — assert the runner's expectation table contains exactly the 12 fixture rows named in §6.2 (all `fx-*` directories except `make_fixtures.py`), each with `{fixture, expected_exit, expected_check_id, expected_rule_substring}`, and that `fx-good-min` has `expected_exit=0` with no expected check id. If a new fixture directory exists that is not in the table, the test FAILs (table must cover the full committed set).
-2. **PASS-detection logic** — feed a synthetic `qa-verdict.json` dict with `verdict:"PASS"`/`failed_checks:[]` → runner's checker returns success for a PASS expectation; a `verdict:"FAIL"` dict → returns failure.
-3. **FAIL-detection logic** — feed a synthetic `failed_checks` containing `{id:"V7-hook-words", rule:"qa-checklist.md §Carousel"}` → the runner confirms the expected check id + rule substring are present; a FAIL on the *wrong* check id (e.g. `V4-contrast` when `V7-hook-words` expected) → the runner reports a **mismatch** (the gate must not accept "some FAIL", only "the RIGHT FAIL").
-4. **Overall exit logic** — all expectations met → runner returns 0; any single expectation unmet (wrong exit code, missing expected check, or PASS where FAIL expected) → runner returns non-zero.
-5. **Purity** — an AST import scan (the exact script in §8) asserts `acceptance.py` imports no network module (`socket`, `urllib`, `http`, `requests`, `ssl`, `httplib`, `ftplib`).
-
-The runner's *invocation* of the real CLIs against the real TGRERA render + real fixtures is exercised by the acceptance run itself (§7 command), which is the primary end-to-end evidence; the unittest layer proves the runner's decision logic in isolation so a green run cannot be a false positive from broken comparison logic.
-
-## 4. README wiring (§0 deliverable 1)
-
-Add one section to `README.md` (heading `## Asset Renderer + QA Gate`), additive, at the end of the file. §4.1 below gives the exact text that MUST be inserted. The command syntax, slug (`content/2026-07-03-tgrera-enforcement-wave`), and flags (`--checked-on 2026-07-04`) are normative: every fenced command must be literally runnable as written from the repo root (verified in §7 step 6). No placeholder slugs, no invented flags.
-
-CLI ground truth confirmed against the committed code (do not deviate):
-- `render.py` takes one positional `asset_folder`; exit 0 success, exit 1 error.
-- `validate.py` takes one positional `asset_folder` plus optional `--checked-on YYYY-MM-DD` (defaults to today) and `--checked-by`; exit 0 PASS, exit 1 FAIL, exit 2 precondition/usage error.
-- `acceptance.py` (this sprint) takes optional `--checked-on YYYY-MM-DD` (default `2026-07-04`, the sprint baseline — see §6, H-001) and `--verbose`; exit 0 iff the whole gate holds.
-
-### 4.1 Exact README text to insert (normative)
-
-Insert verbatim (wording may be lightly adjusted for prose flow, but the heading, the three fenced commands, the exit-code line, and the determinism/no-network + `/loop-qa` sentences MUST appear exactly as their commands/claims below):
-
-```markdown
-## Asset Renderer + QA Gate
-
-A deterministic, no-network CLI toolchain under `tools/marketing-render/` renders an
-authored asset folder (`content/<slug>/`) into brand-locked PNGs plus a `manifest.json`,
-then mechanically validates the PNGs + specs against `brand/qa-checklist.md`, emitting a
-machine-readable `qa-verdict.json` and a human verdict block in the asset's `meta.md`.
-
-### Render
-
-Render an asset folder to PNGs and a manifest:
-
-python3 tools/marketing-render/render.py content/2026-07-03-tgrera-enforcement-wave
-
-Writes `content/2026-07-03-tgrera-enforcement-wave/render/{chart-card.png, manifest.json}`.
-
-### Validate
-
-Validate the rendered asset against the QA checklist:
-
-python3 tools/marketing-render/validate.py content/2026-07-03-tgrera-enforcement-wave --checked-on 2026-07-04
-
-Writes `render/qa-verdict.json` and appends the verdict block to `meta.md`.
-Exit `0` = PASS, `1` = FAIL, `2` = usage/precondition error.
-
-### End-to-end acceptance
-
-Prove the whole gate in one run (TGRERA render + validate PASS; every committed
-adversarial fixture FAILs on its named check; the positive-control fixture PASSes):
-
-python3 tools/marketing-render/acceptance.py --checked-on 2026-07-04
-
-Exit `0` iff the full gate holds.
-
-### Determinism & no network
-
-Fonts are vendored under `tools/marketing-render/fonts/` (Inter, SIL OFL, `OFL.txt`
-present). No network is accessed at render or validate time; re-rendering the same input
-yields pixel-identical PNGs (R8). The `--checked-on` date only affects the `checked_on`
-field of `qa-verdict.json`, never the PNG bytes.
-
-For agent-based validation, the `/loop-qa` skill wraps `validate.py`, consuming
-`qa-verdict.json` mechanically.
+```
+python3 tools/marketing-loops/scorecard.py --week YYYY-Www \
+  [--instagram FILE] [--youtube FILE] [--linkedin FILE] [--site FILE] \
+  [--content-dir DIR] [--queue FILE] [--out FILE | --stdout]
 ```
 
-(The three commands must be inside fenced code blocks in the actual README so they are copy-pasteable; the block above shows them un-nested only because this contract is itself Markdown.)
+- The four `--<source>` flags, `--week`, and `--content-dir` have **identical
+  semantics to `ingest.py`** (Sprint-004 §3.4). `scorecard.py` builds the INGEST
+  structure by delegating to `ingest.run(args)` (or `ingest.build_ingest` after the
+  same validation), so **every ingestion rule is inherited verbatim**: bad `--week`
+  → exit 2; a provided `--<source>` path that does not exist → exit 2; a corrupt
+  CSV (unparseable / missing header / wrong column count / truncated / non-numeric
+  numeric cell / blank join column) → **exit 2, cited message on stderr, NO
+  scorecard written** (B-A3 / story #7); an absent source → recorded missing,
+  contributes blanks; the empty run (no sources) → valid all-blank scorecard.
+- `--queue FILE` (optional) is the publish-queue path. Loaded via
+  `queue.load_queue`. A missing file path passed to `--queue` → exit 2
+  (`--queue file not found: <path>`). A file that exists but is not a valid QUEUE
+  document (unparseable JSON / no `rows` list) → exit 2 (cited, no scorecard).
+  When `--queue` is omitted, the posting-time A/B table is entirely blank + listed
+  under Missing data (§3.6).
+- Output: by default writes `metrics/<week>.md` (repo `metrics/` resolved from
+  `__file__`; parent `mkdir -p`). `--out FILE` overrides the path. `--stdout`
+  writes the Markdown to stdout and writes no file (for preview / tests).
+  `--out` and `--stdout` are mutually exclusive → exit 2 if both given.
+- On success the CLI prints the written path (or nothing extra when `--stdout`) and
+  exits **0**.
 
-## 5. `/loop-qa` skill rewrite (§0 deliverable 2)
+### 3.2 Output fidelity — the template skeleton (B-A10)
 
-Rewrite `.claude/skills/loop-qa/SKILL.md` so the gate is **mechanical**, not a hand-walked checklist. The new skill body MUST include all six of the following behaviors, expressed as the exact phrase OR a clear semantic equivalent (verification in §7 step 5 greps for these):
+The rendered Markdown reproduces `metrics/TEMPLATE.md` **section-for-section,
+heading-for-heading**, with the literal week substituted into the title:
 
-1. **Invokes the validator on a `content/` path.** Text includes `validate.py` (or `python3 tools/marketing-render/validate.py`) and references a `content/<slug>` input path.
-2. **Reads and parses `qa-verdict.json`.** Text names `qa-verdict.json` (or `render/qa-verdict.json`) and states it is read/parsed after validation.
-3. **Reports `failed_checks` and `needs_review`.** Text names `failed_checks` (reporting at least `id`, `detail`, `rule` per failure, formatted e.g. `<id> — <detail> (<rule>)`) and names `needs_review` as informational/non-blocking.
-4. **FAIL is terminal and the gate never auto-fixes.** Text includes a statement equivalent to: "A FAIL verdict blocks publishing the asset. The validator reports violations; it does not fix them." Acceptable equivalents for the block claim: `blocks publish`, `blocks publishing`, `prevents publish`, `must not publish`, `do not publish`. Acceptable equivalents for the no-fix claim: `does not fix`, `no auto-fix`, `never edits`, `does not edit`.
-5. **Render-only-when-absent behavior.** Text includes a statement equivalent to: "If `content/<slug>/render/manifest.json` does not exist, run `render.py content/<slug>` first; if it exists, use it as-is (do not silently overwrite)." Acceptable equivalents: `render only when`, `render first`, `render once`, `auto-render only when ... absent`.
-6. **Exit-code mapping / rule citation only.** Text states that exit `0`=PASS, `1`=FAIL, `2`=precondition error (report the precondition error, not a verdict, on exit 2), and that every reported failure carries the validator-emitted `rule` string with no independent taste judgement added by the skill.
+1. `# Weekly Scorecard — <week>` (the `YYYY-Www` from `--week`).
+2. The template's one-line preamble, verbatim.
+3. `## North star` — the WRR table (§3.3).
+4. `## Flywheel` — the flywheel table (§3.4).
+5. `## Craft diagnostics (per asset)` — the craft table (§3.5).
+6. `## Posting-time A/B (weeks 1–8)` — the A/B table (§3.6).
+7. `## Vanity (tracked, never optimized)` — Followers/Likes line (§3.7).
+8. `## Decisions fed back` — the decisions section (§3.8).
+9. `## Missing data` — the appended enumeration (§3.9). **Not** in the template;
+   it is the mandated appendix (spec §5.4 "Missing-data listing", B-A4/B-A10).
 
-**Verification is content-based, and this is stated in the contract:** `/loop-qa/SKILL.md` is an LLM prompt, not executable code, so it cannot be unit-run. Its acceptance (§7 step 5) is a grep/read assertion over the six items above. No execution test is claimed for the skill; the mechanical gate it wraps (`validate.py`) is fully unit- and acceptance-tested.
+A **blank cell** is rendered as an empty table cell (the text between the pipes is
+a single space, matching the template's own empty rows). No cell ever shows a
+placeholder like `N/A`, `0`, `—`, `TODO`, or an invented number. The document ends
+with exactly one trailing newline. Section order and heading text are fixed;
+determinism (§3.10) guarantees byte-stable output.
 
-## 6. `acceptance.py` — the end-to-end runner (§0 deliverable 3)
+### 3.3 North star / WRR (B-A5) — THE CRITICAL EDGE
 
-Interface: `python3 tools/marketing-render/acceptance.py [--checked-on YYYY-MM-DD] [--verbose]`.
+The WRR row: `| **WRR — …** | <this-week> | <last-week> | <trend> |` (the metric
+label copied verbatim from the template).
 
-**Date strategy (H-001, Option B — pin to sprint baseline).** Default `--checked-on 2026-07-04` — the **sprint baseline date**, chosen because the committed Sprint-004 fixture `qa-verdict.json` files already bake in `"checked_on": "2026-07-04"`. The runner passes this exact date to every `validate.py` invocation. Consequences, stated honestly:
-- **PNG bytes are date-independent and are the actual R8 requirement** — re-rendering TGRERA yields a pixel-identical `chart-card.png` regardless of date; the runner asserts this hash equality (§6.1).
-- **`qa-verdict.json` byte-identity with the committed fixtures holds only when `--checked-on 2026-07-04`.** Running with a different date changes only the JSON `checked_on` field, never the PNG. The runner therefore defaults to the baseline so its verdict JSON matches the committed fixtures; the contract does NOT claim JSON byte-identity for arbitrary dates.
+- **This week** = the integer sum `returning_viewers + digest_opens +
+  returning_visitors_social` **iff all three** `ingest["wrr_components"][*]
+  ["present"]` are `true`. Rendered as that integer.
+- **If ANY of the three components is absent** (`present == false`): the This-week
+  cell is **blank**, and **each** absent component is listed individually under
+  Missing data (`WRR component 'returning_viewers' absent` etc.). A partial sum of
+  the present components is **forbidden** — it is an invented number (spec B-A5).
+  The present components are NOT shown anywhere as a running total.
+- **Last week** and **Trend** cells are **always blank** this sprint: the tool does
+  not read a prior scorecard, so last-week WRR and the trend are unavailable →
+  each listed under Missing data (`last-week WRR not provided (no prior-week
+  input)`, `WRR trend not computable (needs last-week WRR)`). The tool never
+  fabricates a trend arrow.
 
-### 6.1 Positive end-to-end (TGRERA) — also the R8 determinism proof
-1. Record the SHA-256 of the committed `content/2026-07-03-tgrera-enforcement-wave/render/chart-card.png`.
-2. Delete `content/2026-07-03-tgrera-enforcement-wave/render/` and **re-render** via `render.py`.
-3. Assert the re-rendered `chart-card.png` SHA-256 **equals** the pre-delete hash (R8 pixel-identical determinism; leaves the PNG bytes clean).
-4. Run `validate.py content/2026-07-03-tgrera-enforcement-wave --checked-on <date>`; assert **exit 0** and `qa-verdict.json` `verdict:"PASS"`, `failed_checks:[]`.
+Worked example (full fixture, `2026-W27`): components 200 + 95 + 52 → **This
+week = 347**; Last week + Trend blank + two Missing-data lines. Blank one
+component's column (the `wrr-partial` fixture) → **This week blank**, the missing
+component listed, and the two present components NOT summed.
 
-### 6.2 Adversarial + robustness fixtures — each reaches its expected verdict on the RIGHT check with the RIGHT rule
+### 3.4 Flywheel (B-A6)
 
-**The runner MUST test all 12 committed fixtures.** For each fixture, run `validate.py <fixture> --checked-on <date>`, then assert:
-- **exit code** equals the fixture's `expected_exit`, AND
-- for a FAIL expectation (`expected_exit=1`), the parsed `qa-verdict.json` `failed_checks` **contains an entry whose `id` equals `expected_check_id` and whose `rule` contains `expected_rule_substring`** (not merely "some check failed" — the *named* check must fire), AND
-- for the PASS expectation (`fx-good-min`, `expected_exit=0`), `verdict:"PASS"` and `failed_checks:[]`.
+The template's three-row Flywheel table is reproduced with fixed row labels:
 
-**Complete normative expectation table.** These `id` and `rule` strings are the exact strings `validate.py` already emits (read from the committed `qa-verdict.json` files during contract revision; the runner reads the real emitted strings at run time, it does not fabricate a second copy). All 12 rows are **mandatory** for acceptance — exit 0 is returned only when every row meets its expectation:
+| Row label (verbatim from template) | Value | Notes |
+|---|---|---|
+| `Clicks to intel.terrem.in (by UTM campaign)` | per-campaign click lines | — |
+| `Locality-page sessions from social` | blank | (no input column) |
+| `Sign-ups / alerts created from content traffic` | blank | (no input column) |
 
-| fixture | expected_exit | expected_check_id | expected_rule_substring | tier |
-|---|---|---|---|---|
-| `fx-11-word-hook` | 1 | `V7-hook-words` | `qa-checklist.md §Carousel` | named-adversarial |
-| `fx-truncated-axis` | 1 | `V10-chart-integrity` | `qa-checklist.md §Chart integrity` | named-adversarial |
-| `fx-low-contrast` | 1 | `V4-contrast` | `brand-kit.md §3` | named-adversarial |
-| `fx-missing-source` | 1 | `V8-source-stamp` | `qa-checklist.md §Chart integrity` | named-adversarial |
-| `fx-blank-png` | 1 | `V3-ink` | `spec §5.2 V3` | named-adversarial (stub) |
-| `fx-good-min` | 0 | (none) | (none) | positive control |
-| `fx-size-lie` | 1 | `V5-crosscheck` | `spec §5.2 V5` | robustness |
-| `fx-small-headline` | 1 | `V5-floor` | `qa-checklist.md §Typography` | robustness |
-| `fx-out-of-safezone` | 1 | `V6-safezone` | `qa-checklist.md §Layout` | robustness |
-| `fx-blacklist` | 1 | `V9-blacklist` | `brand-kit.md §8` | robustness |
-| `fx-no-provenance` | 1 | `V11-provenance` | `qa-checklist.md §Data provenance` | robustness |
-| `fx-canvas-mismatch` | 1 | `V2-canvas` | `qa-checklist.md §Layout` | robustness |
+- **Row 1 Value cell** is filled from `ingest["flywheel_clicks_by_campaign"]`
+  (already social-filtered + grouped + summed by Sprint 004), one line per campaign
+  in the INGEST order (lexicographic by campaign), formatted `<campaign>: <clicks>`.
+  A campaign whose `clicks` is `null` renders `<campaign>: ` (blank click value)
+  and is listed under Missing data. If the site source was not provided at all →
+  the Value cell is blank and Missing data carries the single `site analytics
+  export not provided` entry (no per-campaign spam).
+- **Rows 2 and 3** have **no column** in any Sprint-004 CSV contract → their Value
+  cells are **always blank** and each is listed once under Missing data
+  (`Flywheel 'Locality-page sessions from social' has no input column`, likewise
+  for sign-ups). Stated here so the empty cells are documented intent, not a defect.
 
-Notes on matching:
-- **No wildcards.** Every `expected_check_id` is a literal, full check-id string. The runner asserts exact-`id` equality (not prefix/family matching).
-- **`expected_rule_substring` is a substring test** on the emitted `rule` field (e.g. the emitted rule for `fx-low-contrast` is `brand-kit.md §3`, and `brand-kit.md §3` is a substring of it — an exact match here).
-- If any committed fixture's real emitted `id`/`rule` were ever to differ from a row above, the contract's binding requirement is that **the runner's table uses the validator's actual emitted strings and the named check fires cited by its rule**; the builder MUST read the real emitted strings from the committed `qa-verdict.json` (which were already confirmed to match this table during revision) and MUST NOT hand-edit the table to a guess. The table above already reflects the confirmed emitted strings.
+### 3.5 Craft diagnostics (B-A7)
 
-### 6.3 Output & exit
-- **stdout:** a terse, mechanical, cite-the-rule summary — one line per row `PASS|FAIL <fixture> — exit <n>, <check-id> (<rule>) [expected …]`, then a final `ACCEPTANCE: PASS (<n>/<n> expectations met)` or `ACCEPTANCE: FAIL` naming the first unmet expectation. Tone per spec §7: no praise, no hedging.
-- **Exit 0 iff** the TGRERA determinism hash matches AND TGRERA validates PASS AND every one of the 12 fixtures meets its expectation. **Any** mismatch → non-zero exit naming the failure. A green exit cannot be a false positive: a wrong-check FAIL, a PASS where FAIL was expected, or a determinism hash mismatch each flips the exit non-zero.
+One table row per `ingest["craft"]` entry, in the INGEST order
+(`(campaign, channel)`), columns exactly:
+`| Asset | Channel | 3s-hold % | Completion / swipe-through % | Shares | Clicks | Hook # |`.
 
-## 7. Acceptance — commands & expected results (Evaluator reproduces)
+- **Asset** = the entry's `slug` when matched; for an **unmatched** campaign
+  (`slug == null`) render the campaign string suffixed with ` (unmatched)` and list
+  the campaign under Missing data (`unmatched-campaign: <campaign>`), so metrics are
+  never silently attributed to a nonexistent asset.
+- **Channel** = the entry's channel (`instagram`/`youtube`/`linkedin`).
+- **3s-hold %, Completion %, Shares, Clicks** = the entry's numeric values. An
+  **absent** cell (`null`) renders **blank** (never `0`); a genuine `0` renders `0`.
+  The blank cell is listed under Missing data with its asset+channel+metric.
+- **Hook #** = the entry's `hook_number`; `null` renders blank and is listed under
+  Missing data (`hook # absent for <slug>`). The tool never invents a hook number.
+- Zero craft entries (empty run) → a header-only table (no data rows) and the
+  Missing-data listing carries the source-absence lines.
 
-Preconditions: repo at S004 state (validator + 12 fixtures committed). No network needed or permitted. Use the sprint baseline date `2026-07-04` where a date is shown.
+### 3.6 Posting-time A/B (B-A8) — single-week semantics, pinned
 
-1. **Full unit suite** — `python3 -m unittest discover -s tools/marketing-render/tests -v` → OK, exit 0. S001–004 test counts unchanged (no regression); new `test_acceptance` tests present and green.
-2. **End-to-end acceptance** — `python3 tools/marketing-render/acceptance.py --checked-on 2026-07-04` → **exit 0**; stdout ends `ACCEPTANCE: PASS`; shows TGRERA render+validate PASS and all 12 fixtures reaching their §6.2 expected verdict on the named check + rule.
-3. **Determinism (R8) inside the run** — the acceptance run deletes and re-renders TGRERA and asserts the re-rendered `chart-card.png` is byte/pixel-identical to the committed one; after the run `git status --porcelain content/2026-07-03-tgrera-enforcement-wave/render/*.png` shows **no PNG byte change**. (The `qa-verdict.json` `checked_on` field is the only intended churn; pinned to `2026-07-04` it too is byte-identical to the committed fixture.)
-4. **Adversarial discrimination is named, not vague** — for at least `fx-11-word-hook` (expect `V7-hook-words`) and `fx-blank-png` (expect `V3-ink`), open the fixture's `render/qa-verdict.json` and confirm the `failed_checks` entry id/rule the runner asserted actually appears there (the runner reads real validator output, not a hardcoded verdict).
-5. **`/loop-qa` skill content** — read `.claude/skills/loop-qa/SKILL.md` and confirm all six §5 items are present (exact phrase or listed equivalent):
-   - (a) references `validate.py` and a `content/<slug>` path;
-   - (b) names `qa-verdict.json` and states it is read/parsed;
-   - (c) names `failed_checks` (with id/detail/rule) and `needs_review` (informational);
-   - (d) states a FAIL blocks publish AND the gate does not auto-fix (grep the §5.4 equivalents);
-   - (e) states render-only-when-`render/`/`manifest.json`-absent (grep the §5.5 equivalents);
-   - (f) states exit `0`/`1`/`2` mapping and rule-citation-only.
-   (Content assertion; the skill is a prompt, not executable — §5.)
-6. **README commands runnable as written** — copy each fenced command from the new README section (§4.1) and run it from the repo root:
-   - `python3 tools/marketing-render/render.py content/2026-07-03-tgrera-enforcement-wave` → writes `render/`, exit 0;
-   - `python3 tools/marketing-render/validate.py content/2026-07-03-tgrera-enforcement-wave --checked-on 2026-07-04` → exit 0 PASS;
-   - `python3 tools/marketing-render/acceptance.py --checked-on 2026-07-04` → exit 0.
-   No command references a non-existent slug or invented flag.
-7. **Purity probe** — run the exact command in §8; exit 0, prints `PASS: no network imports`.
-8. **Scope-boundary probe** — `render.py`, `validate.py`, `measure.py`, `make_fixtures.py`, and all prior `test_*.py` are byte-unchanged (`git diff` empty for those paths); no new `content/` adversarial folder was created; no file outside this repo touched.
+The A/B table has one row per channel in canonical order (`instagram`, `youtube`,
+`linkedin`), columns:
+`| Channel | Morning slot perf | Evening (3–8pm IST) perf | Verdict so far |`.
 
-## 8. Evaluator probes (Python/shell, since no browser)
+**Rationale (pinned, non-defect):** the schedule bucket is deterministic in
+`schedule.py` as `bucket = morning if (WW + channel_ordinal) % 2 == 0 else
+evening` — it depends only on `(week, channel)`, **not** on the asset. Therefore in
+any **single** week every asset of a given channel shares **one** bucket, so at
+most **one** of {Morning, Evening} can hold a number and the other is
+**necessarily blank**. A morning-vs-evening **verdict** requires ≥2 weeks with
+opposite buckets and the compiler has exactly one week's INGEST → the verdict is
+**always blank** in a single-week scorecard. These blanks are **intended**, and
+each is listed under Missing data with that reason. This is documented here so a
+hostile reviewer reads the half-empty table as correct, not as missing work.
 
-- **Acceptance run:** `python3 tools/marketing-render/acceptance.py --checked-on 2026-07-04`; assert exit 0 and parse its stdout — confirm all 12 fixtures + the TGRERA rows appear with the §6.2 expected verdicts.
-- **Tamper test 1 (gate is real, not a rubber stamp):** delete a fixture's `render/qa-verdict.json` before the run and confirm the runner regenerates it by re-invoking `validate.py` (rather than trusting a stale file or erroring on its absence). The runner never reads the committed verdict as trusted source.
-- **Tamper test 2 (wrong-check rejection):** in a scratch copy, point one expectation-table row at the wrong check id (e.g. `fx-11-word-hook → V4-contrast`) and confirm the runner exits non-zero — "some FAIL" is not accepted, only the named FAIL. (Documented as a probe; do not commit the edit.)
-- **Determinism probe:** run `acceptance.py --checked-on 2026-07-04` twice; `content/2026-07-03-tgrera-enforcement-wave/render/chart-card.png` SHA-256 identical both times; `git status --porcelain` clean of PNG changes.
-- **Skill probe:** read `SKILL.md`; assert the six behaviors of §5 are present in the prose (per §7 step 5).
-- **Purity probe (exact, runnable):**
+Per channel:
+
+- Read the recorded bucket from the **QUEUE**, never recompute it: find queue
+  `rows` with `week == --week` and `channel == <channel>` and a non-null
+  `schedule_slot`; parse the bucket from the slot string `<week>/<bucket>/<HH:MM>`
+  (split on `/`, take index 1). Recomputing via `schedule.bucket_for` is
+  **forbidden** — it would fabricate a slot for an asset that was never queued.
+- **Perf cell (the documented scalar):** for the bucket the queue rows fall in,
+  the cell = the **sum of `clicks`** across that channel's craft entries for the
+  week whose `clicks` are present (non-null). Computed from present values only; if
+  the channel has no craft entries with present clicks, the cell is blank + Missing
+  data. This single scalar is chosen for clean golden-testing (spec §7
+  determinism); it is a measured aggregate, never an estimate. The **opposite**
+  bucket cell is blank + Missing data (`no <channel> <bucket> data in <week>`).
+- **Verdict cell:** always blank; one Missing-data line per channel
+  (`posting-time A/B verdict for <channel> needs cross-week comparison`).
+- **No `--queue` provided:** every cell blank; Missing data carries a single
+  `publish queue not provided (posting-time A/B table blank)` line (no per-channel
+  spam). A channel with a queue but no matching row for the week → both perf cells
+  blank + a `no <channel> slot recorded for <week>` Missing-data line.
+
+### 3.7 Vanity (B-A10 fidelity)
+
+Reproduce the template's `Followers: __ · Likes: __` line with **both blanks
+preserved** (rendered `Followers:  · Likes: ` — the value after each colon empty).
+No Sprint-004 CSV contract carries followers or likes, so both are **always blank**
+and each is listed once under Missing data (`Vanity 'Followers' has no input
+column`, likewise Likes). Documented intent, not a defect.
+
+### 3.8 Decisions fed back (B-A9)
+
+Reproduce the template's `## Decisions fed back` bullet structure. Fill **only**
+what the data supports; blank the rest + list under Missing data:
+
+- **Hook winners & retirements bullet (→ Loop 2):** compute the **top** and
+  **bottom** hook by the same documented scalar as §3.6 — each **asset's** total
+  `clicks` across its channels (present values only). Requires **≥2 matched assets**
+  each with ≥1 present clicks value and a resolved `hook_number`. Deterministic
+  tie-break: higher clicks wins; ties broken by ascending `slug`. Render e.g.
+  `→ Loop 2: top hook #11 (347 clicks); retire-candidate hook #7 (54 clicks)`. If
+  fewer than 2 qualifying assets → the bullet's data clause is **blank** and a
+  Missing-data line is added (`hook ranking needs ≥2 assets with clicks + hook #`).
+- **Signal-types bullet (→ Loop 1)** and **format-changes bullet (→ Loop 3)** are
+  **qualitative, not data-derivable** → rendered as the template's label with no
+  data clause + one Missing-data line each (`Loop 1 signal-resonance decision is
+  qualitative (operator-authored)`, likewise Loop 3).
+- **Hard-stop check (WRR flat after 8 weeks):** reproduce the template's bold
+  hard-stop line; the flat-across-8-weeks determination needs 8 weeks of scorecards
+  and the compiler has one → the line is reproduced but its verdict is **blank** +
+  a Missing-data line (`hard-stop WRR-flat check needs 8 published weeks`). Never
+  fabricates a stop/continue verdict.
+
+### 3.9 Missing data section (spec §5.4)
+
+An appended `## Missing data` section: an **ordered, de-duplicated** bullet list of
+every input/cell left blank and **why**, drawing from:
+
+1. The INGEST `absences` list (source-not-provided, wrr-component, unmatched-
+   campaign, wrong-utm) — rendered verbatim as `<kind>: <detail>` bullets.
+2. The renderer's own structural blanks (last-week/trend WRR, flywheel rows 2–3,
+   vanity, A/B blanks + verdicts, decisions blanks) as pinned in §3.3–§3.8.
+3. **B-A11 UTM flags:** every asset in `ingest["assets"]` with `utm_valid == false`
+   is listed (`wrong-UTM asset <slug>: <violations>`) so a scheme-invalid asset is
+   **never silently attributed** (the INGEST `wrong-utm` absence already carries
+   this; the renderer surfaces it in this section).
+
+Ordering is deterministic: bullets sorted lexicographically by their rendered text,
+de-duplicated. When there is genuinely nothing missing (full fixture with a valid
+queue and both WRR-adjacent structural blanks) the section still lists the
+**structural** blanks that are always absent (last-week WRR, trend, flywheel rows
+2–3, vanity, A/B verdicts) — it is honest about what a single-week scorecard cannot
+contain, and is never falsely empty.
+
+### 3.10 Determinism (spec §7)
+
+Same inputs → **byte-identical** scorecard Markdown. Row ordering: assets/craft by
+the INGEST order (already `(campaign, channel)` / slug-sorted); flywheel by
+campaign (lexicographic); A/B by canonical channel order; Missing-data bullets
+lexicographically sorted + de-duplicated. **No `datetime.now()` or any wall-clock**
+in output — the only date-ish value is the operator-supplied `--week` (used as a
+literal string). **No network.** Two runs with the same inputs `shasum`-match.
+
+### 3.11 Exit codes (match ingest / render / Sprints 001–004)
+
+- **`0`** — success, including the **full**, **partial** (some sources absent), and
+  **empty** (no sources) runs. A valid partial/empty scorecard is a success (spec
+  §6 "Partial input … exit 0").
+- **`1`** — **intentionally unused**, mirroring `ingest.py`: there is no "domain
+  verdict on well-formed input." Corrupt CSV / bad queue / bad path are usage
+  errors (→ 2); missing inputs and wrong-UTM are handled inside a successful
+  scorecard (blanks + Missing data). Documented for the Sprint-006 taxonomy.
+- **`2`** — **usage / precondition error**, message on **stderr**, **no scorecard
+  written**: bad `--week`; a provided `--<source>` path not found; a bad
+  `--content-dir`; an asset-map campaign collision; **every inherited B-A3 CSV
+  rejection**; a `--queue` path not found or an invalid QUEUE document; and both
+  `--out` and `--stdout` given together.
+
+## 4. States
+
+- **Empty (no sources, no queue):** `--week` only → exit 0; full template skeleton
+  with all tables blank (craft header-only), Vanity blank, Decisions data-clauses
+  blank, A/B all blank, and a Missing-data section enumerating every source
+  absence + every structural blank.
+- **Full success:** four well-formed sources + a valid queue → WRR filled (347 in
+  the worked example), flywheel row 1 per-campaign clicks, all craft rows filled
+  with slug+hook#, the one populated A/B bucket per channel, decisions hook
+  ranking filled; Missing data lists only the always-structural blanks (last-week
+  WRR, trend, flywheel rows 2–3, vanity, A/B opposite-buckets + verdicts).
+- **WRR partial (the critical edge):** site CSV with one WRR component column
+  blank → WRR This-week **blank**, that component listed, the other two **not
+  summed** anywhere; exit 0.
+- **Partial sources:** e.g. IG-only → craft rows only for IG, flywheel/WRR blank
+  (site absent), every blank enumerated; exit 0.
+- **Corrupt CSV:** truncated / wrong-header / wrong-colcount / non-numeric /
+  blank-join → exit 2 (inherited), cited, **no `metrics/*.md` written** (verify no
+  file appears even when `--out`/default path was targeted).
+- **Bad queue:** `--queue` to a nonexistent path → exit 2; `--queue` to malformed
+  JSON → exit 2, cited, no scorecard.
+- **Unmatched campaign:** a CSV campaign with no asset → craft row
+  `Asset = <campaign> (unmatched)`, listed under Missing data; exit 0.
+- **Wrong-UTM asset (B-A11):** an asset whose `meta.md` UTM is scheme-invalid →
+  `utm_valid=false`, surfaced as a `wrong-UTM asset <slug>: …` Missing-data bullet;
+  its metrics are not silently attributed; exit 0.
+- **Overwrite (weekly re-run):** re-running with the same inputs rewrites the same
+  bytes (idempotent, guaranteed by §3.10); re-running with new data updates the
+  file. Overwrite is **intended** — a scorecard is fully regenerable and loses no
+  human-entered state (unlike a render or a `posted` queue row), so no `--force`
+  gate is added.
+- **Idempotency / determinism:** same inputs → byte-identical Markdown; two runs
+  `shasum`-match.
+- **Offline:** no network; any network import is a defect.
+
+## 5. Non-UI expectations (a11y / responsive / contrast do not apply)
+
+Headless CLI + importable library. In place of keyboard/focus/ARIA/contrast/
+responsive:
+
+- **Usability:** every rejection message is specific and recoverable — it names
+  the file/row/column (inherited from ingest) or the queue path/reason, never a
+  bare "invalid input". The written scorecard prints its path so the operator
+  knows where it landed.
+- **Runs from any cwd:** paths resolved from `__file__`; default `--content-dir`
+  is repo `content/`, default output is repo `metrics/<week>.md`; every path arg
+  accepts absolute or relative.
+- **Import safety:** importing `scorecard` has no side effects and prints nothing.
+- **Single source of truth:** the INGEST is built via the frozen `ingest` module
+  (no re-implemented CSV parsing, join, or aggregation); the queue is loaded via
+  the frozen `queue.load_queue`; the channel order + bucket parsing derive from the
+  frozen `schedule`/`utm` maps (no forked literals).
+
+## 6. Security / privacy
+
+- Stdlib only (`argparse`, `json`, `re`, `pathlib`) plus in-repo imports
+  (`ingest`, `queue`, `schedule`, `utm`). **No** `datetime` for "now" (no date math
+  is required; `--week` is a literal string). No third-party deps. No network. No
+  secrets. No personal data written. CSV inputs remain **untrusted** and are parsed
+  by the frozen `csvspec` (every malformation → cited exit 2, never a crash, never
+  an invented value). No dependency on the globally-installed `pmp-gywd@5.0.0`.
+- The only write is the scorecard `.md` at the operator-pointed path; tests write
+  to temp / `--stdout` only and never mutate the real `content/` or `metrics/`.
+
+## 7. Explicit non-goals (this sprint)
+
+- **No `acceptance.py` end-to-end runner, no cross-gap adversarial suite** —
+  Sprint 006.
+- **No `README.md` rollout-box update** — Sprint 006.
+- **No new JSON schema, no `schema_version`** — the output is Markdown; inputs are
+  the existing INGEST + QUEUE.
+- **No modification** of any Sprint-001..004 module, test, fixture, or any
+  `content/*` file. No re-implementation of CSV parsing / join / aggregation.
+- **No reading of a prior-week scorecard** — last-week WRR and trend stay blank +
+  listed (§3.3). No cross-week A/B verdict, no 8-week hard-stop verdict.
+- **No estimation, interpolation, defaulting, zero-filling, partial WRR sum, or
+  generated marketing/qualitative prose** — absent stays blank; `0` is only ever a
+  genuinely present `0`.
+- **No live posting APIs, no network, no scraping** — inputs are operator-provided
+  CSV + the local queue file only.
+
+## 8. Commands to run
 
 ```bash
-python3 - <<'PY'
-import ast, sys
-path = "tools/marketing-render/acceptance.py"
-with open(path) as f:
-    tree = ast.parse(f.read())
-imports = set()
-for node in ast.walk(tree):
-    if isinstance(node, ast.Import):
-        for alias in node.names:
-            imports.add(alias.name.split('.')[0])
-    elif isinstance(node, ast.ImportFrom):
-        if node.module:
-            imports.add(node.module.split('.')[0])
-network = {'socket', 'urllib', 'http', 'requests', 'ssl', 'httplib', 'ftplib'}
-found = network & imports
-if found:
-    print(f"FAIL: network imports found: {sorted(found)}")
-    sys.exit(1)
-print("PASS: no network imports")
-sys.exit(0)
-PY
+cd /Users/prithviputta/Downloads/terrem-marketing-loops
+FX=tools/marketing-loops/fixtures/metrics
+
+# Full unit suite (Sprints 001+002+003+004+005 must all pass)
+python3 -m unittest discover -s tools/marketing-loops/tests -v
+
+# Full happy path -> exit 0, scorecard to stdout; WRR = 347, flywheel + craft filled
+python3 tools/marketing-loops/scorecard.py --week 2026-W27 \
+  --instagram "$FX/full/ig.csv" --youtube "$FX/full/yt.csv" \
+  --linkedin "$FX/full/li.csv" --site "$FX/full/site.csv" \
+  --content-dir "$FX/full/content" --queue "$FX/full/queue.json" --stdout ; echo "exit=$?"
+
+# Golden byte-equality (full)
+python3 tools/marketing-loops/scorecard.py --week 2026-W27 \
+  --instagram "$FX/full/ig.csv" --youtube "$FX/full/yt.csv" \
+  --linkedin "$FX/full/li.csv" --site "$FX/full/site.csv" \
+  --content-dir "$FX/full/content" --queue "$FX/full/queue.json" --stdout \
+  | diff - "$FX/expected/full.md" && echo "GOLDEN-MATCH"
+
+# WRR critical edge: one component blank -> WRR blank, NO partial sum
+python3 tools/marketing-loops/scorecard.py --week 2026-W27 \
+  --site "$FX/wrr-partial/site.csv" --content-dir "$FX/full/content" --stdout \
+  | grep -A2 "North star"   # This-week cell blank
+python3 tools/marketing-loops/scorecard.py --week 2026-W27 \
+  --site "$FX/wrr-partial/site.csv" --content-dir "$FX/full/content" --stdout \
+  | grep -i "WRR component"  # each missing component listed
+
+# Empty state: no sources, no queue -> exit 0, all-blank skeleton + full Missing data
+python3 tools/marketing-loops/scorecard.py --week 2026-W27 \
+  --content-dir "$FX/full/content" --stdout ; echo "exit=$?"
+
+# Determinism: two runs -> byte-identical
+python3 tools/marketing-loops/scorecard.py --week 2026-W27 \
+  --site "$FX/full/site.csv" --content-dir "$FX/full/content" --stdout | shasum
+python3 tools/marketing-loops/scorecard.py --week 2026-W27 \
+  --site "$FX/full/site.csv" --content-dir "$FX/full/content" --stdout | shasum
+
+# Corrupt CSV inherited rejection -> exit 2, NO scorecard file written
+OUT=$(mktemp -u).md
+python3 tools/marketing-loops/scorecard.py --week 2026-W27 \
+  --site "$FX/truncated/site.csv" --content-dir "$FX/full/content" --out "$OUT"
+echo "exit=$? ; file exists? $([ -f "$OUT" ] && echo YES || echo no)"
+
+# Bad queue -> exit 2
+python3 tools/marketing-loops/scorecard.py --week 2026-W27 \
+  --content-dir "$FX/full/content" --queue /no/such/queue.json --stdout ; echo "exit=$?"
+
+# Default-path write (to a temp metrics dir), then confirm path printed
+python3 tools/marketing-loops/scorecard.py --week 2026-W27 \
+  --site "$FX/full/site.csv" --content-dir "$FX/full/content" \
+  --out "$(mktemp -d)/2026-W27.md" ; echo "exit=$?"
+
+# Import-safety + no wall-clock / no network in the new source
+python3 -c "import sys; sys.path.insert(0,'tools/marketing-loops'); import scorecard; print('ok')"
+grep -nE "datetime\.now|requests|urlopen|socket|urllib" \
+  tools/marketing-loops/scorecard.py || echo "clean"
+
+# Frozen modules unchanged (no diff vs prior sprint)
+python3 -m unittest discover -s tools/marketing-loops/tests -q  # 205+ tests still green
 ```
 
-Exit 0 = PASS (no network imports), exit 1 = FAIL (network import detected).
+## 9. Evaluator attack checklist (CLI, not Playwright)
 
-## 9. States that must exist
+New fixtures under `tools/marketing-loops/fixtures/metrics/`: `expected/*.md`
+(golden Markdown), `wrr-partial/site.csv` (one WRR component blank), and
+`full/queue.json` (A/B slots). Reuse existing input fixtures. Required behaviors:
 
-- **Acceptance PASS:** TGRERA deterministic + PASS and all 12 fixtures meet expectations → `ACCEPTANCE: PASS`, exit 0.
-- **Acceptance FAIL (regression caught):** any fixture stops reaching its expected check/exit, TGRERA stops passing, or the re-render hash drifts → `ACCEPTANCE: FAIL` naming the first unmet expectation, non-zero exit. (This is the runner's whole point — a regression gate for the toolchain.)
-- **Missing precondition:** a referenced fixture folder or the TGRERA asset absent → the runner exits non-zero with a named path, not a traceback.
-- **`/loop-qa` on a missing render:** the skill (per §5) auto-renders when `render/`/`manifest.json` is absent; on a missing `content/` folder or malformed manifest it surfaces the validator's exit-2 precondition error, not a verdict.
-- **README command failure:** none — every documented command runs clean against the real TGRERA slug (§7 step 6).
+| Attack | Expected |
+|---|---|
+| Full happy path + `--queue` | exit 0; **byte-equal** `expected/full.md`; WRR=347; flywheel row1 per-campaign; all craft rows w/ slug+hook#; one A/B bucket filled per channel; decisions hook ranking filled |
+| **WRR one-component-blank** (`wrr-partial`) | exit 0; WRR This-week **blank**; that component listed under Missing data; the other two **NOT** summed anywhere in the file |
+| WRR all-absent (no site) | exit 0; WRR blank; all three components listed |
+| Empty run (no sources, no queue) | exit 0; full skeleton, all tables blank (craft header-only); Missing data enumerates every source + structural blank |
+| Determinism | two runs → identical `shasum`; golden byte-match |
+| Corrupt CSV (`truncated`/`wrong-header`/`wrong-colcount`/`non-numeric`/`blank-join`) | **each** exit 2, cited (inherited), **no scorecard file created** even with `--out` |
+| Bad `--queue` path / malformed queue JSON | exit 2, cited, no scorecard |
+| Unmatched campaign (`unmatched`) | exit 0; craft `Asset = <campaign> (unmatched)`; listed under Missing data |
+| Wrong-UTM asset (`wrong-utm`) | exit 0; `wrong-UTM asset <slug>: <violations>` under Missing data; metrics not silently attributed |
+| `blank-cell` vs `zero-cell` craft | blank metric renders **blank** + listed; `0` renders `0`; never conflated |
+| No `--queue` | exit 0; A/B table entirely blank; single `publish queue not provided` Missing-data line |
+| A/B single-week semantics | per channel at most one bucket filled, opposite blank, verdict blank — all as intended (§3.6), each listed under Missing data |
+| `--out` + `--stdout` together | exit 2 (usage) |
+| Bad `--week` (`2026-27`, `26-W27`) | exit 2, no scorecard |
+| Import safety + grep | `import scorecard` prints nothing; no `datetime.now`/network in the source |
+| Frozen modules untouched | Sprint 001–004 suite still fully green; no frozen file mtime change |
 
-## 10. Non-goals (restate, spec §8)
+Adversarial probes the Evaluator should run:
 
-No new `content/` adversarial assets (§2.2). No render-through adversarial asset. No fixture regeneration in the gate. No source edits to `render.py`/`validate.py`/`measure.py`/`make_fixtures.py`/prior tests. No video/animation, no LinkedIn/PDF surface, no auto-fixing, no content generation, no font-family raster check. No network at any time. No CI/scheduler wiring beyond CLI-runnability + README. No changes outside this repo or to the live TERREM product.
+1. **Golden match** — full run → byte-equal `expected/full.md`; hand-verify WRR=347,
+   flywheel clicks per campaign, every craft cell against the fixture CSVs, the one
+   populated A/B bucket per channel, the hook ranking (#11 top, #7 bottom by total
+   clicks), and that Missing data lists exactly the structural blanks.
+2. **WRR no-partial-sum** — `wrr-partial` → grep the whole file for the sum of the
+   two present components; it must **not** appear anywhere. WRR cell blank; the
+   absent component named.
+3. **Corruption never becomes a blank cell** — each corrupt CSV → exit 2, empty
+   stdout, and **no** `metrics/*.md` or `--out` file created.
+4. **A/B honesty** — confirm the half-empty A/B table + blank verdicts are present
+   AND explained in Missing data; confirm no bucket is fabricated for an asset with
+   no queue row (drop `--queue` → whole table blank).
+5. **Determinism** — run twice → `shasum` identical; reorder input flags → identical
+   output (INGEST sorts internally).
+6. **Never-invent sweep** — grep the full-run and empty-run outputs for `N/A`,
+   `TODO`, `0` in a cell that should be blank, a fabricated trend arrow, or any
+   number not traceable to an input cell. None permitted.
+7. **Frozen suite** — `python3 -m unittest discover` → the full Sprint 001–004
+   suite still green; diff the frozen modules → unchanged.
+8. **SKILL update (B-A12)** — `.claude/skills/loop-measure/SKILL.md` invokes
+   `scorecard.py`, states the malformed-CSV (exit 2) vs missing-input (blank +
+   Missing data) distinction and the never-invent rule, mirroring the loop-publish
+   SKILL style.
 
-## 11. Risks this sprint carries (disclosed)
+## 10. Definition of done
 
-- **R-A (S004-aspiration boundary):** the S004 contract aspired to real `content/` adversarial folders; the renderer's compliant-by-construction guards make four of five impossible, so this sprint uses the committed fixtures instead (§2.2, anchored to spec §1/§11's "fixtures" language). If the Evaluator holds the literal S004 aspiration over the spec's plain reading, §2.2 is the one place to contest — the contract argues the spec governs.
-- **R-B (exact validator id/rule strings):** the §6.2 table's id/rule strings were read from the committed `qa-verdict.json` files during revision and confirmed exact. The runner reads the real emitted strings at run time; the builder MUST NOT substitute guesses.
-- **R-C (skill is non-executable):** `/loop-qa` verification is content-based (§5); no execution test is claimed. Mitigation: the mechanical gate it wraps (`validate.py`) is fully unit- and acceptance-tested; the skill is a thin, asserted-in-prose wrapper.
-- **R-D (determinism across environments):** R8 was proven on this machine's Pillow/font stack (S002/003). The acceptance re-render asserts byte-identity against the *committed* render on the same stack; a different Pillow build could shift bytes. Documented as an on-stack guarantee (fonts vendored, no network), matching prior sprints' determinism scope.
-- **R-E (date staleness):** the baseline `--checked-on 2026-07-04` keeps `qa-verdict.json` byte-identical to the committed fixtures. PNG determinism (the R8 requirement) is date-independent. Running with a non-baseline date changes only the JSON `checked_on` field; the contract does not claim JSON byte-identity for arbitrary dates (H-001, Option B).
+- `scorecard.py` exposes a pure `build_scorecard(ingest, queue_or_none, week) ->
+  (markdown, missing)` and a CLI that reuses `ingest.run(args)` (inheriting all
+  B-A3 rejection → exit 2, no output), optionally loads the QUEUE via
+  `queue.load_queue`, renders the template-faithful scorecard + Missing-data
+  appendix, and writes `metrics/<week>.md` / `--out` / `--stdout`; partial and
+  empty runs are exit-0 successes; exit 1 is unused; corrupt CSV / bad queue / bad
+  path → exit 2 with no scorecard.
+- WRR obeys the B-A5 critical edge: filled only when all three components present;
+  any absent → blank + each listed, never a partial sum.
+- Flywheel, craft (blank≠0, unmatched flagged, hook# blank-not-invented), A/B
+  (single-week semantics pinned, buckets read from the queue, verdict blank),
+  vanity (blank), and decisions (hook ranking filled, qualitative bullets blank,
+  hard-stop verdict blank) all render per §3, with every blank enumerated under
+  Missing data and B-A11 wrong-UTM assets surfaced there.
+- Output is byte-deterministic (golden Markdown fixtures + `shasum`-twice), with no
+  wall-clock and no network.
+- `.claude/skills/loop-measure/SKILL.md` updated (B-A12) to invoke the CLI and state
+  the malformed-vs-missing distinction + never-invent rule.
+- Unit tests + golden fixtures for every §9 row shipped under
+  `tools/marketing-loops/`; all pass alongside the untouched Sprint 001–004 suite.
+- Evidence (command output, exit codes, golden-diff results, before/after `shasum`,
+  grep-clean for wall-clock/network, frozen-suite green) logged in
+  `generator_trace.log`.

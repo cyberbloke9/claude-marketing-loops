@@ -1,181 +1,150 @@
-# Product Spec — Asset Renderer + Deterministic QA Gate
+# Product Spec — TERREM Marketing Loops: Publish Layer (Gap 2) + Analytics Plumbing (Gap 3)
+
+> Scope note for downstream agents: this spec closes two roadmap gaps in an existing repo.
+> It is written to the same "explicit named schema + deterministic CLI + adversarial fixtures"
+> DNA already established by `tools/marketing-render/` (renderer → `manifest.json` →
+> `validate.py` → `qa-verdict.json`). Read §9 for the non-negotiable house style before coding.
 
 ## 1. Original Request
 
-> Build the Asset Renderer + Deterministic QA Gate for the TERREM marketing-loop system, inside the existing repo at `/Users/prithviputta/Downloads/terrem-marketing-loops`.
+Verbatim:
+
+> Close Gap 2 (the publish layer) and Gap 3 (analytics plumbing) of the TERREM marketing-loop system, in the existing repo at /Users/prithviputta/Downloads/terrem-marketing-loops, in sprint format with adversarial evaluation.
 >
-> **(1) Renderer** — turns a content asset folder (`content/<slug>/chart-spec.md` + `carousel.md` + `meta.md`) into actual rendered graphics: 1080×1350 carousel slide PNGs and a 1080×1920 vertical variant for the chart card, using the locked brand tokens in `brand/brand-kit.md` (colors: bg `#faf8f3`, ink `#1c1917`, muted `#57534e`, accent `#0f766e`, accent-deep `#0d3d38`, chart-up `#0d9488`, chart-down `#dc2626`, border `#e0dbd3`; type: Inter, Major Third 1.25 scale, headline 48–72px, body ≥24px; charts: Tufte-clean, zero-based y-axis, on-graphic source + as-of date, TERREM wordmark).
+> **Gap 3 — analytics plumbing** (the last unchecked Phase 0 box): build ingestion tooling that turns platform analytics exports (Instagram/YouTube/LinkedIn CSV exports plus site analytics with UTM filtering) into the weekly scorecard `metrics/YYYY-Www.md` following `metrics/TEMPLATE.md` exactly — the retention-first KPI stack (WRR north star computed from provided inputs), flywheel clicks by UTM campaign, per-asset craft diagnostics (3s-hold, swipe-through, shares, clicks) tied to hook-bank numbers, the posting-time A/B table for weeks 1-8, and the decisions-fed-back section. Hard rule from the existing template: if an input is missing, leave the cell blank and list it under "Missing data" — never estimate or invent numbers. The tooling must verify UTM links in asset `meta.md` files follow the documented scheme (`utm_source=<channel>&utm_medium=social&utm_campaign=<slug>`).
 >
-> **(2) QA validator** — measures rendered PNGs and the asset specs against `brand/qa-checklist.md`: WCAG contrast math on actual hex pairs (≥4.5:1 normal / ≥3:1 large), pixel type-size minimums, safe zones (feed: critical content within center ~1000×1270; vertical: clear of top 250px / bottom 440px), hook slide ≤10 words, source/date stamp presence, blacklisted-stats detection (brand-kit.md §8), and data-provenance checklist prompts. Outputs a machine-readable PASS/FAIL verdict per asset that the `/loop-qa` skill can consume.
+> **Gap 2 — publish layer up to the API boundary** (no live posting APIs; no platform credentials exist): from a content asset folder that has `qa-verdict.json` verdict=PASS, generate per-channel publish packages — final caption text per channel (Instagram/LinkedIn/YouTube community) with the correct per-channel UTM link, the rendered PNG paths to attach, and a schedule slot — plus a machine-readable publish queue (single file tracking asset → channel → state: queued/posted, with posted date and permalink recorded when a human posts). A `/loop-publish` skill consumes the queue. The gate must be respected: refuse to queue any asset whose `qa-verdict.json` is missing or verdict!=FAIL-free PASS, or whose `meta.md` contains a KILLED marker. Design the seam (queue schema) so real posting APIs can plug in later without reworking the format.
 >
-> **(3) Wire both into the repo** — a render script runnable via CLI, validator runnable via CLI, documented in README, and demonstrated end-to-end on the existing `content/2026-07-03-tgrera-enforcement-wave/` asset (add a minimal chart card spec for it if needed — its facts are public TGRERA orders, provenance-safe).
->
-> **Constraints:** no network dependencies at render time (fonts vendored or system), no modifications to any other repo, everything stays inside this repo, Python or Node — pick what renders text/charts deterministically best.
->
-> **Verification standard:** real PNGs rendered and measured (pixel checks, contrast), validator attacked with violating fixtures (11-word hook slide, truncated y-axis, low-contrast pair, missing source stamp), and the TGRERA asset passing end-to-end.
+> Constraints: Python matching the existing `tools/marketing-render/` toolchain (stdlib + already-present deps only), tested, deterministic where applicable, everything in-repo, no network calls, no fabricated metrics anywhere. Verification standard: evaluator attacks with fixtures — malformed/truncated CSV exports, a metrics run with missing inputs must produce blanks + Missing-data listing (never invented numbers), a non-PASS asset and a KILLED asset must be refused by the publish queue, wrong-UTM assets flagged. npm package `pmp-gywd@5.0.0` is installed globally on this machine if any sprint finds it useful, but nothing may depend on network access.
 
 ## 2. Product Goal
 
-A CLI toolchain, living entirely inside this repo, that (a) renders a content asset folder into deterministic brand-locked PNGs plus a machine-readable render manifest, and (b) mechanically validates those PNGs + specs against the brand QA checklist, emitting a per-asset PASS/FAIL verdict the `/loop-qa` skill consumes. No taste debates: every check is binary and reproducible.
+Give the TERREM marketing operator two deterministic, no-network CLI toolchains: one that assembles a QA-passed content asset into per-channel publish packages and tracks them in a machine-readable queue up to (but not across) the live-posting-API boundary; and one that ingests channel + site analytics CSV exports into the exact weekly scorecard the template mandates, blanking-and-listing any missing input rather than inventing it.
 
 ## 3. Target User
 
-- **Primary:** a content/marketing operator (or an agent running the `/loop-qa` skill) who has authored an asset folder under `content/<slug>/` and needs published graphics plus a defensible pass/fail gate before publish.
-- **They already know:** the folder structure (`chart-spec.md`, `carousel.md`, `meta.md`, `script.md`), the brand kit rules, and how to run one shell command.
-- **They should NOT need to know:** the rendering library internals, WCAG luminance formulas, or how font pixel sizes are measured. They run two commands and read a verdict.
+The 2-person TERREM marketing team, operating from Claude Code in this repo. They already know: the five-loop system (`PLAN.md`), the asset folder format (`content/TEMPLATE.md`), the QA gate (`tools/marketing-render/`, `qa-verdict.json`), the scorecard template (`metrics/TEMPLATE.md`), and the UTM scheme. They should NOT need to: hand-write scorecard tables, hand-compute WRR, hand-check UTM strings, remember which assets are KILLED, or touch any social-platform API (none exists; no credentials exist). They post manually on each platform and record the permalink back into the queue.
 
 ## 4. Core User Stories
 
-1. **Render** — As an operator, I run one command against `content/<slug>/` and get PNG files (carousel slides + chart card) plus a `manifest.json`, written under `content/<slug>/render/`.
-2. **Validate** — As an operator, I run one command against `content/<slug>/` and get a machine-readable verdict (`qa-verdict.json`) plus a human-readable verdict block appended to `meta.md`, telling me PASS or FAIL and exactly which checks failed and which brand rule each violated.
-3. **Trust the gate** — As a QA agent, I feed a violating asset (11-word hook, truncated axis, low-contrast pair, missing source stamp) and the validator FAILs it, naming the violation.
-4. **Ship the reference asset** — As an operator, I run render + validate on `content/2026-07-03-tgrera-enforcement-wave/` and it PASSes end-to-end.
-5. **Re-render deterministically** — As an operator, I render the same input twice and get pixel-identical PNGs.
+1. **Verify UTM hygiene.** As the operator, I run one command to scan every `content/*/meta.md` and get a pass/fail report of which assets have UTM links that violate the documented scheme, so a wrong-UTM asset never ships.
+2. **Enqueue a publishable asset.** As the operator, given an asset whose `qa-verdict.json` is a FAIL-free PASS and whose `meta.md` is not KILLED, I run one command that generates per-channel publish packages and appends the asset's channels to the publish queue in state `queued`.
+3. **Be refused when the gate says no.** As the operator, when I try to enqueue an asset that is missing its verdict, has a non-PASS verdict, has any failed check, or is KILLED, the tool refuses with a nonzero exit and a cited reason, and writes nothing to the queue.
+4. **Read a publish package.** As the operator, I open a generated per-channel package and see the final caption text (with the correct per-channel UTM link), the exact rendered PNG paths to attach, and the assigned schedule slot — everything I need to post by hand.
+5. **Record a manual post.** As the operator, after I post on a platform, I run one command (or the `/loop-publish` skill) that transitions that asset→channel row from `queued` to `posted` and records the posted date and the permalink.
+6. **Ingest analytics into the scorecard.** As the operator, at week's end I point the tool at the platform CSV exports + the site-analytics CSV for a given ISO week, and it produces `metrics/YYYY-Www.md` filled to the template, with WRR computed from the provided inputs and every absent input blanked + listed under "Missing data".
+7. **Be protected from corrupt exports.** As the operator, when a CSV export is malformed or truncated, the tool rejects it with a nonzero exit and produces no scorecard — corruption never silently becomes a blank cell.
 
 ## 5. Required Behaviors
 
-Each behavior is atomic and testable.
+Atomic, testable behaviors. Grouped by the two gaps plus the shared foundation.
 
-### 5.1 Renderer
-- **R1.** Reads `content/<slug>/carousel.md` and renders each declared slide as a `1080×1350` PNG (feed/carousel format).
-- **R2.** Reads `content/<slug>/chart-spec.md` and renders one `1080×1920` vertical chart card PNG.
-- **R3.** All colors come from the locked tokens in §9 (`brand-kit.md §3`). No color outside that token set may appear as a declared text/element color in the manifest.
-- **R4.** Text uses the **Inter** family (see §10 precedence rule). Font files are vendored inside this repo; rendering performs zero network access.
-- **R5.** Chart card renders a zero-based axis when it plots a numeric axis; if an axis break exists it is explicitly marked and the manifest records the disclosure.
-- **R6.** Every chart card and the carousel's source slide print an on-graphic source + as-of date string and the `TERREM` wordmark (`--accent-deep #0d3d38`, bottom-right).
-- **R7.** For every PNG, the renderer also writes a **`manifest.json`** entry (schema in §5.3) describing the canvas and every text/graphic element it drew: text content, role, font pixel size, fill color hex, background color hex behind it, and bounding box `[x, y, w, h]`.
-- **R8.** Deterministic: rendering the same input folder twice yields **pixel-identical** PNGs (identical decoded-RGBA SHA-256). No embedded timestamps, no run-varying metadata, fixed font, fixed layout math.
-- **R9.** Output location: `content/<slug>/render/<surface-id>.png` and `content/<slug>/render/manifest.json`. The renderer creates the `render/` directory; it writes nowhere else.
+### 5.0 Shared — UTM scheme (foundation)
 
-### 5.2 Validator
-- **V1.** Reads `content/<slug>/render/manifest.json`, the actual PNG files, and the asset's `*.md` specs, plus `brand/brand-kit.md` and `brand/qa-checklist.md`.
-- **V2. Canvas (pixel check):** opens each PNG and reads its real width×height from the image bytes; FAIL if it does not match the declared format (carousel `1080×1350`, chart card `1080×1920`) and the manifest's declared canvas.
-- **V3. Ink-present (pixel check, anti-stub):** for each text element, opens the PNG and confirms the declared fill-color token pixels actually appear inside the element's bbox. A blank/near-blank PNG (no ink pixels where text is declared) FAILs. This closes the "correct manifest + empty PNG" loophole.
-- **V4. Contrast (math on declared hex pair):** computes WCAG 2.x relative-luminance contrast ratio on each text element's declared `color` vs `bg` hex. FAIL if ratio < 4.5:1 for normal text, or < 3:1 for large text. "Large" = font_px ≥ 24 (normal weight) **or** font_px ≥ 18.5 with bold weight. (Contrast is computed on declared hex, not sampled anti-aliased pixels, because sampled edges are noisy; V3 already proves those pixels are really on the canvas.)
-- **V5. Type-size minimums (pixel, from manifest font_px, cross-checked against bbox height):**
-  - Carousel: headline role `font_px ≥ 48`; body role `font_px ≥ 24`.
-  - Chart card / vertical: headline role `font_px ≥ 36`; body role `font_px ≥ 24`.
-  - `source-stamp` and `wordmark` roles are **exempt** from the body minimum (intentionally small) but must still satisfy V4 contrast and V8 presence.
-  - Cross-check: the rendered glyph bbox height must be consistent with the declared `font_px` (within a tolerance the sprint contract fixes, e.g. ±25%), so the manifest cannot lie about size.
-- **V6. Safe zones (from manifest bboxes):**
-  - Carousel `1080×1350`: every element with role in {headline, body, hook} must lie within the centered rect `x∈[40,1040], y∈[40,1310]` (center ~`1000×1270`).
-  - Vertical `1080×1920`: every critical element (headline, body, hook) must lie within `y∈[250, 1480]` (clear of top 250px and bottom 440px). Source-stamp/wordmark are exempt.
-- **V7. Hook word count (spec):** the slide-1 hook text (manifest role `hook`, cross-referenced to `carousel.md` slide 1) must be ≤10 words. An 11-word hook FAILs.
-- **V8. Source/date stamp presence (manifest + spec):** at least one element with role `source-stamp` exists per chart card and per carousel source slide, and its text contains both a source attribution and an as-of/order date. Missing → FAIL.
-- **V9. Blacklisted stats (spec, single-source):** the validator loads the blacklist phrases by parsing `brand/brand-kit.md §8` (not a hardcoded copy) and scans all asset copy (`carousel.md`, `script.md`, `chart-spec.md`, rendered text). Any match → FAIL, naming the phrase.
-- **V10. Chart integrity (conditional):** axis checks apply **only** to a chart card whose manifest declares `has_axis: true`. For such a card: FAIL if `axis_min ≠ 0` and `break_disclosed = false`. A card with `has_axis: false` (e.g., a receipts/data card) skips axis checks but still requires source-stamp + wordmark.
-- **V11. Data-provenance prompts (presence-based):** the validator checks `meta.md` for a structured provenance attestation block. If absent → FAIL. If present → PASS for the gate, and the human-review provenance prompts (from `qa-checklist.md §Data provenance`) are emitted as informational `needs_review` items in the JSON (they do not block).
-- **V12. Verdict output:** writes `content/<slug>/render/qa-verdict.json` (schema in §5.4) AND appends the human-readable verdict block (from `qa-checklist.md §Verdict`) to the asset's `meta.md`. A single FAIL sets overall `PASS=false`.
+- B-U1. A UTM module parses the `Flywheel target:` line of a `content/<slug>/meta.md` and extracts `utm_source`, `utm_medium`, `utm_campaign`.
+- B-U2. The documented scheme is `utm_source=<channel>&utm_medium=social&utm_campaign=<slug>`. A link is **valid** iff: `utm_medium == "social"` exactly; `utm_campaign` equals the asset's folder slug with the leading `YYYY-MM-DD-` date prefix removed (e.g. folder `2026-07-03-hyd-premium-vs-budget` → campaign `hyd-premium-vs-budget`); and `utm_source` is one of the allowed per-channel values in B-U3. (Assumption A-1: campaign = date-stripped slug. See §10; it matches the one real asset, `meta.md` line 9 vs folder name.)
+- B-U3. Allowed `utm_source` values, and the canonical channel↔source map used by BOTH toolchains (they MUST agree):
+  | Channel | utm_source string |
+  |---|---|
+  | Instagram | `instagram` |
+  | YouTube (community) | `youtube` |
+  | LinkedIn | `linkedin` |
+  (Assumption A-2: "YouTube community" uses `utm_source=youtube`, matching `meta.md` line 10 "utm_source=youtube". See §10.)
+- B-U4. A verifier CLI scans one asset folder OR all of `content/*/`, and reports per asset: `OK` or the specific violation (missing flywheel line, wrong medium, campaign≠slug, unknown source, malformed query string). Exit `0` iff all scanned assets are valid; exit `1` if any asset is flagged; exit `2` on usage error (path not found).
 
-### 5.3 `manifest.json` schema (normative, versioned — the renderer↔validator seam)
+### 5.1 Gap 2 — Publish layer
 
-```json
-{
-  "schema_version": "1",
-  "slug": "2026-07-03-tgrera-enforcement-wave",
-  "surfaces": [
-    {
-      "id": "chart-card",
-      "role": "chart-card",              // "carousel-slide" | "chart-card"
-      "png": "chart-card.png",
-      "canvas": { "w": 1080, "h": 1920 },
-      "has_axis": false,                 // chart cards only
-      "axis_min": null,                  // number when has_axis=true
-      "zero_based": null,                // bool when has_axis=true
-      "break_disclosed": false,          // bool when has_axis=true
-      "elements": [
-        {
-          "text": "Telangana's regulator just hit three builders in nine days.",
-          "role": "headline",            // headline|body|hook|source-stamp|wordmark|chart-label
-          "font_px": 54,
-          "weight": 700,                 // numeric font weight
-          "color": "#1c1917",
-          "bg": "#faf8f3",               // resolved background token directly behind the text
-          "bbox": [40, 300, 1000, 220]   // [x, y, w, h] in canvas pixels
-        }
-      ]
-    }
-  ]
-}
-```
+- B-P1. **The gate — four refusal conditions.** An asset is refused from queuing if ANY of: (a) `content/<slug>/render/qa-verdict.json` is absent; (b) its `verdict` field is not exactly `"PASS"`; (c) its `failed_checks` array is non-empty (the "FAIL-free" half — both fields are checked); (d) the asset's `meta.md` contains the KILLED marker. Refusal = nonzero exit + cited reason + **no write** to the queue or packages.
+- B-P2. **KILLED marker match.** The marker is a `meta.md` line whose `QA:` field begins with `KILLED` (real form observed: `QA: **KILLED 2026-07-03** — ...`, `meta.md` line 14). Match: a line matching `QA:\s*\*{0,2}KILLED` (case-sensitive `KILLED`). Presence anywhere in `meta.md` triggers refusal.
+- B-P3. **Enqueue.** On a passing asset, for each channel declared for the asset, append (or idempotently update) a row in the single publish-queue file (schema §5.4 QUEUE) with state `queued`. Re-running on an already-queued asset must not duplicate rows and must not regress a `posted` row back to `queued`.
+- B-P4. **Publish package generation.** For each channel, write a per-channel publish package (schema §5.4 PACKAGE) containing: the final caption text for that channel with the correct per-channel UTM link appended/substituted; the ordered list of rendered PNG paths to attach (read from `content/<slug>/render/manifest.json` `surfaces[].png`, resolved to repo-relative paths); and an assigned schedule slot.
+- B-P5. **Caption source is deterministic assembly, not generation.** Caption body text comes from an authored source field (Assumption A-3, §10: a `Caption:` block added to the asset — the generator defines and documents the field; if absent, the tool errors and lists it, it does NOT invent copy). The tool appends the per-channel UTM link; it never writes marketing prose itself. Same authored body + same channel → byte-identical caption every run.
+- B-P6. **Schedule slot origin.** The slot is deterministic: derived from a required `--week` (ISO `YYYY-Www`) argument + a fixed, documented per-channel default time (posting-time A/B is still open per `PLAN.md` §Loop 5, so the tool assigns a morning/evening A/B bucket deterministically, not wall-clock). No `datetime.now()` in any output. (Assumption A-4, §10.)
+- B-P7. **Mark posted (human-in-the-loop transition).** A command transitions one asset→channel row from `queued` to `posted`, recording `posted_date` (`--posted-on YYYY-MM-DD`, required) and `permalink` (`--permalink URL`, required). Refuse to mark `posted` a row that is not currently `queued`, or a permalink that is empty.
+- B-P8. **API seam.** The QUEUE schema carries `state` from a fixed enum `{queued, posted}` and per-row nullable `posted_date`/`permalink`, plus a top-level `schema_version`, so a future live-posting adapter can flip state and fill fields without reshaping the file. No posting-API field names are invented now; the seam is the state machine, documented in the schema.
+- B-P9. **`/loop-publish` skill.** A `.claude/skills/loop-publish/SKILL.md` documents the operator flow: run the gate+enqueue on a `content/<slug>`, read the generated packages, post manually, then mark-posted. The skill invokes the CLIs; it adds no taste judgement and never bypasses the gate (mirrors `/loop-qa`).
 
-Rules: `slide-1` carousel surface must carry exactly one `hook`-role element. Every `color` and `bg` must be one of the §9 tokens. `bg` is the actual resolved fill behind the text (used for V4 contrast). Fields marked axis-only may be `null` when `has_axis=false`.
+### 5.2 Gap 3 — Analytics plumbing
 
-### 5.4 `qa-verdict.json` schema (normative — the validator→`/loop-qa` seam)
-
-```json
-{
-  "schema_version": "1",
-  "slug": "2026-07-03-tgrera-enforcement-wave",
-  "verdict": "PASS",                     // "PASS" | "FAIL"
-  "checked_on": "2026-07-04",
-  "checked_by": "validator-cli",
-  "checks": [
-    { "id": "V4-contrast", "surface": "chart-card", "element_bbox": [40,300,1000,220],
-      "status": "PASS", "detail": "ratio 13.1:1 ≥ 4.5:1", "rule": "brand-kit.md §3" }
-  ],
-  "failed_checks": [],                    // list of {id, surface, detail, rule}
-  "needs_review": []                      // provenance prompts (informational)
-}
-```
+- B-A1. **CSV ingestion, per source.** The tool accepts four input CSV kinds, each with an authored, documented column contract (schema §5.4 CSV-INPUTS): Instagram export, YouTube export, LinkedIn export, and site-analytics export. Since no real platform export format is verifiable from here, these column schemas are an authored internal contract (Assumption A-5, §10); fixtures conform to them. Do NOT attempt to reproduce a specific real platform's export layout.
+- B-A2. **Join key.** A CSV metrics row ties to an asset by `utm_campaign == <date-stripped slug>` (the same key as B-U2). Through the asset's `meta.md` this also resolves the asset's hook number for the craft-diagnostics table.
+- B-A3. **Malformed/truncated CSV → reject, no scorecard.** If any provided CSV is unparseable, has a missing required header, has a row with the wrong column count, or is truncated mid-row, the tool exits nonzero with the offending file + reason and writes NO scorecard. (This is distinct from B-A4.)
+- B-A4. **Absent input → blank + Missing data.** If a whole input source is not provided, or a required value for a cell is absent from otherwise-valid CSVs, the corresponding scorecard cell is left blank and the input is enumerated under a "Missing data" section. The tool never estimates, interpolates, or defaults a metric value.
+- B-A5. **WRR (north star) formula, pinned.** WRR = (returning viewers) + (digest/email open-streak count) + (returning site visitors from social), read from named input columns (defined in §5.4 CSV-INPUTS). **Critical edge:** if ANY of the three component inputs is absent, WRR is left **blank** and each missing component is listed under "Missing data". A partial sum is forbidden — it is an invented number. WRR is filled only when all three components are present.
+- B-A6. **Flywheel clicks by UTM campaign.** From the site-analytics CSV filtered to `utm_medium=social`, aggregate clicks to `intel.terrem.in` grouped by `utm_campaign`, and fill the Flywheel table. Rows with no data → blank + Missing data.
+- B-A7. **Per-asset craft diagnostics.** For each asset published in the target week, emit a row: Asset, Channel, 3s-hold %, completion/swipe-through %, Shares, Clicks, Hook #. Each metric drawn from the matching per-channel CSV by join key; the Hook # read from the asset's `meta.md`. Absent metric → blank cell (not zero).
+- B-A8. **Posting-time A/B table (weeks 1–8).** Populate the morning-vs-evening A/B table per channel from the schedule slot recorded (Gap-2 queue / packages) crossed with the week's performance. Weeks beyond 8, or with no data, produce blanks + Missing data; the tool never fabricates a verdict.
+- B-A9. **Decisions fed back.** Reproduce the template's "Decisions fed back" section structure. The tool fills only what the data supports (e.g. top/bottom hook by measured performance) and blanks the rest; it does not invent qualitative decisions.
+- B-A10. **Output fidelity.** The produced `metrics/YYYY-Www.md` matches `metrics/TEMPLATE.md` section-for-section, heading-for-heading (North star, Flywheel, Craft diagnostics, Posting-time A/B, Vanity, Decisions fed back), plus an appended "Missing data" section listing every blanked input. Filename week comes from a required `--week YYYY-Www` argument (deterministic, never wall-clock).
+- B-A11. **UTM verification is invoked here too.** The scorecard run verifies (via the §5.0 module) that each published asset's `meta.md` UTM link is scheme-valid, and flags violators in the Missing-data/notes section (a wrong-UTM asset cannot be silently attributed).
+- B-A12. **`loop-measure` skill wiring.** The existing `.claude/skills/loop-measure/SKILL.md` is updated to invoke the new analytics CLI (it currently describes the process narratively). The skill states the malformed-CSV vs missing-input distinction and the "never invent" rule.
 
 ## 6. States That Must Exist
 
-- **Empty / missing input:** asset folder or required `*.md` missing → validator exits non-zero with a clear message; renderer errors and writes nothing partial.
-- **No render yet:** validator run before renderer → clear "manifest/PNG not found; run render first" error, not a crash.
-- **Success (PASS):** all checks pass → `qa-verdict.json verdict=PASS`, exit 0, verdict block appended to `meta.md`.
-- **Failure (FAIL):** one or more checks fail → `verdict=FAIL`, exit non-zero, `failed_checks` populated with rule citations; nothing "fixed silently."
-- **Invalid input:** malformed manifest / unparseable spec / color outside token set → explicit validation error naming the offending field.
-- **Blank/stub PNG:** manifest present but PNG has no ink where text is declared → V3 FAIL.
-- **Deterministic re-render:** second render produces identical bytes; a diff test can assert this.
-- **Provenance missing:** no attestation block in `meta.md` → FAIL (V11).
+- **Empty:** no assets queued yet → queue file is a valid, empty-rows document (not a missing file); scorecard run with zero published assets → template with all-blank tables + full Missing-data listing.
+- **Success (publish):** gate passes → packages written + queue rows in `queued`; mark-posted → rows in `posted` with date + permalink.
+- **Success (analytics):** all inputs present → fully-filled scorecard, empty (or minimal) Missing-data section.
+- **Partial input (analytics):** some inputs present → mix of filled + blank cells, every blank enumerated under Missing data; exit `0` (valid partial scorecard is a success, not an error).
+- **Invalid input:** malformed/truncated CSV → nonzero exit, no scorecard (B-A3); wrong-UTM asset → flagged (B-U4 / B-A11).
+- **Gate refusal (publish):** missing verdict / non-PASS / failed_checks non-empty / KILLED → nonzero exit, cited reason, no write (B-P1).
+- **Idempotency:** re-running enqueue or scorecard on the same inputs → identical output, no duplicate queue rows, no regressed states (B-P3).
+- **Offline/network:** every command runs with no network; there is no online state. Any attempted network call is a defect.
 
 ## 7. Design Direction
 
-- **Fidelity to locked tokens, not novelty.** Colors, type family, scale, and safe zones are already locked by `brand-kit.md` (TERREM v4 visual-preservation constraint). The renderer reproduces them exactly; it does not introduce new brand colors, gradients, textures under type, or decorative fonts.
-- **Tufte-clean charts:** maximize data-ink — no gridline forests, no 3D, no bar gradients, no chartjunk. Direct labels over legends. One accent per asset applied to the single most important element.
-- **Typography:** Inter (weights per manifest). Major Third 1.25 scale (16→20→25→31→39→49→61). Line height 1.4–1.6×, line length 45–90 chars where the renderer wraps.
-- **Anti-patterns (must not appear):** all-lowercase overlay headlines, condensed/thin faces, photo/texture behind text, more than one accent color per surface, truncated axis without disclosure.
-- **Tone of tooling output:** terse, mechanical, cite-the-rule. No praise, no hedging in verdicts.
+- Match `tools/marketing-render/` exactly: module-level docstring naming the sprint + the seam it consumes/produces; `argparse` CLI; exit codes `0` success / `1` domain failure / `2` usage-or-precondition error; paths resolved from `__file__` so tools run from any cwd; stdlib + Pillow only (Pillow not needed here — prefer pure stdlib: `csv`, `json`, `pathlib`, `argparse`, `re`).
+- **Explicit named schemas, not prose.** Every machine artifact (publish queue, publish package, CSV input contracts, any intermediate metrics blob) is a documented schema with a `schema_version` field, exactly like `manifest.json`/`qa-verdict.json`. This is the codebase's DNA and is what lets the Evaluator's fixtures meet the Generator's output.
+- **Anti-patterns (forbidden):** `datetime.now()` or any wall-clock in output; estimating/defaulting/zero-filling a missing metric; generating marketing copy; any network import (`requests`, `urllib` fetch, etc.); depending on the globally-installed `pmp-gywd@5.0.0` npm package or any npm/network resource; silently overwriting an existing render or an existing `posted` queue row.
+- **Tone in generated docs:** the scorecard's prose obeys `RESEARCH.md` refuted-stats blacklist and the Candid-Analyst register only insofar as it reproduces the template; the tool adds no editorial numbers.
+- **Determinism:** same inputs → byte-identical outputs (JSON with sorted keys / stable ordering; Markdown with stable row ordering, e.g. assets by slug, campaigns lexicographic).
 
 ## 8. Non-Goals
 
-- No video/reel rendering, animation, or audio.
-- No LinkedIn 1200×627 link image or PDF carousel in v1 (only 1080×1350 feed + 1080×1920 vertical).
-- No IBM Plex Serif pull-quote accent rendering in v1.
-- No auto-fixing of failing assets — the validator reports, it does not edit copy or re-layout.
-- No content generation — the renderer does not write copy; it renders authored specs.
-- No changes to any repo other than this one. No changes to the live TERREM product.
-- No CI/scheduling integration beyond making both tools CLI-runnable and documenting them.
+- No live posting to Instagram/YouTube/LinkedIn; no API clients; no credential handling; no OAuth. The publish layer stops at the API boundary.
+- No scraping or fetching of analytics from any platform; inputs are operator-provided CSV files only.
+- No new rendering, no changes to `render.py`/`validate.py`/`measure.py`/`acceptance.py` behavior (they may be imported read-only; do not modify their contracts).
+- No revival of DB-derived price-trend content (still BLOCKED per `PLAN.md` §2 / provenance gate) — out of scope.
+- No dashboards, web UI, or charts of the metrics; the deliverable is the Markdown scorecard + machine artifacts.
+- No dependency on `pmp-gywd@5.0.0` (it is mentioned as available but must not be used, since nothing may require network access).
 
 ## 9. Technical Constraints
 
-- **Location:** all new code lives inside this repo. Proposed home: `tools/marketing-render/` (render entrypoint, validator entrypoint, vendored `fonts/`, shared measurement library, fixtures). No writes outside this repo.
-- **Language:** Python or Node — generator picks whichever renders deterministic text + charts best (e.g. Python Pillow + matplotlib, or a headless SVG→PNG path). The choice is the generator's; **determinism (R8) and no-network-at-render (R4) are hard requirements**, not the library.
-- **Locked color tokens** (from `brand-kit.md §3`, source of truth):
-  ```
-  --bg #faf8f3 · --surface #ffffff · --ink #1c1917 · --ink-muted #57534e
-  --accent #0f766e · --accent-deep #0d3d38 · --chart-up #0d9488
-  --chart-down #dc2626 · --border #e0dbd3
-  ```
-- **Fonts vendored:** Inter font files committed under `tools/marketing-render/fonts/`. Inter is SIL OFL — redistributable (confirm license file is included). System fonts are acceptable only if the exact face is guaranteed present and deterministic; vendoring is preferred.
-- **No network at render or validate time.** No downloads, no remote font/CSS fetch.
-- **Verdict consumption:** `qa-verdict.json` is the stable contract the `/loop-qa` skill reads; the skill is updated (in-repo, minimal) to invoke the validator CLI and consume the JSON. The human verdict block continues to be appended to `meta.md`.
-- **Provenance-safety:** the TGRERA reference asset uses only public news-reported regulator orders (already declared in its `meta.md`); no TERREM DB numbers.
+- **Language/runtime:** Python 3.9.6 (confirmed on machine). Stdlib only (`csv`, `json`, `argparse`, `pathlib`, `re`, `datetime` for parsing supplied dates only — never for "now"). Pillow 11.3.0 is available but not expected to be needed.
+- **Location:** everything in-repo. New CLIs live under `tools/` following the `tools/marketing-render/` pattern (suggested: `tools/marketing-publish/` for Gap 2, `tools/marketing-metrics/` for Gap 3, or a shared `tools/marketing-loops/` with `utm.py` shared — Generator chooses, but the shared UTM module must be importable by both). Tests under each tool's `tests/`, fixtures under each tool's `fixtures/`, mirroring the existing layout.
+- **Persistence:** flat files only. Single publish-queue file at a fixed documented path (suggested `content/publish-queue.json`). Per-channel packages written under the asset folder (suggested `content/<slug>/publish/<channel>.json` or `.md`). Scorecards at `metrics/YYYY-Www.md`.
+- **Security/privacy:** no network. No secrets. No personal data written (aligns with `PLAN.md` DPDP posture). CSV inputs are treated as untrusted (robust parsing per B-A3).
+- **Existing seams consumed (read-only, do not change):** `content/<slug>/render/qa-verdict.json` (`verdict`, `failed_checks`); `content/<slug>/render/manifest.json` (`surfaces[].png`); `content/<slug>/meta.md` (`Flywheel target:`, `Hook:`, `Channels:`, `QA:` lines); `metrics/TEMPLATE.md`; `content/TEMPLATE.md`.
+- **Testing:** `python3 -m unittest discover` per tool (existing convention); an `acceptance.py`-style end-to-end runner that exercises the CLIs as subprocesses and exits `0` iff the whole contract holds — mirroring `tools/marketing-render/acceptance.py`.
 
 ## 10. Risks and Ambiguities
 
-1. **[RESOLVED — normative] Font contradiction.** `brand-kit.md §2` says headings = **Inter 600–700**; `brand/qa-checklist.md` (Typography) says "Headings **IBM Plex Sans 600**"; the human request says type = **Inter**. If the validator enforced the checklist literally it would FAIL the TGRERA asset (which uses Inter) — breaking the required end-to-end PASS. **Precedence rule the validator MUST enforce: human request > `brand-kit.md §2` > `qa-checklist.md`. The heading/body face is Inter.** The stale "IBM Plex Sans" line in `qa-checklist.md` should be corrected to "Inter" as part of this work (in-repo edit, allowed). Do not implement an IBM Plex Sans check.
-2. **TGRERA asset has no chart-spec / carousel.** It currently holds only `meta.md` + `script.md` (a reactive short). The request permits adding a "minimal chart card spec." **Assumption:** author `content/2026-07-03-tgrera-enforcement-wave/chart-spec.md` as a **receipts/data card** (`has_axis: false`) containing the three public orders (dates, builders, amounts/interest), the source attribution (NewsMeter · Siasat · Deccan Chronicle · orders dated 2026-06-22/27/30), and the TERREM wordmark. No plotted numeric axis. Facts come only from the existing `script.md` / `signals` (public). The end-to-end demo validates the rendered chart card; a full carousel for TGRERA is optional/out-of-scope unless trivial.
-3. **"Truncated y-axis" detection.** Implemented via manifest flags (`has_axis`, `axis_min`, `zero_based`, `break_disclosed`), not pixel baseline analysis. Default-safe: `axis_min ≠ 0 && !break_disclosed → FAIL`.
-4. **Glyph-size cross-check tolerance.** Exact tolerance for V5 bbox-vs-`font_px` consistency is a sprint-contract detail (suggested ±25%); pick a value that passes correctly-rendered Inter and fails a 2× lie.
-5. **Provenance is presence-based, not semantic.** V11 checks for a structured attestation block, not the truth of the claim; the deeper provenance checklist items are surfaced as `needs_review` informational prompts, matching the request's "checklist prompts" wording.
-6. **Carousel source-slide vs chart-card source stamp.** Both must carry source+date; the validator requires the stamp on any surface declaring a chart card and on the carousel's designated source slide.
+- **A-1 (campaign=slug):** UTM `utm_campaign` equals the folder slug with the `YYYY-MM-DD-` prefix stripped. Evidence: real asset folder `2026-07-03-hyd-premium-vs-budget` vs its `meta.md` campaign `hyd-premium-vs-budget`. Safest default: strip the leading `\d{4}-\d{2}-\d{2}-`. If an asset's campaign legitimately differs, the verifier flags it — acceptable, since the scheme is documented.
+- **A-2 (YouTube source string):** "YouTube community" maps to `utm_source=youtube`. Evidence: `meta.md` line 10 (`utm_source=youtube`). Both toolchains must use the identical string (§5.0 B-U3).
+- **A-3 (caption source):** No existing field is unambiguously "the caption." Default: the Generator introduces and documents a `Caption:` authored block in the asset (or per-channel captions in `meta.md`/a `captions.md`), and the tool errors if it is absent rather than inventing copy. Downstream authors then supply it; fixtures include it.
+- **A-4 (schedule slot):** Posting times are an open A/B hypothesis (`PLAN.md`). Default: assign a deterministic morning/evening A/B bucket from `--week` + channel, documented, never wall-clock. Real times are filled by the human when posting (recorded via mark-posted).
+- **A-5 (CSV column contracts):** Real platform export formats are unverifiable and variable. Default: author an internal column contract per source, document it in the schema, and have fixtures conform. This is the manifest.json approach applied to inputs.
+- **A-6 (WRR components):** Template defines WRR as returning viewers + digest opens + returning site visitors. If a component has no obvious single input column, the Generator names the column explicitly in the CSV contract; absence of any component → blank WRR + Missing-data entries (B-A5). No partial sums.
+- **A-7 (Channels list per asset):** `meta.md` `Channels:` line is free text (e.g. "IG carousel + reel, YT short, LinkedIn PDF"). The tool maps free-text channel mentions to the canonical `{instagram, youtube, linkedin}` set; ambiguous/unmapped tokens are surfaced, not guessed. Document the mapping rules.
+- **Risk — over-fitting to the one real asset.** Only one PASS asset (`2026-07-03-tgrera-enforcement-wave`) and one KILLED asset (`2026-07-03-hyd-premium-vs-budget`) exist. Build fixtures for the rest; do not hard-code the single real slug into tool logic.
 
 ## 11. Suggested Sprint Breakdown
 
-- **Sprint 001 — Measurement core (pure, unit-tested, no rendering).** WCAG relative-luminance + contrast-ratio functions; large-vs-normal threshold decision (V4); type-size minimum rules (V5); safe-zone containment math (V6); blacklist parser reading `brand-kit.md §8` (V9). Contract test: known hex pairs (e.g. `#1c1917`/`#faf8f3` ≈ 13:1 PASS; a deliberately low pair FAIL), known bboxes in/out of safe zones, blacklist hit/miss.
-- **Sprint 002 — Carousel renderer + manifest.** Render `carousel.md` slides to `1080×1350` PNGs with vendored Inter and locked tokens; emit `manifest.json` (§5.3). Contract test: PNG dims = 1080×1350 (read from bytes), bg token dominates canvas, manifest validates against schema, and **pixel-identical re-render (R8)**.
-- **Sprint 003 — Chart-card renderer + TGRERA spec.** Render `1080×1920` vertical chart card (zero-based axis when `has_axis`, source stamp, wordmark); author `content/2026-07-03-tgrera-enforcement-wave/chart-spec.md` as the `has_axis:false` receipts card (Risk 2). Contract test: card renders, dims 1080×1920, source-stamp + wordmark elements present in manifest, deterministic re-render.
-- **Sprint 004 — Validator CLI + verdict.** Consume manifest + PNGs + specs; run V2–V12; emit `qa-verdict.json` (§5.4) + append verdict block to `meta.md`. Enforce the Inter precedence rule (Risk 1). Contract test: run against the rendered TGRERA card → structured PASS verdict, exit 0.
-- **Sprint 005 — Adversarial fixtures + wiring + end-to-end.** Four violating fixtures each caught with the right rule cited: (a) 11-word hook slide → V7 FAIL; (b) truncated/undisclosed axis → V10 FAIL; (c) low-contrast text pair → V4 FAIL; (d) missing source stamp → V8 FAIL. Plus: blank-PNG stub → V3 FAIL. Wire render + validate CLIs into README with runnable commands; update `/loop-qa` skill to invoke the validator and consume `qa-verdict.json`. Acceptance: TGRERA asset renders + validates **PASS end-to-end**, and all five adversarial fixtures FAIL correctly.
+Small, contract-testable slices. Shared UTM foundation first; the two gaps are otherwise independent; final acceptance sprint mirrors the existing `run-001` shape (5 build + 1 acceptance).
+
+- **Sprint 001 — Shared UTM module + verifier CLI.** Parse `meta.md` flywheel line; validate against the scheme (B-U1..B-U4); per-channel source map (B-U3). Deliver an importable `utm` module + a scan CLI over `content/*/`. Tests: valid asset passes; wrong-medium, campaign≠slug, unknown-source, malformed-query, missing-line each flagged. Fixtures: at least one wrong-UTM asset.
+- **Sprint 002 — Publish gate + queue schema + enqueue.** Define QUEUE schema (§5.4, `schema_version`, state enum, nullable posted fields — the API seam, B-P8). Implement the four-condition gate (B-P1/B-P2) and idempotent enqueue (B-P3). Tests/fixtures: PASS asset enqueued; missing-verdict, non-PASS, failed_checks-non-empty, and KILLED assets each refused with cited reason and no write.
+- **Sprint 003 — Publish package generation + mark-posted + `/loop-publish` skill.** Per-channel packages (caption assembly B-P5, PNG paths from manifest B-P4, schedule slot B-P6); mark-posted transition (B-P7). Write `.claude/skills/loop-publish/SKILL.md` (B-P9). Tests: package bytes stable; UTM link correct per channel; mark-posted refuses non-queued rows and empty permalinks.
+- **Sprint 004 — Analytics CSV ingestion (robust).** CSV input contracts (B-A1), join key (B-A2), and the malformed/truncated rejection path (B-A3) vs absent-input handling (B-A4). Deliver an ingestion module producing a validated intermediate metrics structure. Fixtures: valid exports; truncated CSV; wrong-header CSV; wrong-column-count row — each rejected with nonzero exit and no downstream output.
+- **Sprint 005 — Scorecard compiler → `metrics/YYYY-Www.md`.** Consume the ingestion output; fill the template exactly (B-A5 WRR incl. no-partial-sum edge, B-A6 flywheel, B-A7 craft diagnostics + hook #, B-A8 A/B, B-A9 decisions, B-A10 fidelity, B-A11 UTM flagging). Update `loop-measure` SKILL (B-A12). Tests: full-input scorecard; missing-input scorecard produces blanks + Missing-data listing and NEVER a fabricated or partial number; determinism.
+- **Sprint 006 — Acceptance runner + adversarial fixture suite.** An `acceptance.py`-style end-to-end runner over both gaps: malformed CSV rejected; missing-input run blanks + lists (no invented numbers); non-PASS and KILLED assets refused by the queue; wrong-UTM asset flagged. Exit `0` iff the entire contract holds. Update `README.md` rollout status (check the Phase-0 analytics-plumbing box) and document both toolchains.
+
+---
+
+### §5.4 Named schemas (author these as concrete artifacts, not prose)
+
+The Generator must materialize each of the following as a documented, versioned schema (JSON for machine artifacts) with example fixtures. These are contracts the Evaluator's fixtures will target.
+
+- **QUEUE** — `content/publish-queue.json`: `{ schema_version, rows: [ { slug, channel ∈ {instagram,youtube,linkedin}, state ∈ {queued,posted}, week (YYYY-Www), schedule_slot, package_path, posted_date|null, permalink|null } ] }`. Stable row ordering (slug, then channel). Single source of truth for `/loop-publish`.
+- **PACKAGE** — per asset×channel: `{ schema_version, slug, channel, utm_source, utm_link, caption, attachments: [png paths], schedule_slot, week }`. `caption` = authored body + per-channel UTM link; deterministic.
+- **CSV-INPUTS** — four documented column contracts (Instagram, YouTube, LinkedIn, site-analytics). Each names its required headers, the join column (`utm_campaign` for site-analytics; asset/campaign identifier for platform exports), and which columns feed which scorecard cell — explicitly the three WRR components (B-A5), 3s-hold, swipe-through/completion, shares, clicks, and flywheel clicks. Fixtures conform to these contracts.
+- **Missing-data listing** — the appended scorecard section: an enumerated list of every input/cell left blank and why (source not provided / value absent / WRR component missing / wrong-UTM excluded).

@@ -1,0 +1,5 @@
+{
+  "schema_version": "1",
+  "slug": "pkg-missing-channel-caption",
+  "surfaces": [{"id": "card", "png": "card.png", "role": "chart-card"}]
+}

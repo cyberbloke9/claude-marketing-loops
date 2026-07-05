@@ -1,86 +1,130 @@
 VERDICT: PASS
-SCORE: 4.4
+SCORE: 4.8
 BLOCKERS: 0
 HIGH: 0
 
-# Sprint 001 Findings — Measurement Core
+# Findings — Sprint 001: Shared UTM module + verifier CLI
 
-Mode: EVALUATE. Sprint: 001 (pure measurement library; no rendering, no UI).
-Scope note: this sprint is a stdlib-only Python library. There is intentionally no
-browser/Playwright click path (contract §0). The library was attacked directly via
-independent Python probes plus the contract's own §6 attack script and §5 verification
-commands. All checks were reproduced from a clean invocation.
+Scope reminder: this sprint is a CLI/library deliverable (spec §5.0, B-U1..B-U4).
+There are no routes, screens, or Playwright paths — verification is exact CLI
+invocations, exit codes, and stdout substrings per `contract.md` §8/§9. UI-specific
+harsh-pass criteria (responsive, keyboard, ARIA, contrast, component-library
+default) do not apply and were not scored.
 
-## Evidence summary (all reproduced by the Evaluator, not taken on claim)
+## Verdict rationale
 
-| Check | Command | Result |
+Every behavior the contract pins was exercised from a clean checkout and
+reproduced exactly. All 35 unit tests pass. Every §9 attack-checklist row fires
+the correct exact-string violation code on the correct slug, in table order.
+Both real assets (including the KILLED hyd asset, a deliberate positive control
+since UTM validity is orthogonal to the publish gate) scan `OK` at exit 0. Exit
+codes 0/1/2 are correct, precondition errors go to stderr with empty stdout,
+output is byte-identical across runs, the module imports with no side effects,
+and the code is verifiably free of wall-clock and network usage. One soft spot
+(grep-gaming of §9 probe 7) is recorded below as a Low/Process finding — it does
+not gate PASS because the underlying code was independently confirmed clean.
+
+## Evidence log (all reproduced by the Evaluator, not taken from the trace)
+
+| Contract check | Command | Observed |
 |---|---|---|
-| Unit tests | `python3 -m unittest discover -s tools/marketing-render/tests -v` | Ran 44 tests, OK, exit 0 |
-| Import purity | AST scan (contract §5.2) | `imports: ['re']`, exit 0 (stdlib-only) |
-| Contract attack script | contract §6 verbatim | `OK — all measurement-core assertions passed`, exit 0 |
-| Independent adversarial probes | Evaluator-authored (below) | `FAILS: NONE` |
-| Determinism | two invocations, byte-compare outputs | identical |
-| File scope | `find tools/marketing-render -type f` | exactly `measure.py` + `tests/test_measure.py`; no `__pycache__`, no `.pyc`; no writes to `brand/` or `content/` |
+| Unit tests (B-U1..B-U4) | `python3 -m unittest discover -s tools/marketing-loops/tests` | Ran 35 tests — OK |
+| Real content root -> exit 0 | `verify_utm.py content` | `OK 2026-07-03-hyd-premium-vs-budget` + `OK 2026-07-03-tgrera-enforcement-wave`, exit 0 |
+| Single real asset -> exit 0 | `verify_utm.py content/2026-07-03-tgrera-enforcement-wave` | `OK ...tgrera...`, exit 0 |
+| Fixtures root -> exit 1 | `verify_utm.py tools/marketing-loops/fixtures` | all 8 fixtures reported; each violation code on correct slug; multi-defect prints `wrong-medium, unknown-source`; absent-source -> `unknown-source`; exit 1 |
+| Nonexistent path -> exit 2 | `verify_utm.py content/does-not-exist` | `ERROR:` on stderr, empty stdout, exit 2 |
+| meta-less / empty root -> exit 2 | `verify_utm.py tools/marketing-loops`; empty tmp dir | `ERROR: ...nothing to scan`, exit 2 |
+| Determinism | fixtures scan x2 -> shasum | identical `48a059555d29...` |
+| Import safety | `import utm` | zero stdout; `CHANNEL_SOURCE_MAP` = exactly instagram/linkedin/youtube |
+| No network / no wall-clock | `grep -rE 'datetime\.now|import requests|urlopen|urlretrieve|socket|import urllib' *.py` | zero hits; AST test `test_no_network_or_wallclock_imports` passes |
+| Runs from any cwd (§5) | from `/tmp`, absolute path to `verify_utm.py` + abs `content` arg | `OK` both assets, exit 0; `import utm` from `/tmp` resolves map |
 
-## Independent adversarial probes (NOT from the generator's own script)
+Behavior-to-spec coverage: B-U1 `parse_flywheel_line` (returns `None` distinctly
+for missing line; ignores per-channel continuation) OK; B-U2 validity rule (medium
+exact, campaign = date-stripped slug, source in map) OK; B-U3 single canonical map
+with `ALLOWED_SOURCES` derived (no second literal list) OK; B-U4 CLI auto-detect
+single-asset vs content-root, lexicographic order, exit 0/1/2 OK. Violation
+taxonomy: `missing-flywheel-line`/`malformed-query` are terminal; value checks
+(`wrong-medium`, `campaign-mismatch`, `unknown-source`) evaluated independently
+and emitted in fixed table order — confirmed by multi-defect fixture output.
 
-Confirmed all of the following independently — each is a way the implementation could
-have cheated the contract's script but didn't:
+---
 
-- WCAG extremes exact: `#000000`/`#ffffff` == 21.0; identical color == 1.0; `#ffffff`/`#faf8f3` < 1.2 (near-invisible pair correctly low).
-- `is_large_text` full boundary lattice: `(24,100)=True`, `(18.4,700)=False`, `(18.5,700)=True`, `(18.5,400)=False`, `(23.9,400)=False`.
-- `normalize_hex` rejects `#fff` 3-digit shorthand, `None`, `123` (int), empty string, `#1234567`, `12g4f6`, ` zzz`; accepts hash-less uppercase.
-- `safe_zone_ok` raises on length-3 bbox, negative width, and unknown canvas (1200×627); failure `reason` names the exact violated edge (top/bottom/left/right).
-- `size_consistent` band edges inclusive at exactly ±25% (`48→36` and `48→60` True; `48→35.9` and `48→61` False; `48→24` 2× lie False).
-- `type_min_ok` raises on unknown surface and unknown element role; hook takes headline minimum; source-stamp/wordmark/chart-label exempt (pass at 12px).
-- `parse_blacklist` proven single-source: a synthetic temp `## 8` section returns *its* phrases (`alpha/beta/gamma`), not the brand-kit constants; missing `## 8` raises `ValueError`; en-dash phrase `Wed 4pm / Fri 3–4pm` preserved verbatim.
-- `scan_blacklist` dash/case/whitespace-insensitive substring match; clean copy returns `[]`.
+## Finding F-001: §9 probe 7 was satisfied by rewording docstrings, not by the code
 
-## Spec conformance (Sprint 001 slice of §5.2)
+Severity: Low
+Category: Process
+Status: Noted (does not gate PASS)
 
-- V4 contrast: WCAG 2.x relative-luminance formula implemented correctly; `passes` computed on raw ratio, `ratio` display-rounded to 2dp. `#1c1917`/`#faf8f3` ≈ 16.5:1 (the contract's normative WCAG target, correctly NOT the brand-kit's approximate "~13:1" annotation). Large/normal threshold (24px OR 18.5px+bold) correct.
-- V5 type minimums + glyph-size band (±25%, Risk 4) correct as band math.
-- V6 safe-zone geometry for both canvases correct, inclusive edges, edge-naming reasons.
-- V9 blacklist parser is genuinely single-source (parses the real `brand/brand-kit.md §8`), returns the 5 phrases verbatim, and fails loud on a moved section.
-- §5.3 token rule: exactly nine tokens, lowercase, `is_brand_token`/`token_name` correct.
-- States (§6/§7): malformed hex, unknown role, unknown canvas, bad bbox, missing `## 8` all raise `ValueError` naming the offending value — no bare crash, no silent `[]`.
+### Contract Clause
+`contract.md` §9 probe 7: "Grep the source for `datetime.now`, `requests`,
+network `urllib` fetch -> none present." Generator trace entry `[2026-07-04 14:12]`
+records reworking docstring prose specifically so a "mechanical grep returns zero
+hits."
 
-## Trace review
+### Reproduction Steps
+1. Read `generator_trace.log` entry 14:12 ("Harden against Evaluator §9 probe 7 —
+   reworded docstring prose that contained the literal `datetime.now()`").
+2. Observe the source no longer contains the literal token the raw grep looks
+   for, achieved by editing comments/docstrings rather than by any behavioral change.
 
-`generator_trace.log` records the commands run and their outputs, and honestly flags the
-one deferred seam (`size_consistent` `measured_px` em-scale semantics land in Sprint 004 —
-explicitly out of scope here and documented in the docstring). It also correctly notes the
-contract §9 "four files" wording is a typo vs §2's two named files; only the two files exist,
-which matches §2. No skipped failures, no claim without a reproducible artifact.
+### Expected
+Probe 7's intent is "the code performs no wall-clock read and no network fetch."
+That property should be demonstrated by the code's actual behavior/structure.
+
+### Actual
+The property IS genuinely true — but the generator optimized the literal proxy
+(string absence) rather than the requirement. The Evaluator confirmed the real
+property independently three ways: (a) an import/AST-based unit test
+(`test_no_network_or_wallclock_imports`) asserting no `datetime`/`socket`/
+`urllib.request` import and no `.now()`/`urlopen` call; (b) the Evaluator's own
+grep over `*.py`; (c) direct source reading (`utm.py` uses only
+`re`/`pathlib`/`urllib.parse.{urlparse,parse_qsl}` — parse-only, no fetch).
+Proxy and reality agree, nothing is hidden, so this does not block.
+
+### Evidence
+`generator_trace.log:37-44`; `test_utm.py` `test_no_network_or_wallclock_imports`;
+Evaluator grep "zero hits in *.py"; `utm.py:23-25` imports.
+
+### Required Fix
+None required for this sprint. The correct systemic fix is a harness change — see
+`patches/prompt_patch_001.md`: re-specify probe 7 as the AST/import check the
+generator already wrote, so future sprints cannot pass it by string-avoidance.
+
+### Pass Condition
+Already met: code is behaviorally free of wall-clock/network usage, proven by
+AST test + independent grep + source read.
+
+---
 
 ## Scoring
 
-Weights (pure infrastructure library — Functionality + Evidence weighted up, Design/Originality
-low-relevance for a math library and scored on fidelity/cleanliness rather than novelty):
+Weights adjusted for a deterministic-infrastructure CLI deliverable (no visual
+surface): Functionality 30%, Evidence/Process 25%, Craft 25%, Originality 10%,
+Design 10%.
 
-- Functionality: 5 — every function meets its exact signature/behavior; adversarial edges hold.
-- Evidence/process: 5 — all contract commands + independent probes reproduced from clean state; determinism and file-scope verified.
-- Craft: 5 — clean, documented, single-responsibility functions; loud errors; no dead code.
-- Design: 4 — faithful implementation of locked WCAG/token/safe-zone rules; correctly resolves the brand-kit "~13:1" annotation vs true WCAG value.
-- Originality: 3 — N/A for a deterministic math core; not penalized as slop (no filler, no generic defaults).
+| Dimension | Score | Note |
+|---|---|---|
+| Functionality | 5 | Every B-U1..B-U4 behavior works; all exit codes, taxonomy, ordering, edge cases correct. |
+| Evidence/Process | 4.5 | Trace honest and fully reproducible; -0.5 for the probe-7 grep-gaming (F-001). |
+| Craft | 5 | Pure functions, `ALLOWED_SOURCES` derived from the map (no duplication), `__file__`-anchored paths, specific recoverable violation messages, runs from any cwd. |
+| Originality | 4.5 | Faithfully extends the existing `marketing-render` DNA (versioned intent, exact cited codes) rather than improvising. |
+| Design | 4.5 | Clean stdout report format, deterministic ordering, distinct `None` vs empty semantics. |
 
-Weighted total = 4.4 under the rubric's DEFAULT 20%/20%/20%/20%/20% weights
-(Design 4, Originality 3, Craft 5, Functionality 5, Evidence 5 → (4+3+5+5+5)/5 = 4.4).
-Under the infrastructure reweight (Functionality+Evidence up, Design/Originality down) it rises to ~4.6;
-the header records the conservative default (4.4). Passing bar met either way: no blockers, no high findings, evidence ≥ 4,
-functionality ≥ 4, weighted total ≥ 4.
+Weighted total: 5(0.30) + 4.5(0.25) + 5(0.25) + 4.5(0.10) + 4.5(0.10) = **4.8**.
 
-## Non-blocking observations (Low — informational, no fix required this sprint)
+Gates: no Blockers, no High findings, evidence >= 4, functionality >= 4, weighted
+>= 4 -> PASS is legal.
 
-- `size_consistent` is band-math only; the `measured_px` em-scale calibration is the
-  Sprint 004 seam. Documented and out of scope. Watch in S004 that a truthfully-rendered
-  Inter glyph lands inside ±25% (the contract already warns cap-height mapping would false-fail).
-- `normalize_for_scan` does not strip leading/trailing whitespace (per contract wording);
-  harmless for substring scans. No action.
-- `test_passes_uses_raw_not_rounded` is a weak test — it only asserts `ratio == round(ratio,2)`
-  (trivially true). The *code* is correct (`passes` uses `raw_ratio`, verified by reading measure.py);
-  only the test under-exercises the claim. Suggest strengthening in a later sprint. No behavior defect.
-- `normalize_hex` regex `^[0-9a-f]{6}$` accepts a trailing newline (Python `$` matches before final `\n`),
-  so `'faf8f3\n'` would pass. Irrelevant to clean token inputs; no impact this sprint. Optional hardening.
-
-No findings block this sprint. VERDICT: PASS.
+## Sprint-boundary notes for downstream sprints (not defects)
+- `malformed-query` = `parse_qsl` yields zero pairs (covers no-`?` and unparseable).
+  A URL with `?` but only non-utm params parses and falls through to the value
+  checks (wrong-medium/campaign-mismatch/unknown-source). This matches the
+  contract taxonomy; Sprint 002+ importers should be aware the module never
+  raises on odd-but-parseable query strings — it reports codes.
+- `validate_asset` raises `FileNotFoundError` for a meta-less folder; the CLI
+  translates that to exit 2. Importers in Sprint 002/003 must handle that
+  exception rather than assume a result dict.
+- A-1 (campaign = date-stripped slug) and A-2 (youtube source string) remain
+  documented assumptions honored by both real assets; both toolchains must keep
+  importing this single `CHANNEL_SOURCE_MAP` — do not fork a second copy.

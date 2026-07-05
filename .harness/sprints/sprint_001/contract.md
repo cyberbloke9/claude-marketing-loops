@@ -1,320 +1,231 @@
-# Sprint 001 Contract — Measurement Core (pure, unit-tested, no rendering)
+# Contract — Sprint 001: Shared UTM module + verifier CLI
 
-Status: PROPOSED
-Sprint: 001
-Depends on: none (foundation)
-Spec refs: §5.2 (V4, V5, V6, V9), §5.3 (token rule), §9 (locked tokens), §11 (Sprint 001), Risk 1, Risk 4.
+> Closes the §5.0 shared foundation (B-U1..B-U4) of `spec.md`. This is a **CLI /
+> library** deliverable, not a web app — there are no routes, screens, or
+> Playwright paths. Verification is exact CLI invocations + exit codes + stdout
+> substrings, mirroring the DNA of `tools/marketing-render/` (`validate.py`,
+> `acceptance.py`).
 
-## 0. Purpose & boundary
+## 1. Scope (this sprint only)
 
-This sprint builds the **pure measurement library** that later sprints (renderer, validator)
-call. It renders nothing, opens no PNG, reads no manifest, and performs no I/O except:
-(a) reading `brand/brand-kit.md` to parse the blacklist (V9, single-source rule).
+Deliver the shared UTM foundation that BOTH later toolchains (Gap 2 publish,
+Gap 3 analytics) will import:
 
-Everything is deterministic pure computation over numbers, hex strings, and bounding boxes.
-There is **no UI** in this sprint, so there is no Playwright click-path — the Evaluator
-attacks the library directly via a Python script / REPL. This is intentional and stated so
-the contract remains fully testable.
+- An importable Python module exposing the canonical channel↔source map and a
+  `validate_asset()` function.
+- A thin CLI that scans one asset folder OR all of `content/*/` and reports,
+  per asset, `OK` or the specific, cited UTM violation.
+- Unit tests + fixtures covering the valid path and every violation type.
 
-## 1. Language / runtime decision
+Nothing else. Publish gate, queue, packages, captions, CSV ingestion,
+scorecards, schedule slots, skills — all OUT of this sprint.
 
-- **Python 3** (the repo's `/usr/bin/python3`, currently 3.9.6). Chosen because later sprints
-  render with Pillow (deterministic raster) and this keeps one toolchain.
-- **Standard library only** in Sprint 001. No third-party packages, no `pip install`, no network.
-- Tests use stdlib **`unittest`** (run via `python3 -m unittest`), so the Evaluator needs zero setup.
+## 2. Files created / affected
 
-## 2. Files this sprint creates (and ONLY these)
+Suggested layout (Generator may adjust names but MUST honor the behaviors and
+the importable-module requirement):
 
-- `tools/marketing-render/measure.py` — the pure measurement library (all functions in §4).
-- `tools/marketing-render/tests/test_measure.py` — unit tests (stdlib `unittest`).
+- `tools/marketing-loops/__init__.py` — package marker (shared package both
+  gaps import).
+- `tools/marketing-loops/utm.py` — **importable module** (functions + the
+  canonical `CHANNEL_SOURCE_MAP` dict). No CLI side effects on import.
+- `tools/marketing-loops/verify_utm.py` — thin CLI wrapper importing `utm`.
+- `tools/marketing-loops/tests/test_utm.py` — unit tests.
+- `tools/marketing-loops/fixtures/<fx-name>/meta.md` — violation + positive
+  fixtures. Fixtures are **asset folders under `tools/`, never under
+  `content/`** (putting them in `content/` would pollute real content and make
+  the real scan fail).
 
-**No `__init__.py` files.** The parent directory name `marketing-render` contains a hyphen,
-which is illegal in a Python module name; adding `__init__.py` would make `unittest discover`
-try to compute a package name from the hyphenated dir and fail during collection. Instead,
-`test_measure.py` puts the tool dir on `sys.path` at the top of the file before importing:
+Read-only (do NOT modify): `content/*/meta.md`, `tools/marketing-render/*`.
 
-```python
-import os, sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import measure  # noqa: E402
-```
+## 3. Exact user-visible behaviors
 
-This is the same path trick the §6 attack script uses, and it makes
-`python3 -m unittest discover -s tools/marketing-render/tests` work without package markers.
+### 3.1 The importable module (`utm.py`)
 
-No writes anywhere else in the repo. No edits to `brand/`, `content/`, or other tools this sprint.
-(The `qa-checklist.md` "IBM Plex Sans" correction from Risk 1 is deferred to the validator sprint
-where the Inter precedence rule is actually enforced — noted here so it is not forgotten.)
+- Exports `CHANNEL_SOURCE_MAP` — the single canonical channel→`utm_source`
+  dict, the seam BOTH toolchains MUST reuse (spec B-U3):
+  | Channel | utm_source string |
+  |---|---|
+  | instagram | `instagram` |
+  | youtube | `youtube` |
+  | linkedin | `linkedin` |
+  The allowed-source set is derived from this map's values (no second copy).
+- Exports `parse_flywheel_line(meta_text) -> dict|None` (B-U1): finds the
+  `Flywheel target:` line, extracts the URL's query string, returns a dict with
+  `utm_source`, `utm_medium`, `utm_campaign` (missing keys → `None` values).
+  Returns `None` distinctly when no `Flywheel target:` line exists at all.
+- Exports `campaign_from_slug(folder_name) -> str` (B-U2 / A-1): strips a
+  leading `^\d{4}-\d{2}-\d{2}-` date prefix from the folder name. If no date
+  prefix, returns the folder name unchanged.
+- Exports `validate_asset(asset_dir) -> result` (B-U2/B-U4): returns a
+  structured result carrying `slug`, `ok: bool`, and an ordered list of
+  `violations` (each an exact cited code + human message). Pure function; no
+  writes, no `datetime.now()`, no network.
 
-## 3. Locked constants (must appear in `measure.py`)
+### 3.2 Validity rule (B-U2)
 
-`TOKENS` — dict mapping token name → lowercase hex, exactly these nine and no others
-(source of truth: `brand-kit.md §3` / spec §9):
+A Flywheel link is **valid** iff ALL hold:
 
-```
-bg          #faf8f3
-surface     #ffffff
-ink         #1c1917
-ink-muted   #57534e
-accent      #0f766e
-accent-deep #0d3d38
-chart-up    #0d9488
-chart-down  #dc2626
-border      #e0dbd3
-```
+1. A `Flywheel target:` line exists and its URL query string parses.
+2. `utm_medium == "social"` (exact).
+3. `utm_campaign == campaign_from_slug(folder_name)`.
+4. `utm_source` is one of `CHANNEL_SOURCE_MAP` values
+   (`instagram` / `youtube` / `linkedin`).
 
-`TOKEN_HEXES` — the set of those nine hex strings (lowercase).
+Only the **primary** URL on the `Flywheel target:` line is validated. A human
+annotation continuation line such as `(per-channel: utm_source=youtube /
+linkedin)` under it (present in the real hyd asset) is NOT parsed or validated
+here — per-channel link generation is Sprint 003 (non-goal §7).
 
-## 4. Public functions (exact signatures & behavior)
+### 3.3 Violation taxonomy — exact cited codes
 
-Each function is pure (same input → same output), raises `ValueError` on malformed input
-with a message naming the offending value, and never touches the network.
+Each violation the tool reports uses one of these literal codes (the Evaluator
+asserts on the exact string, mirroring `acceptance.py`'s right-check DNA):
 
-### 4.1 Color / contrast (V4)
+| Code | Trigger |
+|---|---|
+| `missing-flywheel-line` | No `Flywheel target:` line in `meta.md` at all. |
+| `malformed-query` | Line present but URL has no parseable query string (no `?`, or unparseable). |
+| `wrong-medium` | `utm_medium` present but != `social` (includes absent `utm_medium` key). |
+| `campaign-mismatch` | `utm_campaign` != date-stripped folder slug (includes absent key). |
+| `unknown-source` | `utm_source` not in the allowed set (includes absent key). |
 
-- `normalize_hex(value: str) -> str`
-  Accepts `#RRGGBB` or `RRGGBB`, any case; returns canonical lowercase `#rrggbb`.
-  Raises `ValueError("invalid hex color: <value>")` for anything else (wrong length,
-  non-hex chars, 3-digit shorthand is **rejected** — full 6-digit only, since all brand
-  tokens are 6-digit).
+`missing-flywheel-line` and `malformed-query` are terminal for an asset (no
+further value checks possible). When the query parses, value checks
+(`wrong-medium`, `campaign-mismatch`, `unknown-source`) are evaluated
+**independently**, so an asset with multiple value defects reports **all** of
+them, in the fixed table order above (deterministic).
 
-- `relative_luminance(hex_color: str) -> float`
-  WCAG 2.x relative luminance. For each channel c in {R,G,B}: `cs = c/255`;
-  `lin = cs/12.92 if cs <= 0.03928 else ((cs+0.055)/1.055) ** 2.4`;
-  `L = 0.2126*R_lin + 0.7152*G_lin + 0.0722*B_lin`. Returns a float in [0,1].
+### 3.4 The CLI (`verify_utm.py`) — B-U4
 
-- `contrast_ratio(hex_a: str, hex_b: str) -> float`
-  `(Llighter + 0.05) / (Ldarker + 0.05)`. Symmetric: `contrast_ratio(a,b) == contrast_ratio(b,a)`.
-  Result in [1.0, 21.0].
+- **Path argument:** positional `path`, optional, default `content`. The tool
+  auto-detects:
+  - If `path` is a single asset folder (contains a `meta.md`), scan just that
+    asset.
+  - Else treat `path` as a content-root and scan every immediate
+    subdirectory that contains a `meta.md`, in **lexicographic slug order**.
+  - This is what lets the Evaluator point the CLI at
+    `tools/marketing-loops/fixtures/` (a root of fixture asset folders) OR at a
+    single fixture folder, without touching `content/`.
+- **Output:** stdout only, one stable line per asset:
+  - `OK  <slug>` when valid.
+  - `FAIL <slug>  <code>[, <code>...]  — <messages>` when flagged, codes in
+    table order. Nothing is written to disk.
+- **Exit codes** (matching `tools/marketing-render/validate.py` convention):
+  - `0` — every scanned asset valid.
+  - `1` — at least one asset flagged (domain failure); a full report still
+    printed.
+  - `2` — usage / precondition error: `path` does not exist, or a content-root
+    with zero `meta.md`-bearing subdirs, or a single folder missing `meta.md`.
+- No `datetime.now()` or any wall-clock anywhere in output. Deterministic:
+  same inputs → byte-identical stdout.
 
-- `is_large_text(font_px: float, weight: int) -> bool`
-  Returns `True` if `font_px >= 24` **or** (`font_px >= 18.5` **and** `weight >= 700`).
-  Otherwise `False`. (Matches spec V4 "large" definition; bold = weight ≥ 700.)
+## 4. States
 
-- `contrast_check(fg_hex: str, bg_hex: str, font_px: float, weight: int) -> dict`
-  Returns `{"ratio": float, "threshold": 4.5 | 3.0, "large": bool, "passes": bool}`.
-  `threshold = 3.0` when `is_large_text(...)` else `4.5`.
-  **`passes` is computed on the raw full-precision ratio** (`raw_ratio >= threshold`), NOT on the
-  rounded value — so a `4.497` cannot round up to `4.50` and falsely pass. The `ratio` field
-  returned in the dict is that raw ratio rounded to 2 decimals **for display only**.
+- **Empty:** content-root with zero asset folders → exit `2` (precondition: a
+  scan target with nothing to scan is a usage error, not a silent pass).
+- **Success:** all assets valid → exit `0`, one `OK <slug>` line each. Both
+  real assets (`2026-07-03-tgrera-enforcement-wave` AND the KILLED
+  `2026-07-03-hyd-premium-vs-budget`) are positive controls — UTM validity is
+  orthogonal to the publish gate, so BOTH must pass the scan.
+- **Invalid input (domain):** any asset flagged → exit `1`, correct code(s)
+  cited. Multiple flagged assets → all reported.
+- **Precondition error:** path missing / no meta.md → exit `2`, message on
+  stderr, nothing on stdout.
+- **Offline:** no network; any network import is a defect.
 
-**Normative note on the brand-kit's stated ratios.** `brand-kit.md §3` annotates ink as
-"~13:1" and accent as "~5:1". The correct WCAG 2.x computation yields `#1c1917`/`#faf8f3`
-≈ **16.5:1** and `#0f766e`/`#faf8f3` ≈ **5.15:1**. This library implements the **WCAG formula**,
-which is the spec's requirement (V4 says "computes WCAG 2.x relative-luminance contrast ratio").
-The "~13:1" annotation is an approximation in the brand doc and is **not** the acceptance target.
-The Evaluator must judge against the WCAG formula, not the brand-kit's rounded annotations.
+## 5. Non-UI expectations (a11y/responsive/contrast do not apply)
 
-### 4.2 Token validation (§5.3 token rule)
+This is a headless CLI. In place of keyboard/focus/ARIA/contrast/responsive:
 
-- `is_brand_token(hex_color: str) -> bool`
-  `True` iff `normalize_hex(hex_color)` is in `TOKEN_HEXES`. Non-token hex → `False`
-  (does not raise, so callers can report "color outside token set" themselves).
+- **Usability:** violation messages are specific and recoverable — each names
+  the asset, the code, and what the operator must fix (e.g. `utm_medium was
+  'paid', expected 'social'`), never a bare "invalid".
+- **Runs from any cwd:** paths resolved from `__file__` (as `validate.py`
+  does), so the tool works whether invoked from repo root or elsewhere.
+- **Import safety:** importing `utm` has no side effects and prints nothing.
 
-- `token_name(hex_color: str) -> str | None`
-  Returns the token name (e.g. `"ink"`) for a token hex, else `None`.
+## 6. Security / privacy
 
-### 4.3 Type-size minimums (V5, first half)
+- Stdlib only (`re`, `pathlib`, `argparse`, `urllib.parse` for query parsing —
+  parsing only, no network fetch). No third-party deps. No network. No secrets.
+  No file writes. CSV/meta inputs treated as untrusted text.
 
-- `type_min_ok(surface_role: str, element_role: str, font_px: float) -> dict`
-  `surface_role` ∈ {`"carousel-slide"`, `"chart-card"`}; `element_role` ∈
-  {`"headline"`, `"hook"`, `"body"`, `"source-stamp"`, `"wordmark"`, `"chart-label"`}.
-  Minimum table (px):
+## 7. Explicit non-goals (this sprint)
 
-  | element_role | carousel-slide | chart-card |
-  |---|---|---|
-  | headline | 48 | 36 |
-  | hook | 48 | 36 |
-  | body | 24 | 24 |
-  | source-stamp | exempt (None) | exempt (None) |
-  | wordmark | exempt (None) | exempt (None) |
-  | chart-label | exempt (None) | exempt (None) |
+- No publish gate / queue / packages / captions / schedule slots (Sprints
+  002–003).
+- No per-channel link generation; the `(per-channel: ...)` annotation line is
+  not validated here.
+- No `Channels:` free-text parsing or channel↔declared-source cross-check (A-7;
+  Sprints 002–003). Validity is pure `utm_source` set-membership.
+- No CSV ingestion / scorecard (Sprints 004–005).
+- No skill files written or edited this sprint.
+- No modification of `content/*` or `tools/marketing-render/*`.
 
-  Returns `{"minimum": <int or None>, "passes": <bool>}`. When minimum is `None` (exempt roles),
-  `passes = True` always. Unknown `surface_role` or `element_role` → `ValueError` naming it.
-  Rationale: `hook` is "biggest type on the slide" (brand-kit §6) so it takes the headline
-  minimum; `chart-label`, `source-stamp`, `wordmark` are intentionally small and exempt from
-  the size floor (but not from contrast — that is V4's job).
-
-### 4.4 Glyph-size consistency cross-check (V5, second half; Risk 4)
-
-- `SIZE_TOLERANCE = 0.25` (module constant).
-- `size_consistent(declared_font_px: float, measured_px: float, tol: float = SIZE_TOLERANCE) -> bool`
-  Returns `True` iff `declared_font_px * (1 - tol) <= measured_px <= declared_font_px * (1 + tol)`.
-  This is a **generic band primitive**: it only fixes the tolerance (±25%, per Risk 4) and the
-  band math. It does NOT define what `measured_px` means — that is deferred to Sprint 004.
-  **Important seam note:** Sprint 004 will derive `measured_px` as an **em-scale** quantity
-  (the ascent+descent line/em box that Pillow reports for the glyph run), NOT cap-height, and
-  will be calibrated so a truthfully-declared Inter render lands inside ±25% of `declared_font_px`.
-  (Cap-height ≈ 0.7×em would fall below the band and false-fail a correct render — that mapping
-  is explicitly rejected.) In this sprint the function is validated purely as band math:
-  a truthful value inside the band → `True`; a 2× lie (declared 48, measured 24 → `24 < 36`) → `False`.
-
-### 4.5 Safe-zone containment (V6)
-
-- `SAFE_ZONES` — dict keyed by `(canvas_w, canvas_h)`:
-  - `(1080, 1350)` → `{"x_min":40, "y_min":40, "x_max":1040, "y_max":1310}` (carousel center rect).
-  - `(1080, 1920)` → `{"x_min":0, "y_min":250, "x_max":1080, "y_max":1480}` (vertical; clear of
-    top 250px and bottom 440px; x unconstrained per spec V6 which only bounds y for vertical).
-
-- `safe_zone_ok(canvas_w: int, canvas_h: int, bbox: list[int]) -> dict`
-  `bbox = [x, y, w, h]`. Element occupies `x..x+w` horizontally, `y..y+h` vertically.
-  Returns `{"passes": bool, "reason": str}`.
-  `passes = True` iff `x >= x_min and y >= y_min and x+w <= x_max and y+h <= y_max`.
-  On failure `reason` names which edge violated (e.g. `"bottom edge 1330 > y_max 1310"`).
-  Unknown canvas size → `ValueError("no safe zone for canvas <w>x<h>")`.
-  Negative w/h or non-4-length bbox → `ValueError`.
-  Note: the caller decides which roles are subject to V6 (headline/body/hook are; source-stamp/
-  wordmark are exempt per spec V6) — this function only does the geometry.
-
-### 4.6 Blacklist parser + scan (V9, single-source)
-
-- `parse_blacklist(brand_kit_path: str) -> list[str]`
-  Opens `brand/brand-kit.md`, locates the `## 8. Blacklist` section, and extracts every
-  double-quoted phrase in that section. Returns the phrases **verbatim** (original casing,
-  original characters incl. the en-dash in "Fri 3–4pm"). Must return exactly these five for
-  the current file (order as written):
-  1. `90% of recall in first 6 seconds`
-  2. `TikTok-native ads drive 3.3x actions`
-  3. `hooked ads 2x engagement / +43% purchase intent`
-  4. `best slots are Wed 4pm / Fri 3–4pm`
-  5. `professionals scroll LinkedIn on the evening commute`
-  Raises `ValueError` if the `## 8` section is not found (so a moved/renamed section fails loud
-  rather than silently returning `[]`). It does **not** hardcode the phrases — a test proves
-  this by parsing the real file.
-
-- `normalize_for_scan(text: str) -> str`
-  Lowercases, replaces unicode dashes (`–`, `—`) with `-`, and collapses runs of whitespace
-  to a single space. Deterministic.
-
-- `scan_blacklist(text: str, phrases: list[str]) -> list[str]`
-  Returns the sublist of `phrases` whose `normalize_for_scan(phrase)` appears as a substring of
-  `normalize_for_scan(text)`. Empty list = clean. Case/dash/whitespace-insensitive.
-
-## 5. Commands the Evaluator runs
-
-From repo root `/Users/prithviputta/Downloads/terrem-marketing-loops`:
+## 8. Commands to run
 
 ```bash
-# (1) Unit tests — must pass, exit 0
-python3 -m unittest discover -s tools/marketing-render/tests -v
+cd /Users/prithviputta/Downloads/terrem-marketing-loops
 
-# (2) No network / no third-party import: static check that measure.py imports only stdlib
-python3 - <<'PY'
-import ast, sys
-src = open("tools/marketing-render/measure.py").read()
-tree = ast.parse(src)
-mods = set()
-for n in ast.walk(tree):
-    if isinstance(n, ast.Import):
-        mods |= {a.name.split('.')[0] for a in n.names}
-    elif isinstance(n, ast.ImportFrom) and n.module:
-        mods.add(n.module.split('.')[0])
-allowed = {"re","math","os","sys","json","pathlib","typing","dataclasses","string"}
-extra = mods - allowed
-print("imports:", sorted(mods))
-sys.exit(1 if extra else 0)
-PY
+# Unit tests (must pass)
+python3 -m unittest discover -s tools/marketing-loops/tests -v
 
-# (3) Determinism: run the test suite twice, outputs identical (no randomness/timestamps)
-python3 -m unittest discover -s tools/marketing-render/tests 2>&1 | tail -1
+# Scan the real content root — both real assets are valid → exit 0
+python3 tools/marketing-loops/verify_utm.py content ; echo "exit=$?"
+
+# Scan a single real asset → exit 0
+python3 tools/marketing-loops/verify_utm.py content/2026-07-03-tgrera-enforcement-wave ; echo "exit=$?"
+
+# Scan the fixtures root (contains violation fixtures) → exit 1
+python3 tools/marketing-loops/verify_utm.py tools/marketing-loops/fixtures ; echo "exit=$?"
+
+# Precondition error: nonexistent path → exit 2
+python3 tools/marketing-loops/verify_utm.py content/does-not-exist ; echo "exit=$?"
+
+# Import-safety: importing the module prints nothing
+python3 -c "import sys; sys.path.insert(0,'tools/marketing-loops'); import utm; print(sorted(utm.CHANNEL_SOURCE_MAP.items()))"
 ```
 
-## 6. Evaluator attack script (adversarial, independent of my tests)
+## 9. Evaluator attack checklist (CLI, not Playwright)
 
-The Evaluator should paste this and confirm every assertion holds (all `assert`s pass, prints OK):
+Point the CLI at fixtures the Generator ships under
+`tools/marketing-loops/fixtures/`. Required fixtures + expected result:
 
-```bash
-python3 - <<'PY'
-import sys; sys.path.insert(0, "tools/marketing-render")
-import measure as m
+| Fixture intent | Expected on scan |
+|---|---|
+| valid asset (positive control) | `OK`, contributes exit 0 |
+| missing `Flywheel target:` line | `missing-flywheel-line`, exit 1 |
+| line present, no `?query` | `malformed-query`, exit 1 |
+| `utm_medium=paid` (wrong) | `wrong-medium`, exit 1 |
+| `utm_campaign` != date-stripped slug | `campaign-mismatch`, exit 1 |
+| `utm_source=tiktok` (unknown) | `unknown-source`, exit 1 |
+| absent `utm_source` key | `unknown-source`, exit 1 |
+| multiple defects (wrong medium + unknown source) | both codes in table order, exit 1 |
 
-# --- contrast: WCAG formula, not brand-kit approximations ---
-r = m.contrast_ratio("#1c1917", "#faf8f3")
-assert 16.0 <= r <= 17.0, r                      # ~16.5:1 (NOT 13:1)
-assert m.contrast_ratio("#1c1917","#faf8f3") == m.contrast_ratio("#faf8f3","#1c1917")  # symmetric
-assert abs(m.contrast_ratio("#111111","#111111") - 1.0) < 1e-9   # identical -> 1:1
+Adversarial probes the Evaluator should run:
 
-# accent passes normal; chart-up is the large/normal boundary
-assert m.contrast_check("#0f766e","#faf8f3", 24, 400)["passes"] is True     # ~5.15 >= 4.5
-cu = m.contrast_check("#0d9488","#faf8f3", 20, 400)                          # ~3.5, small
-assert cu["passes"] is False and cu["threshold"] == 4.5                       # fails as normal
-cu_large = m.contrast_check("#0d9488","#faf8f3", 30, 400)                     # same colors, large
-assert cu_large["passes"] is True and cu_large["threshold"] == 3.0            # passes as large
+1. Scan real `content/` → exit 0; both real slugs print `OK` (incl. KILLED hyd
+   asset — KILLED does not affect UTM validity).
+2. Scan a single valid asset folder directly → exit 0.
+3. Scan fixtures root → exit 1; assert each expected code appears on the right
+   slug (exact-string match, not "some FAIL").
+4. Nonexistent path and a `meta.md`-less folder → exit 2, stderr message, empty
+   stdout.
+5. Determinism: run the fixtures scan twice → byte-identical stdout.
+6. Import `utm` → no stdout, `CHANNEL_SOURCE_MAP` has exactly the three
+   channels.
+7. Grep the source for `datetime.now`, `requests`, network `urllib` fetch →
+   none present.
 
-# --- is_large_text boundary ---
-assert m.is_large_text(24, 400) is True
-assert m.is_large_text(23.9, 400) is False
-assert m.is_large_text(18.5, 700) is True
-assert m.is_large_text(18.5, 400) is False
+## 10. Definition of done
 
-# --- token validation ---
-assert m.is_brand_token("#FAF8F3") is True and m.is_brand_token("#123456") is False
-assert m.token_name("#0f766e") == "accent"
-
-# --- type-size minimums (V5) ---
-assert m.type_min_ok("carousel-slide","headline", 48)["passes"] is True
-assert m.type_min_ok("carousel-slide","headline", 47)["passes"] is False
-assert m.type_min_ok("chart-card","headline", 36)["passes"] is True
-assert m.type_min_ok("chart-card","headline", 35)["passes"] is False
-assert m.type_min_ok("carousel-slide","body", 24)["passes"] is True
-assert m.type_min_ok("carousel-slide","source-stamp", 12)["passes"] is True   # exempt
-
-# --- glyph-size consistency (Risk 4): truthful passes, 2x lie fails ---
-assert m.size_consistent(48, 45) is True
-assert m.size_consistent(48, 24) is False
-
-# --- safe zones (V6) ---
-assert m.safe_zone_ok(1080,1350,[40,40,1000,1270])["passes"] is True          # exactly fits
-assert m.safe_zone_ok(1080,1350,[40,40,1000,1271])["passes"] is False         # 1px over bottom
-assert m.safe_zone_ok(1080,1350,[39,40,10,10])["passes"] is False             # left of x_min
-assert m.safe_zone_ok(1080,1920,[100,250,800,1230])["passes"] is True         # vertical fits
-assert m.safe_zone_ok(1080,1920,[100,249,800,10])["passes"] is False          # above y_min 250
-assert m.safe_zone_ok(1080,1920,[100,300,800,1181])["passes"] is False        # below y_max 1480
-
-# --- blacklist parser: single-source, exactly 5 phrases ---
-ph = m.parse_blacklist("brand/brand-kit.md")
-assert len(ph) == 5, ph
-assert any("90% of recall" in p for p in ph)
-hits = m.scan_blacklist("Our data shows 90% of recall in first 6 seconds, allegedly.", ph)
-assert hits and "90% of recall in first 6 seconds" in hits
-assert m.scan_blacklist("Clean copy: RERA Karnataka orders as of 2026-06-30.", ph) == []
-# dash/case-insensitive: 'Fri 3-4pm' (ascii dash, lowercased) still matches the en-dash phrase
-assert m.scan_blacklist("the BEST slots are wed 4pm / fri 3-4pm they said", ph)
-
-# --- error handling ---
-for bad in ("#12", " zzz", "#1234567", "12g4f6"):
-    try:
-        m.normalize_hex(bad); assert False, bad
-    except ValueError:
-        pass
-
-print("OK — all measurement-core assertions passed")
-PY
-```
-
-## 7. States that must exist (mapped to spec §6)
-
-- **Invalid input:** malformed hex, unknown role, unknown canvas, non-4-length/negative bbox,
-  missing `## 8` section → `ValueError` naming the offending value (not a bare crash / not silent).
-- **Success:** valid inputs return the documented dicts/values.
-- **Determinism:** no `random`, no time, no set-ordering leaks into outputs; tests pass identically
-  on repeat (§5 command 3).
-- **Blacklist clean vs hit:** clean copy → `[]`; violating copy → non-empty naming the phrase.
-
-## 8. Non-goals (this sprint)
-
-- No PNG rendering, no Pillow, no fonts (Sprints 002–003).
-- No manifest read/write, no `qa-verdict.json`, no `meta.md` append (Sprint 004).
-- No PNG pixel/ink sampling (V2/V3), no axis-integrity flags (V10), no provenance block check
-  (V11), no CLI entrypoints, no README (Sprints 004–005).
-- No edit to `qa-checklist.md` (the Inter/IBM-Plex correction lands in the validator sprint).
-- No third-party dependency, no `requirements.txt`, no network access.
-
-## 9. Definition of done
-
-- The four files in §2 exist; no other files created or modified.
-- `python3 -m unittest discover -s tools/marketing-render/tests -v` exits 0 with all tests passing.
-- The §5 import-purity check exits 0 (stdlib-only).
-- The §6 Evaluator attack script prints `OK` with every assertion passing.
-- `generator_trace.log` records commands run and their output.
+- `utm.py` importable with `CHANNEL_SOURCE_MAP` + `validate_asset()`, no import
+  side effects.
+- `verify_utm.py` implements the path-arg auto-detect, the violation taxonomy
+  with exact codes, and exit codes 0/1/2.
+- Fixtures for every row in §9 shipped under `tools/marketing-loops/fixtures/`.
+- Unit tests prove each violation code fires on its fixture and `OK` on the
+  valid one; all pass.
+- Real `content/` scan exits 0.
+- Evidence (command output, exit codes) logged in `generator_trace.log`.

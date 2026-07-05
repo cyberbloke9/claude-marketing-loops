@@ -1,0 +1,1 @@
+2026-07-04T03:34:06Z planner: wrote spec.md — Asset Renderer + Deterministic QA Gate. Sprints 001-005. Resolved Inter/IBM-Plex font contradiction (normative precedence), pinned manifest.json + qa-verdict.json schemas as renderer/validator seam, added anti-stub pixel ink check, conditional axis checks (TGRERA=receipts card has_axis:false).

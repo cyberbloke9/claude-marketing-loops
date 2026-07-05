@@ -1,33 +1,37 @@
-# Harness Run — Asset Renderer + Deterministic QA Gate
+# Harness Run 002 — Publish Queue + Analytics Plumbing (Gaps 2+3)
 
 Run started: 2026-07-04
 Project dir: /Users/prithviputta/Downloads/terrem-marketing-loops
 Workspace (bus): /Users/prithviputta/Downloads/terrem-marketing-loops/.harness
+Prior run: .harness/archive/run-001-renderer (5/5 sprints + acceptance gate PASS)
 
 ## Raw request
 
-Build the Asset Renderer + Deterministic QA Gate for the TERREM marketing-loop system: (1) renderer turning content/<slug>/ specs (chart-spec.md + carousel.md + meta.md) into 1080×1350 carousel slide PNGs + 1080×1920 vertical chart card, using locked brand tokens from brand/brand-kit.md; (2) mechanical QA validator measuring rendered PNGs + specs against brand/qa-checklist.md (WCAG contrast on hex pairs, px type minimums, safe zones, hook ≤10 words, source/date stamp, blacklisted stats, provenance prompts) with machine-readable PASS/FAIL per asset consumable by /loop-qa; (3) CLI scripts (render + qa), README docs, end-to-end demo on content/2026-07-03-tgrera-enforcement-wave/. Constraints: no network at render time (fonts vendored/system), no TERREM product-repo changes, everything in this repo, Python or Node. Evaluator must render real PNGs, measure pixels/contrast, attack the validator with violating fixtures (11-word hook, truncated y-axis, low-contrast pair, missing source stamp), and confirm the TGRERA asset passes end-to-end.
+Close Gap 2 (publish layer up to the API boundary) and Gap 3 (analytics plumbing) of the TERREM marketing-loop system. Gap 3: ingestion tooling that turns platform analytics exports (Instagram/YouTube/LinkedIn CSVs + site analytics) into the weekly scorecard metrics/YYYY-Www.md per metrics/TEMPLATE.md — per-asset craft diagnostics tied to hook numbers, UTM verification, posting-time A/B table, WRR computation from provided inputs; never fabricate missing data (blank + "Missing data" list). Gap 2: from a QA-PASSED asset, generate per-channel publish packages (final captions with per-channel UTM links, rendered PNG paths, schedule slots) and a machine-readable publish queue with states; refuse assets whose qa-verdict is not PASS or that are killed; design the seam so posting APIs can plug in later (no live APIs — no credentials). Sprint format, adversarially evaluated.
 
 ## Phase table
 
 | Time | Phase | Sprint | Result |
 |---|---|---|---|
-| start | Step 0 skeleton | — | created |
+| start | Step 0 skeleton (run 2) | — | created |
 | — | Step 1 PLANNER | — | pending |
-| — | Sprint 001 contract | 001 | ACCEPT (round 1) |
-| — | Sprint 001 build+evaluate | 001 | VERDICT: PASS |
-| — | Sprint 002 contract | 002 | in progress |
-| — | Sprint 002 contract | 002 | REJECT r1 → ACCEPT r2 |
-| — | Sprint 002 build+evaluate | 002 | VERDICT: PASS |
-| — | Sprint 003 contract | 003 | in progress |
-| — | Sprint 003 contract | 003 | ACCEPT (round 1) |
-| — | Sprint 003 build+evaluate | 003 | VERDICT: PASS |
-| — | Sprint 004 contract | 004 | in progress |
-| — | Sprint 004 contract | 004 | ACCEPT (round 1) |
-| — | Sprint 004 build+evaluate | 004 | VERDICT: PASS |
-| — | Sprint 005 contract | 005 | in progress |
-| — | Sprint 005 contract | 005 | REJECT r1 → ACCEPT r2 |
-| — | Sprint 005 build+evaluate | 005 | VERDICT: PASS |
-| — | Acceptance Gate | all | in progress |
-| — | Acceptance Gate (retry after transient) | all | VERDICT: PASS |
-| — | Run complete | — | 5/5 sprints PASS + gate PASS |
+| — | R2 Sprint 001 contract | 001 | ACCEPT (round 1) |
+| — | R2 Sprint 001 build+evaluate | 001 | VERDICT: PASS (patch: prompt_patch_001) |
+| — | R2 Sprint 002 contract | 002 | in progress |
+| — | R2 Sprint 002 contract | 002 | ACCEPT (round 1) |
+| — | R2 Sprint 002 build+evaluate | 002 | VERDICT: PASS |
+| — | R2 Sprint 003 contract | 003 | in progress |
+| — | R2 Sprint 003 contract | 003 | ACCEPT (round 1) |
+| — | R2 Sprint 003 build+evaluate | 003 | VERDICT: PASS |
+| — | R2 Sprint 004 contract | 004 | in progress |
+| — | R2 Sprint 004 contract | 004 | ACCEPT (round 1) |
+| — | R2 Sprint 004 build+evaluate | 004 | VERDICT: PASS |
+| — | R2 Sprint 005 contract | 005 | in progress |
+| — | R2 Sprint 005 contract | 005 | ACCEPT (r1, after limit-cutoff retry) |
+| — | R2 Sprint 005 build+evaluate | 005 | VERDICT: PASS (build retried once, transient stall) |
+| — | R2 Sprint 006 contract | 006 | in progress |
+| — | R2 Sprint 006 contract | 006 | ACCEPT (round 1) |
+| — | R2 Sprint 006 build+evaluate | 006 | VERDICT: PASS |
+| — | R2 Acceptance Gate | all | in progress |
+| — | R2 Acceptance Gate | all | VERDICT: PASS |
+| — | Run 002 complete | — | 6/6 sprints PASS + gate PASS |

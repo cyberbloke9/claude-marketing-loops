@@ -1,351 +1,540 @@
-# Sprint 003 Contract — Chart-card renderer + TGRERA receipts spec
+# Contract — Sprint 003: Publish packages + schedule slot + mark-posted + `/loop-publish`
 
-Status: PROPOSED
-Sprint: 003
-Depends on: Sprint 001 (`tools/marketing-render/measure.py`, PASSED), Sprint 002 (`tools/marketing-render/render.py` carousel renderer, PASSED).
-Spec refs: §5.1 (R2, R3, R4, R5, R6, R7, R8, R9), §5.3 (manifest schema — chart-card surface), §6 (states), §7 (design), §9 (tokens/fonts/no-network), §11 (Sprint 003), Risk 2 (author TGRERA chart-spec as `has_axis:false` receipts card), Risk 3 (axis detection is flag-based, deferred), Risk 4 (glyph-size seam).
+> Closes the second half of Gap 2 (spec §5.1): per-channel publish **package**
+> generation (B-P4 attachments + B-P5 caption assembly), the deterministic
+> **schedule slot** (B-P6), the human-in-the-loop **mark-posted** transition
+> (B-P7), and the **`/loop-publish` skill** (B-P9). Builds directly on the
+> Sprint-002 gate/queue/channels modules and the Sprint-001 UTM module — all
+> imported, none forked, none modified.
+>
+> This is a **CLI / library + one skill doc** deliverable, not a web app — there
+> are no routes, screens, or Playwright paths. Verification is exact CLI
+> invocations + exit codes + stdout/stderr substrings + on-disk JSON byte
+> assertions, mirroring the DNA of `tools/marketing-render/` and the
+> already-PASSED Sprints 001/002.
 
-## 0. Purpose, boundary & why there is no Playwright path
+## 1. Scope (this sprint only)
 
-This sprint builds the **vertical chart-card renderer** and authors the **TGRERA reference `chart-spec.md`**. It extends the existing `render.py` so that:
+Deliver the package + posting-transition layer of the publish toolchain:
 
-1. It reads `content/<slug>/chart-spec.md`, and **when that spec declares a chart card** (an explicit `Surface: chart-card` marker), renders one `1080×1920` vertical PNG using vendored Inter + locked tokens, with an on-graphic **source stamp** and the **TERREM wordmark** (R2, R6).
-2. It emits a **chart-card surface** into `content/<slug>/render/manifest.json` (§5.3 schema), listing every text element drawn.
-3. It authors `content/2026-07-03-tgrera-enforcement-wave/chart-spec.md` as a **receipts / data card** (`has_axis: false`) carrying the three public TGRERA orders (Risk 2), and renders + demonstrates it end-to-end at the render level.
+- A **caption source** (`captions.md`) authored per asset, plus an importable
+  parser that resolves a per-channel caption **body** from it — and errors (never
+  invents) when the body is absent (B-P5 / A-3).
+- A pure, importable **schedule-slot** function: `(week, channel)` → a
+  deterministic morning/evening A/B-bucket slot string, no wall-clock (B-P6 / A-4).
+- A **package** CLI that, on a gate-passing asset, writes one per-channel
+  **PACKAGE** JSON file (§5.4 PACKAGE) — final caption (authored body + correct
+  **per-channel** UTM link), ordered attachment PNG paths (from `manifest.json`),
+  and the schedule slot — and updates the Sprint-002 **QUEUE** rows in place with
+  `schedule_slot` + `package_path`. It **re-runs the Sprint-002 gate** and never
+  bypasses it (B-P4 / B-P9).
+- A **mark-posted** CLI that transitions one `(slug, channel)` QUEUE row from
+  `queued` → `posted`, recording `--posted-on` and `--permalink`, refusing any
+  row that is not currently `queued` and any empty/non-URL permalink (B-P7).
+- A **`.claude/skills/loop-publish/SKILL.md`** documenting the operator flow
+  (gate+package → read packages → post by hand → mark-posted), invoking the CLIs
+  and adding no taste judgement (B-P9), mirroring `loop-qa`.
+- Unit tests + fixtures covering every path below.
 
-It is a **headless CLI raster tool** (same as Sprint 002) — there is **no browser / web UI**, so **no Playwright click-path exists**. The Evaluator attacks the CLI directly and inspects the produced PNG + manifest with the Python probes in §8/§9. This is intentional and stated so the contract is fully testable.
+**Explicitly OUT of this sprint** (Sprints 004–006): any analytics / CSV /
+scorecard work; any change to the four gate conditions; live posting APIs. See §7.
 
-**In scope (Sprint 003):** the `1080×1920` chart-card render for a `has_axis:false` receipts card (roles: `headline`, `body`, `source-stamp`, `wordmark`); the chart-card `manifest.json` surface merged alongside any carousel surfaces; the authored TGRERA `chart-spec.md`; deterministic re-render; error/atomicity states; **strict non-regression of the Sprint-002 hyd carousel output**.
+## 2. Files created / affected
 
-**Explicitly NOT in this sprint** (declared, not silently omitted):
-- **No plotted-axis / bar-chart engine.** Spec §11's "zero-based axis when `has_axis`" is a *conditional capability* (R5: "*when* it plots a numeric axis"). No required downstream test renders a plotted axis: the Sprint 003 test is the receipts card; Sprint 004 validates TGRERA which is `has_axis:false`; Sprint 005's "truncated axis → V10 FAIL" is **flag-based** (Risk 3 — a hand-crafted manifest with `axis_min≠0 && break_disclosed=false`, not a rendered plot). Building a matplotlib/Pillow bar engine would add real surface that jeopardizes **R8 (hard determinism)** for zero required payoff — the "widen scope because it's convenient" the harness forbids. A `chart-spec.md` that declares `has_axis: true` is **rejected with a fail-loud error** this sprint (§3.5). The plotted path is a Sprint 004+/future concern.
-- No validator, `qa-verdict.json`, contrast/blacklist/provenance enforcement — Sprint 004. Sprint 003 only *emits* the chart-card manifest those checks will consume.
-- **No edit to `content/2026-07-03-tgrera-enforcement-wave/meta.md`** (its provenance/verdict block is Sprint 004 / V11 territory). No `qa-checklist.md` "IBM Plex Sans → Inter" edit (Sprint 004).
-- No TGRERA carousel (Risk 2 makes a full TGRERA carousel optional/out-of-scope); only the chart card is required for TGRERA.
-- No LinkedIn 1200×627 / PDF carousel (§8 non-goals). No new third-party dependency beyond Pillow. No network at render time. No writes outside `<asset-folder>/render/`.
+New, under `tools/marketing-loops/` (Generator may adjust private helper names but
+MUST honor the behaviors, the importable-pure-function requirement, and the
+fixtures-live-under-`tools/` rule):
 
-### Scope-honesty note
-The TGRERA asset's `meta.md` records a specs-level QA PASS on provenance (public regulator orders only, no TERREM DB numbers). Sprint 003 proves **rendering correctness** of the chart card (dims, tokens, source-stamp + wordmark presence, safe-zone fit, anti-stub ink, determinism). A full QA verdict is Sprint 004 (V2–V12). Do not score Sprint 003 on whether the asset "should publish" — score it on whether the renderer faithfully rasterizes the authored receipts card and does not regress the hyd carousel.
+- `captions.py` — **importable pure module**: parse `captions.md`; resolve a
+  per-channel caption body (§3.1). No CLI side effects on import.
+- `schedule.py` — **importable pure module**: `slot_for(week, channel)` → slot
+  string (§3.2). No wall-clock, no import side effects.
+- `package.py` — the package CLI + its pure builder functions (§3.3). Imports
+  `gate`, `channels`, `queue`, `utm`, `captions`, `schedule`. Runs the gate,
+  refuses/usage-errors or writes packages + updates the queue.
+- `mark_posted.py` — the mark-posted CLI + pure transition function (§3.4).
+  Imports `queue`.
+- `tests/test_captions.py`, `tests/test_schedule.py`, `tests/test_package.py`,
+  `tests/test_mark_posted.py` — unit tests.
+- `fixtures/publish/<fx-name>/` — new packaging fixtures (each a full asset
+  folder: `meta.md` + `render/qa-verdict.json` + `render/manifest.json` +
+  `captions.md` as applicable), listed in §9. Fixtures live **under `tools/`,
+  never under `content/`**.
 
-## 1. Language / runtime decision
+New, in the repo:
 
-- **Python 3** (`/usr/bin/python3`, 3.9.6) + **Pillow** (already installed) — same runtime as Sprint 002. Pillow gives deterministic freetype raster at fixed pixel sizes (R8) with zero network (R4).
-- **No new third-party dependency beyond Pillow.** No `pip install`, no `matplotlib`, no network. Imports allowed in `render.py`: Python stdlib + `PIL` + the local `measure` module (unchanged from Sprint 002's import set).
-- Reuses `measure.py` (`TOKENS`, `is_brand_token`, `type_min_ok`, `safe_zone_ok`) and Sprint 002's font-loading / wrap / glyph-guard / determinism machinery verbatim.
+- `.claude/skills/loop-publish/SKILL.md` — the skill doc (§3.5), frontmatter +
+  steps mirroring `.claude/skills/loop-qa/SKILL.md`.
+- `content/2026-07-03-tgrera-enforcement-wave/captions.md` — the real asset's
+  authored caption source (§3.1 "Real-asset caption provenance"). **Its body is
+  transcribed verbatim from copy already authored in the asset** (the `Hook:`
+  line, `meta.md` line 6) — no new marketing claim is introduced; the tool never
+  writes prose (B-P5). This is the *only* touch to `content/` this sprint, and it
+  is the spec-sanctioned A-3 caption-field introduction, not a content rewrite.
 
-## 2. Files this sprint creates / modifies (and ONLY these)
+**Read-only — imported, NOT modified** (their Sprint-001/002 contracts are frozen
+and already PASSED): `utm.py`, `gate.py`, `queue.py`, `channels.py`, and all of
+`content/*` except the one new `captions.md` above and any `content/<slug>/publish/`
+or `content/publish-queue.json` artifacts the tool itself writes. New shared logic
+this sprint needs (per-channel link building, package-row merging) is authored in
+the **new** modules and only *imports* the frozen ones — no function is added to
+`utm.py`/`queue.py`, so no PASSED contract can regress.
 
-Creates:
-- `content/2026-07-03-tgrera-enforcement-wave/chart-spec.md` — the authored `has_axis:false` receipts card (grammar in §3, exact content in §4).
-- `tools/marketing-render/tests/test_chart_card.py` — stdlib `unittest` tests for the chart-card path (see §8.0). A **separate** test file so the Sprint-002 `test_render.py` suite is left byte-untouched (regression safety).
+Default production paths (created on first real run; tracked, non-secret
+artifacts): QUEUE `content/publish-queue.json`; PACKAGE files
+`content/<slug>/publish/<channel>.json`. Neither is written during tests — tests
+pass `--queue <tmp>` and `--publish-dir <tmp>` (§3.6, §8).
 
-Modifies (additively — must not change existing carousel behavior):
-- `tools/marketing-render/render.py` — adds: chart-spec parsing (§3), chart-card layout + render (§5), and a merged `main()`/`render_asset()` flow (§6) that renders a carousel **and/or** a chart card. The existing carousel functions, constants, style table, and CLI error messages are **preserved**; only the top-level orchestration is generalized so a missing `carousel.md` is no longer fatal when a chart-spec is present.
+## 3. Exact behaviors
 
-Writes at render time (created by the tool, not committed as source):
-- `content/2026-07-03-tgrera-enforcement-wave/render/chart-card.png`
-- `content/2026-07-03-tgrera-enforcement-wave/render/manifest.json`
+### 3.1 Caption source + resolver (`captions.py`) — B-P5 / A-3
 
-Does **NOT** modify: `measure.py`, `test_render.py`, any `brand/` file, `qa-checklist.md`, the hyd asset (`content/2026-07-03-hyd-premium-vs-budget/**` — including its `chart-spec.md`), TGRERA's `meta.md` / `script.md`, or any file outside this repo.
-
-## 3. Input grammar — how `chart-spec.md` is parsed (deterministic)
-
-The renderer reads `content/<slug>/chart-spec.md` as UTF-8 and parses it line-by-line. The grammar is authored by this sprint (§4), so it is deterministic and unambiguous by construction.
-
-### 3.1 Chart-card trigger (the hyd-safety seam)
-A `chart-spec.md` is rendered as a chart card **only if** it contains a line matching `^Surface:\s*chart-card\s*$`. If no such marker is present, the file is **not a chart-card spec**: the renderer ignores it entirely (renders no chart card, raises no error). This is the mechanism that keeps the **hyd asset byte-identical**: hyd's existing `chart-spec.md` is the old free-form bar-chart format (`Chart type: diverging horizontal bar`, `Y-axis: …`) with **no** `Surface: chart-card` line, so it is skipped and hyd's manifest stays the 8 carousel surfaces of Sprint 002.
-
-### 3.2 Preprocessing
-1. Split into lines. Strip HTML comments `<!-- … -->` (non-greedy) then trailing whitespace (same rule as Sprint 002 §3.1).
-2. Blank lines and bare `---` separators are skipped.
-3. If the spec is inside a fenced ```` ``` ```` code block, the fence lines (```` ``` ````) are skipped; the directive lines inside are parsed normally.
-
-### 3.3 Directive / element extraction (in file order)
-Each recognized line yields either a **directive** (surface metadata, no element) or exactly **one manifest element**:
-
-| Line pattern | Kind | Role | Font px | Weight | Color token | Notes |
-|---|---|---|---|---|---|---|
-| `^Surface:\s*chart-card\s*$` | directive | — | — | — | — | required trigger (§3.1) |
-| `^Canvas:\s*(.+)$` | directive | — | — | — | — | must equal `1080x1920` (§3.5) |
-| `^has_axis:\s*(true\|false)\s*$` | directive | — | — | — | — | must be `false` this sprint (§3.5) |
-| `^Headline:\s*(.+)$` | element | `headline` | 44 | 700 | `ink` `#1c1917` | ≥1 per card |
-| `^Order:\s*(.+)$` | element | `body` | 27 | 500 | `ink` `#1c1917` | the dated receipts |
-| `^Source:\s*(.+)$` | element | `source-stamp` | 20 | 400 | `ink-muted` `#57534e` | rendered text **includes** the `Source:` prefix (verbatim whole line, matching Sprint 002 so V8 finds "Source" + "as of") |
-| line containing `wordmark` (case-insensitive), e.g. `^Wordmark:\s*TERREM` | element | `wordmark` | 25 | 700 | `accent-deep` `#0d3d38` | literal rendered text is `TERREM`, bottom-right |
-
-Text is taken **verbatim** from the captured group (₹, `—`, `·`, `%`, `/` preserved); only the leading marker + surrounding whitespace are stripped. Every emitted `color`/`bg` is validated with `measure.is_brand_token(...)`.
-
-### 3.4 Element ordering & required elements
-- Elements appear in the manifest in **file order**.
-- A chart-card spec **must** produce: ≥1 `headline`, ≥1 `source-stamp`, and exactly one `wordmark`. Missing any → fail-loud `ValueError` (§3.5). (Source-stamp + wordmark presence is R6 and is what the Sprint-004 V8 gate will consume.)
-
-### 3.5 Fail-loud rules (state §6)
-- `has_axis: true` → `ValueError: "plotted-axis chart cards are not supported in Sprint 003 (non-goal); this card declares has_axis: true"`. (No silent skip, no half-rendered plot.)
-- `Canvas:` value ≠ `1080x1920` → `ValueError` naming the offending value.
-- A non-blank line that matches none of the §3.3 patterns → `ValueError` naming the offending line (fail loud, no silent drop).
-- A chart-card spec missing a required element (§3.4) → `ValueError` naming which is missing.
-
-## 4. The authored TGRERA `chart-spec.md` (exact content)
-
-`content/2026-07-03-tgrera-enforcement-wave/chart-spec.md` is authored as a `has_axis:false` receipts card. **Every fact below traces to the existing public sources already in the asset** (`script.md`, `meta.md`, `signals/2026-07-03.md #3`: NewsMeter · Siasat · Deccan Chronicle; orders dated 2026-06-22/27/30) — **no TERREM DB numbers**, satisfying the provenance-safety constraint (§9, Risk 2). The file body (inside a fenced block) is:
+**The `captions.md` format** (mirrors the existing `meta.md`
+`<!-- provenance:start -->` marker convention — codebase DNA). An asset's caption
+source is `content/<slug>/captions.md` containing one or more delimited blocks:
 
 ```
-Surface: chart-card
-Canvas: 1080x1920
-has_axis: false
+<!-- caption:all:start -->
+<shared caption body — arbitrary text, preserved verbatim>
+<!-- caption:all:end -->
 
-Headline: Telangana's regulator hit three builders in nine days.
-Order: Jun 22 — R Homes: ordered to refund Rs 14.95L + 10.7% interest for pre-registration collection; project sales frozen.
-Order: Jun 27 — Maharshi's Estates: penalty proceedings for selling plots in a project that was never registered.
-Order: Jun 30 — Jayatri Infrastructure: refund with interest on a delayed Gopanpally project; 45 days to pay.
-Source: Source: NewsMeter · Siasat · Deccan Chronicle · TGRERA orders as of 2026-06-22 / 27 / 30
-Wordmark: TERREM
+<!-- caption:instagram:start -->
+<optional Instagram-specific override body>
+<!-- caption:instagram:end -->
 ```
 
-Notes:
-- The `Source:` line intentionally repeats the word (`Source: Source: …`) so the captured element text is the full `Source: NewsMeter · …` stamp (the parser renders the whole line after the first `Source:` marker). The rendered source-stamp text is `Source: NewsMeter · Siasat · Deccan Chronicle · TGRERA orders as of 2026-06-22 / 27 / 30` — contains "Source" **and** "as of" **and** the order dates (V8-ready).
-- **Currency rendered as `Rs 14.95L`, not `₹`** — deliberate: this keeps the authored spec ASCII-safe and dodges any font-coverage risk on the rupee glyph in the receipts copy. (The hyd carousel proves `₹` renders; here we simply don't need it. The anti-tofu guard §5.4 still runs regardless.)
-- All punctuation used (`—` em dash, `·` middot, `%`, `/`, `+`) is confirmed present in vendored Inter (Sprint 002).
+- Block key is `all` or one of the canonical channels
+  `{instagram, youtube, linkedin}` (imported from `utm.CHANNEL_SOURCE_MAP`).
+- **Body extraction** is deterministic: the text strictly between a block's
+  `:start`/`:end` markers, with leading/trailing blank lines stripped and interior
+  text preserved byte-for-byte (no reflow, no trimming of interior whitespace).
+- **Per-channel resolution:** for a channel `c`, use the `caption:<c>` block if
+  present; else fall back to the `caption:all` block; if **neither** exists →
+  the body is **absent** for `c`.
 
-## 5. Chart-card renderer behavior
+Importable pure API (no writes, no wall-clock, no network):
 
-### 5.1 CLI (unchanged surface)
-```
-python3 tools/marketing-render/render.py <asset-folder>
-```
-`<asset-folder>` = path to `content/<slug>/`. On success: renders whatever surfaces the folder declares (carousel and/or chart card), prints one line per PNG + the manifest path, exits **0**. Reads only the asset's `carousel.md` / `chart-spec.md` and the vendored fonts. No network.
+- `parse_captions(text) -> {block_key: body_str, ...}` — parses all blocks. A
+  malformed block (a `:start` with no matching `:end`) → raise `ValueError`
+  (the CLI turns this into exit 2). Duplicate block keys → `ValueError`.
+- `body_for(blocks, channel) -> str | None` — applies the resolution order
+  above; returns `None` when the body is absent for that channel.
 
-### 5.2 Canvas & tokens (R2, R3)
-- The chart-card PNG is exactly `1080×1920`, flat-filled with `bg` `#faf8f3`. No gradients, textures, or images under type (§7 anti-patterns).
-- Only the tokens in §3.3 appear as declared element colors: `ink` `#1c1917`, `ink-muted` `#57534e`, `accent-deep` `#0d3d38` (wordmark). All are members of the nine locked tokens. **Zero content-accent** is used (permitted; §7 allows 0 or 1 accent, never >1) — the single `accent-deep` element is the wordmark.
+**Absent caption is an error, never an invention (B-P5):** if `captions.md` is
+missing, unparseable, or has no resolvable body for a channel that is about to be
+packaged, `package.py` exits 2, names the asset + the specific channel(s) lacking
+a body, and writes **no** package file and **no** queue change (§3.3 step 8). The
+tool NEVER substitutes, defaults, or generates caption text.
 
-### 5.3 Layout (deterministic integer math; vertical safe zone)
-- Text column reuses `MARGIN_X = 90`, `CONTENT_W = 900` (x ∈ [90, 990], inside the vertical canvas [0, 1080]).
-- **Critical stack** = the `headline` + all `body` (order) elements, laid out top-to-bottom with the same wrap (`getlength` greedy), line-advance `round(font_px*1.4)`, em-height `round(font_px*1.2)`, and inter-element gap `round(0.7*preceding_font_px)` as Sprint 002. The whole critical stack is **vertically centered** inside the band `y ∈ [280, 1300]`. Because `280 ≥ 250` and `1300 ≤ 1480`, every headline/body element is inside the vertical safe zone `y ∈ [250, 1480]` (`measure.SAFE_ZONES[(1080,1920)]`) **by construction**. If the stack is taller than the band (`1020px`), the renderer **errors (fail loud)** rather than overflowing.
-- **Source-stamp** is drawn left-aligned at `x = 90`, top `y = 1380` (below the critical band, still `< 1480` so it sits inside the safe zone — extra-safe, though source-stamp is V6-exempt).
-- **Wordmark** (`TERREM`) is drawn bottom-right: right edge `x = 990`, top `y = 1800` (in the bottom-440 zone — V6-exempt; bottom-right is the brand convention R6).
+**Real-asset caption provenance:** `content/2026-07-03-tgrera-enforcement-wave/captions.md`
+carries a single `caption:all` block whose body is the asset's own authored `Hook:`
+line (`meta.md` line 6), transcribed verbatim. No claim absent from the asset is
+added. (The primary *tested* happy-path anchor is a **fixture** with a
+Generator-authored caption — normal test data; the real asset merely proves the
+end-to-end flow runs on real content.)
 
-### 5.4 Anti-tofu glyph guard (reused)
-Before drawing any run, the renderer confirms every non-whitespace char has a real glyph in the chosen Inter face (Sprint 002 `.notdef` comparison). A missing glyph raises `RuntimeError` naming the char, the surface, and the element role — never a silent `.notdef` box.
+### 3.2 Schedule slot (`schedule.py`) — B-P6 / A-4
 
-### 5.5 Manifest emission (§5.3 schema — chart-card surface)
-The chart-card surface merged into `manifest.json`:
+Pure `slot_for(week, channel) -> str`. **No `datetime.now()`; derived only from
+the operator-supplied `--week` and fixed documented constants.**
+
+- `week` is validated `^\d{4}-W\d{2}$`; the 2-digit `WW` is parsed as an int.
+- Channel **ordinal** (canonical order): `instagram=0, youtube=1, linkedin=2`.
+- **A/B bucket** (deterministic, alternates by week to yield the weeks-1–8 A/B
+  data B-A8 later reads): `bucket = "morning" if (WW + ordinal) % 2 == 0 else
+  "evening"`.
+- **Per-channel default times** — *arbitrary A/B-hypothesis defaults, NOT real
+  posting times* (A-4: real times are filled by the human via mark-posted). Fixed,
+  documented constants:
+
+  | Channel | morning | evening |
+  |---|---|---|
+  | instagram | `09:00` | `18:00` |
+  | youtube | `11:00` | `20:00` |
+  | linkedin | `08:30` | `17:30` |
+
+- **Slot string format:** `<week>/<bucket>/<HH:MM>`.
+
+**Worked ground truth for `--week 2026-W27` (WW=27):**
+
+| Channel | (WW+ord) | bucket | slot string |
+|---|---|---|---|
+| instagram | 27 (odd) | evening | `2026-W27/evening/18:00` |
+| youtube | 28 (even) | morning | `2026-W27/morning/11:00` |
+| linkedin | 29 (odd) | evening | `2026-W27/evening/17:30` |
+
+The **identical** slot string is written to BOTH the PACKAGE `schedule_slot` field
+and the QUEUE row `schedule_slot` field (computed once, written twice).
+
+### 3.3 Package generation (`package.py` CLI) — B-P4 / B-P5 / B-P6 / B-P9
+
+`python3 tools/marketing-loops/package.py <asset_dir> --week YYYY-Www [--queue PATH] [--publish-dir DIR]`
+
+Ordered steps (all validation happens **before any write** — the operation is
+**atomic**: on any error, zero package files are written and the queue is
+untouched):
+
+1. **`--week` format** (`^\d{4}-W\d{2}$`) → else exit 2.
+2. **Asset precondition:** `<asset_dir>` exists, is a dir, has `meta.md` → else
+   exit 2.
+3. **Gate first (never bypass — B-P9).** Run `gate.gate_asset(<asset_dir>)`. If
+   `ok=False` → print each cited reason to **stderr**, write nothing, exit **1**.
+   (This re-uses the *exact* Sprint-002 function; the four conditions are frozen.)
+4. **Channels** via `channels.channels_for_asset` (§3.5 of Sprint 002 — imported):
+   no `Channels:` line, an unmapped platform token, or zero channels → exit 2.
+5. **UTM precondition (why it lives here, not in the gate).** Validate the asset's
+   Flywheel link via `utm.validate_asset(<asset_dir>)`. The gate's four conditions
+   are frozen and do **not** include UTM (Sprint-002 pinned that); but package
+   generation *must parse the `Flywheel target:` line anyway* — it is the only
+   source of the destination base URL (`https://intel.terrem.in/markets`), and a
+   `meta.md` campaign that disagrees with the folder slug is a real authoring bug
+   that must not ship (story #1: "a wrong-UTM asset never ships"). So: if
+   `validate_asset` returns violations (missing line, malformed query, wrong
+   medium, campaign mismatch, unknown source) → exit **2**, cite the exact
+   Sprint-001 violation code(s), write nothing.
+6. **Manifest / attachments.** Read `<asset_dir>/render/manifest.json`. Absent,
+   unparseable, or with an empty/absent `surfaces` list → exit 2 (a package with
+   nothing to attach is not a valid package), write nothing. Otherwise
+   `attachments` = the ordered list, in `surfaces[]` order, of
+   `<asset_repo_relative>/render/<surface.png>` — POSIX-style forward-slash paths
+   **relative to the repo root** (repo root resolved from `__file__`). The real
+   assets and all fixtures resolve under the repo root, so these are stable and
+   cwd-independent.
+7. **Per-channel link.** For each channel `c`, build the per-channel UTM link by
+   **canonically rebuilding** the query on the flywheel destination:
+   `<scheme>://<host><path>?utm_source=<CHANNEL_SOURCE_MAP[c]>&utm_medium=social&utm_campaign=<campaign>`
+   where `<scheme>://<host><path>` is taken from the validated flywheel URL and
+   `<campaign>` = `utm.campaign_from_slug(<slug>)` (date-stripped slug). Canonical
+   rebuild (not string-splice) makes the link byte-identical regardless of the
+   base link's param order. Instagram → `utm_source=instagram`, YouTube →
+   `youtube`, LinkedIn → `linkedin` (the frozen Sprint-001 map).
+8. **Caption body per channel** via `captions.body_for` (§3.1). If any
+   **to-be-packaged** channel (see step 9 for posted-skip) has body `None` →
+   exit 2, name the asset + channel(s), write nothing. Final **caption** for a
+   channel = `<body> + "\n\n" + <per-channel utm_link>` (exactly two newlines
+   between body and link). Same authored body + same channel → byte-identical
+   caption (B-P5).
+9. **Queue merge + package files (the only writes; happen together, last).** Load
+   the queue (`queue.load_queue`, default `content/publish-queue.json`). For each
+   declared channel:
+   - If an existing QUEUE row for `(slug, channel)` is **`posted`** → **skip**: do
+     not overwrite its package file, do not alter its row; emit stdout
+     `kept-posted <slug> <channel>` (no-regress / no-overwrite-of-posted, spec §7).
+   - Otherwise (new pair, or existing `queued` row): build the row via
+     `queue.new_row(slug, channel, week)` (so it uses the frozen `queue.ROW_KEYS`
+     exactly), then set `schedule_slot` (§3.2) and `package_path` on it; **write**
+     the PACKAGE file `<publish-dir>/<channel>.json` (default publish-dir
+     `<asset_dir>/publish`); record `package_path` = that file's path,
+     repo-relative (POSIX) when under the repo root, else its absolute resolved
+     path. Emit stdout `packaged <slug> <channel>`.
+   Merge the built rows into the queue with **package semantics** (a pure helper
+   authored in `package.py`): new pair → append; existing `queued` → replace its
+   `schedule_slot`/`package_path`/`week` with the freshly-computed values, keep
+   `state="queued"`; existing `posted` → keep wholesale (the skip above). Write the
+   queue deterministically via `queue.dumps`/`queue.write_queue` (sorted keys,
+   `(slug, channel)` row order, single trailing newline). Exit **0**.
+
+**PACKAGE file schema (§5.4 PACKAGE), serialized `json.dumps(..., sort_keys=True,
+indent=2) + "\n"`:**
+
 ```json
 {
-  "id": "chart-card",
-  "role": "chart-card",
-  "png": "chart-card.png",
-  "canvas": { "w": 1080, "h": 1920 },
-  "has_axis": false,
-  "axis_min": null,
-  "zero_based": null,
-  "break_disclosed": null,
-  "chart_ref": null,
-  "elements": [
-    { "text": "Telangana's regulator hit three builders in nine days.",
-      "role": "headline", "font_px": 44, "weight": 700,
-      "color": "#1c1917", "bg": "#faf8f3", "bbox": [90, 0, 0, 0] }
-  ]
+  "schema_version": "1",
+  "slug": "<content folder slug>",
+  "channel": "instagram|youtube|linkedin",
+  "utm_source": "instagram|youtube|linkedin",
+  "utm_link": "https://intel.terrem.in/markets?utm_source=<src>&utm_medium=social&utm_campaign=<campaign>",
+  "caption": "<authored body>\n\n<utm_link>",
+  "attachments": ["content/<slug>/render/<png>", "..."],
+  "schedule_slot": "<week>/<bucket>/<HH:MM>",
+  "week": "YYYY-Www"
 }
 ```
-- Axis-only fields are `null` because `has_axis=false` (schema §5.3 rule). `chart_ref` is `null` (the card *is* the receipts, not a reference to a plot) — included for surface-shape parity with the Sprint-002 carousel surfaces.
-- `bbox` values are layout-computed; the enumerated exact values in §5.6 pin roles/text/size/color, while bboxes are verified by **invariant** (dims, safe-zone containment, ink-present), not by hard-coded pixels.
-- **Serialization is byte-deterministic:** `json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=True)` + trailing newline. No timestamp/date field anywhere.
 
-### 5.6 Exact expected chart-card manifest for TGRERA (the renderer↔validator seam)
-One surface `chart-card`, `1080×1920`, role `chart-card`, `has_axis=false`. Elements (role · font_px · weight · color · text), **in this order**:
-1. `headline` · 44 · 700 · `#1c1917` · `Telangana's regulator hit three builders in nine days.`
-2. `body` · 27 · 500 · `#1c1917` · `Jun 22 — R Homes: ordered to refund Rs 14.95L + 10.7% interest for pre-registration collection; project sales frozen.`
-3. `body` · 27 · 500 · `#1c1917` · `Jun 27 — Maharshi's Estates: penalty proceedings for selling plots in a project that was never registered.`
-4. `body` · 27 · 500 · `#1c1917` · `Jun 30 — Jayatri Infrastructure: refund with interest on a delayed Gopanpally project; 45 days to pay.`
-5. `source-stamp` · 20 · 400 · `#57534e` · `Source: NewsMeter · Siasat · Deccan Chronicle · TGRERA orders as of 2026-06-22 / 27 / 30`
-6. `wordmark` · 25 · 700 · `#0d3d38` · `TERREM`
+**Idempotency (B-P3 spirit).** Re-running the exact same `package.py` command
+(same asset, `--week`, `--queue`, `--publish-dir`) → **byte-identical** PACKAGE
+files, **byte-identical** queue file, identical stdout. Everything is derived from
+the inputs; nothing is wall-clock.
 
-Element count = **6**. Contrast sanity (verified for real in Sprint 004, noted here): ink/bg ≈ 16.5:1, ink-muted/bg ≈ 6.5:1, accent-deep/bg high — all ≥ 4.5:1. Type minimums (chart-card): headline 44 ≥ 36 ✓; body 27 ≥ 24 ✓ (source-stamp/wordmark exempt).
+**Real-asset ground truth (`--week 2026-W27`, using temp `--queue`/`--publish-dir`):**
 
-### 5.7 Determinism (R8) & atomicity (R9) — reused verbatim
-No timestamps, no run-varying metadata; fonts vendored + fixed; layout is pure integer math; PNG saved with Pillow's default writer. Determinism is asserted on **decoded-RGBA SHA-256**. The renderer builds every image + the manifest **in memory** and only writes after all surfaces render successfully; on any error it writes nothing and exits non-zero, writing **only** inside `<asset-folder>/render/`.
+- `content/2026-07-03-tgrera-enforcement-wave` → exit **0**; three PACKAGE files
+  (`instagram.json`, `youtube.json`, `linkedin.json`); each with `schema_version
+  "1"`, correct `utm_source`, per-channel `utm_link` (campaign
+  `tgrera-enforcement-wave`), `attachments`
+  `["content/2026-07-03-tgrera-enforcement-wave/render/chart-card.png"]`,
+  `schedule_slot` per the §3.2 W27 table, `week "2026-W27"`; three QUEUE rows
+  `state=queued` with `schedule_slot` + `package_path` now **non-null**.
+- `content/2026-07-03-hyd-premium-vs-budget` → gate refuses → exit **1**, stderr
+  cites `[missing-verdict, killed]`, **no** package files, **no** queue write.
+  (The clean real-content refusal anchor — proves the gate is never bypassed
+  without depending on any caption.)
 
-## 6. Merged render flow & states (mapped to spec §6)
+### 3.4 Mark-posted (`mark_posted.py` CLI) — B-P7
 
-`render_asset(folder)` now:
-1. If neither `carousel.md` nor a chart-card `chart-spec.md` (with the §3.1 marker) is present → error `no renderable input (need carousel.md or a chart-spec.md with 'Surface: chart-card') in <path>`, exit non-zero, no writes.
-2. If `carousel.md` present → render carousel surfaces (unchanged Sprint 002 path).
-3. If `chart-spec.md` present **and** carries the §3.1 marker → render the chart-card surface.
-4. Merge surfaces (carousel surfaces first, then chart-card) into one `manifest.json`. For TGRERA (no `carousel.md`) the manifest has exactly the one `chart-card` surface.
+`python3 tools/marketing-loops/mark_posted.py <slug> <channel> --posted-on YYYY-MM-DD --permalink URL [--queue PATH]`
 
-State matrix:
-- **Missing asset folder** → `error: asset folder not found: <path>`, exit 1, no writes (unchanged).
-- **Folder with neither input** → error as (1) above, exit 1, no writes. (Preserves the Sprint-002 `test_missing_carousel` behavior: an empty folder still exits 1 with no `render/`.)
-- **`chart-spec.md` present without the marker** (e.g. hyd) → chart card skipped; if `carousel.md` also present, only the carousel renders (hyd stays 8 surfaces, byte-identical).
-- **Unparseable chart-spec line / `has_axis:true` / bad `Canvas:` / missing required element** → `ValueError` (§3.5), exit 1, no writes.
-- **Missing glyph (tofu)** → `RuntimeError` naming char/surface/role, exit 1, no writes.
-- **Stack overflow (content too tall for the [280,1300] band)** → error, exit 1, no writes.
-- **Success (TGRERA)** → one `1080×1920` `chart-card.png` + `manifest.json` under `render/`, exit 0.
-- **Deterministic re-render** → second run yields byte-identical manifest + decoded-RGBA-identical PNG.
-- **Anti-stub** → declared ink present inside every text bbox (no blank PNG).
+- **`<channel>`** must be one of `{instagram, youtube, linkedin}` → else exit 2.
+- **`--posted-on`** must match `^\d{4}-\d{2}-\d{2}$` **and** be a real calendar
+  date (validated via `datetime.strptime` — parsing a supplied date, **never**
+  `datetime.now()`) → else exit 2.
+- **`--permalink`** must be non-empty after strip **and** match `^https?://` (a
+  permalink is a URL) → else exit 2.
+- **`--queue`** (default `content/publish-queue.json`) must exist and load as a
+  valid QUEUE doc → else exit 2.
+- **Row lookup:** find the row for `(slug, channel)`.
+  - Not found → exit **2** (precondition: nothing to mark; message names the pair).
+  - Found but `state != "queued"` (i.e. already `posted`) → exit **1** (domain
+    refusal: "row is already posted; refusing to re-post"). No write.
+  - Found and `state == "queued"` → set `state="posted"`, `posted_date=<--posted-on>`,
+    `permalink=<--permalink>`; write the queue deterministically; stdout
+    `posted <slug> <channel> <posted_on>`; exit **0**.
+- **Intentionally NON-idempotent (contrast with enqueue/package).** A *second*
+  mark-posted on the same row is refused at exit 1 by design — this is the
+  no-double-post guard (B-P7 "refuse to mark posted a row that is not currently
+  queued"), not a bug. Enqueue/package are idempotent; mark-posted is a one-way
+  state transition.
 
-## 7. Design fidelity (§7)
+### 3.5 `/loop-publish` skill (`.claude/skills/loop-publish/SKILL.md`) — B-P9
 
-Inter only (700 headline, 500 body/receipts, 400 source-stamp, 700 wordmark); locked tokens only; flat `bg` canvas; no gradients/textures/photos under type; no all-lowercase headline; no condensed/thin faces. Zero content-accent + one `accent-deep` wordmark (≤1 accent honored). Tufte-clean by omission — the receipts card carries no chartjunk because it plots nothing (R5 vacuous for `has_axis:false`). Left-aligned editorial text, 1.4 line advance, on-graphic source + as-of date (R6), TERREM wordmark bottom-right (R6).
+A skill doc mirroring `.claude/skills/loop-qa/SKILL.md` (YAML frontmatter with
+`name` + `description`; numbered steps; an operator "verdict" section). It:
 
-## 8. Commands the Evaluator runs
+- Documents the flow: (1) run `package.py content/<slug> --week <YYYY-Www>` —
+  which re-runs the gate and refuses a non-PASS/KILLED asset; (2) read the
+  generated `content/<slug>/publish/<channel>.json` packages (caption + attachments
+  + slot) and post **by hand** on each platform; (3) run `mark_posted.py <slug>
+  <channel> --posted-on <date> --permalink <url>` for each channel after posting.
+- States that the skill **never bypasses the gate** and **adds no taste
+  judgement / no copy** — it cites the tools' exit codes and reasons verbatim
+  (mirrors `loop-qa` step "adds no independent taste judgement").
+- Maps exit codes: `0` success, `1` gate refusal (list cited reasons) / already-
+  posted refusal, `2` precondition (missing caption, invalid UTM, absent manifest,
+  bad args) — report the tool's message, do not guess or auto-fix.
 
-From repo root `/Users/prithviputta/Downloads/terrem-marketing-loops`:
+### 3.6 Exit codes (match render / Sprint-001 / Sprint-002 convention)
+
+- `0` — success (packages written + queue updated; or mark-posted transition done;
+  idempotent re-run of `package.py` also 0).
+- `1` — **domain failure**: `package.py` gate refusal (reasons on stderr, no
+  write); `mark_posted.py` on an already-`posted` row (no write).
+- `2` — **usage / precondition error**: malformed `--week`/`--posted-on`; missing
+  asset/`meta.md`/`manifest`/`captions.md`-body; invalid Flywheel UTM; unmapped/zero
+  channels; empty/non-URL permalink; missing/invalid queue for mark-posted; unknown
+  channel arg; row-not-found for mark-posted. Message on stderr, **no write**, empty
+  stdout.
+
+## 4. States
+
+- **Empty / first run:** `package.py` against a non-existent `--queue` creates a
+  valid QUEUE doc; against an empty `--publish-dir` creates it (`mkdir -p`).
+- **Success (package):** gate passes, UTM valid, manifest + captions present →
+  N package files + N `queued` rows with `schedule_slot`/`package_path` non-null.
+- **Success (mark-posted):** a `queued` row → `posted` with `posted_date` +
+  `permalink`.
+- **Gate refusal (package):** missing/non-PASS/failed-checks/KILLED → exit 1, cited
+  reason(s), no write. (Real hyd → `[missing-verdict, killed]`.)
+- **Missing caption:** `captions.md` absent / no body for a packaged channel →
+  exit 2, named, **no write, never invented**.
+- **Invalid UTM (package):** wrong medium / campaign mismatch / etc. → exit 2 with
+  cited Sprint-001 code, no write.
+- **Absent manifest / no surfaces:** exit 2, no write.
+- **Idempotency:** re-run `package.py` on same inputs → byte-identical package
+  files + queue + stdout; no duplicate `(slug, channel)` rows.
+- **No-regress / no-overwrite of posted:** a pre-existing `posted` row for
+  `(slug, channel)` survives a re-`package.py` unchanged, and its package file is
+  **not** rewritten (`kept-posted`).
+- **Mark-posted non-idempotent:** second mark-posted on the same row → exit 1, no
+  write.
+- **Offline:** no network; any network import is a defect.
+
+## 5. Non-UI expectations (a11y / responsive / contrast do not apply)
+
+Headless CLI + one skill doc. In place of keyboard/focus/ARIA/contrast/responsive:
+
+- **Usability:** every refusal/error message is specific and recoverable — it
+  names the asset, the channel, and the concrete fact (e.g. `no caption body for
+  channel 'youtube' — add a caption:youtube or caption:all block to captions.md`;
+  `Flywheel UTM invalid: [campaign-mismatch] ...`; `manifest.json not found at
+  <path>`), never a bare "failed".
+- **Runs from any cwd:** paths resolved from `__file__`; `<asset_dir>`, `--queue`,
+  `--publish-dir` accept absolute or relative paths.
+- **Import safety:** importing `captions`, `schedule`, `package`, `mark_posted`
+  has no side effects and prints nothing.
+- **Single source of truth:** channel↔source map imported from Sprint-001
+  `utm.CHANNEL_SOURCE_MAP`; canonical channel order from the same; QUEUE schema
+  constants/serialization from Sprint-002 `queue.py`; the gate from Sprint-002
+  `gate.py`. No forks, no re-declared maps.
+
+## 6. Security / privacy
+
+- Stdlib only (`json`, `re`, `argparse`, `pathlib`, `datetime` for parsing the
+  supplied `--posted-on` only — never `now()`, `urllib.parse` for building/parsing
+  query strings only — never to fetch). No third-party deps. No network. No
+  secrets. No personal data written. Untrusted inputs (`meta.md`, `manifest.json`,
+  `captions.md`) → parse defensively; a malformed input is a cited exit-2 error,
+  never a crash and never an invented value. No dependency on the globally-
+  installed `pmp-gywd@5.0.0` npm package.
+- `content/publish-queue.json` and `content/<slug>/publish/*.json` are tracked,
+  non-secret artifacts. Tests write only to temp `--queue`/`--publish-dir` and
+  never mutate real `content/` (except the committed real `captions.md`, which is
+  source, not a test artifact).
+
+## 7. Explicit non-goals (this sprint)
+
+- **No analytics / CSV / scorecard** (Sprints 004–006).
+- **No change to the four gate conditions** — `gate_asset` is imported and re-run
+  verbatim; UTM validity remains a *package precondition*, not a gate condition.
+- **No live posting APIs, no credentials, no OAuth** — mark-posted only records a
+  human-supplied permalink. The API seam stays the `{queued, posted}` state
+  machine (B-P8, already materialized in Sprint 002).
+- **No modification** of `utm.py`, `gate.py`, `queue.py`, `channels.py`, or any
+  `content/*` file other than adding the one real `captions.md`.
+- **No marketing-copy generation** — captions are authored input; the tool only
+  appends the UTM link.
+
+## 8. Commands to run
 
 ```bash
-# (0) Unit tests — existing carousel suite MUST still pass + new chart-card suite. Exit 0.
-python3 -m unittest discover -s tools/marketing-render/tests -v
+cd /Users/prithviputta/Downloads/terrem-marketing-loops
+TMPQ="$(mktemp -d)/queue.json"
+TMPP="$(mktemp -d)/publish"
 
-# (1) Render the TGRERA asset — exit 0, writes render/ only
-python3 tools/marketing-render/render.py content/2026-07-03-tgrera-enforcement-wave
-ls content/2026-07-03-tgrera-enforcement-wave/render/
-# expect: chart-card.png  manifest.json   (and nothing else)
+# Unit tests (all Sprint 001+002+003 must pass)
+python3 -m unittest discover -s tools/marketing-loops/tests -v
 
-# (2) Determinism (R8): render twice; decoded-RGBA SHA-256 identical; manifest byte-identical
-python3 - <<'PY'
-import subprocess, hashlib, os
-from PIL import Image
-A="content/2026-07-03-tgrera-enforcement-wave"
-def snap():
-    r={}
-    for f in sorted(os.listdir(f"{A}/render")):
-        p=f"{A}/render/{f}"
-        if f.endswith(".png"):
-            r[f]=hashlib.sha256(Image.open(p).convert("RGBA").tobytes()).hexdigest()
-        else:
-            r[f]=hashlib.sha256(open(p,'rb').read()).hexdigest()
-    return r
-subprocess.run(["python3","tools/marketing-render/render.py",A],check=True)
-s1=snap()
-subprocess.run(["python3","tools/marketing-render/render.py",A],check=True)
-s2=snap()
-assert s1==s2, "NON-DETERMINISTIC: "+str([k for k in s1 if s1[k]!=s2.get(k)])
-print("DETERMINISTIC — decoded-RGBA + manifest identical across re-render")
-PY
+# Real PASS asset -> 3 packages + 3 queued rows with slot+package_path -> exit 0
+python3 tools/marketing-loops/package.py \
+  content/2026-07-03-tgrera-enforcement-wave --week 2026-W27 \
+  --queue "$TMPQ" --publish-dir "$TMPP" ; echo "exit=$?"
+cat "$TMPP/instagram.json"   # utm_source instagram; slot 2026-W27/evening/18:00
+cat "$TMPP/youtube.json"     # utm_source youtube;   slot 2026-W27/morning/11:00
+cat "$TMPQ"                  # 3 rows, schedule_slot + package_path non-null
 
-# (3) HYD NON-REGRESSION: re-render hyd; it must still be 8 carousel surfaces, NO chart card
-python3 - <<'PY'
-import subprocess, json
-A="content/2026-07-03-hyd-premium-vs-budget"
-subprocess.run(["python3","tools/marketing-render/render.py",A],check=True)
-m=json.load(open(f"{A}/render/manifest.json"))
-roles=[s["role"] for s in m["surfaces"]]
-assert roles==["carousel-slide"]*8, ("HYD REGRESSED", roles)
-assert not any(s["role"]=="chart-card" for s in m["surfaces"]), "hyd's chart-spec.md was wrongly rendered as a chart card"
-print("HYD intact — 8 carousel surfaces, no chart card (chart-spec.md correctly skipped)")
-PY
+# Idempotency: re-run -> byte-identical packages + queue
+shasum "$TMPP"/*.json "$TMPQ"
+python3 tools/marketing-loops/package.py \
+  content/2026-07-03-tgrera-enforcement-wave --week 2026-W27 \
+  --queue "$TMPQ" --publish-dir "$TMPP" ; shasum "$TMPP"/*.json "$TMPQ"
 
-# (4) Import purity: render.py still imports only stdlib + PIL + local measure
-python3 - <<'PY'
-import ast, sys
-src=open("tools/marketing-render/render.py").read()
-mods=set()
-for n in ast.walk(ast.parse(src)):
-    if isinstance(n, ast.Import): mods|={a.name.split('.')[0] for a in n.names}
-    elif isinstance(n, ast.ImportFrom) and n.module: mods.add(n.module.split('.')[0])
-allowed={"os","sys","re","json","math","hashlib","argparse","pathlib","typing","measure","PIL"}
-extra=mods-allowed
-print("imports:", sorted(mods)); sys.exit(1 if extra else 0)
-PY
+# Gate never bypassed: real KILLED asset -> exit 1, no packages, no queue write
+python3 tools/marketing-loops/package.py \
+  content/2026-07-03-hyd-premium-vs-budget --week 2026-W27 \
+  --queue "$TMPQ" --publish-dir "$TMPP" ; echo "exit=$?"
+
+# Mark-posted: queued -> posted, then re-run refused (non-idempotent by design)
+python3 tools/marketing-loops/mark_posted.py \
+  2026-07-03-tgrera-enforcement-wave instagram \
+  --posted-on 2026-07-04 --permalink https://instagram.com/p/xyz \
+  --queue "$TMPQ" ; echo "exit=$?"
+python3 tools/marketing-loops/mark_posted.py \
+  2026-07-03-tgrera-enforcement-wave instagram \
+  --posted-on 2026-07-04 --permalink https://instagram.com/p/xyz \
+  --queue "$TMPQ" ; echo "exit=$? (expect 1: already posted)"
+
+# No-regress: re-package after a post -> instagram kept-posted (package not rewritten)
+python3 tools/marketing-loops/package.py \
+  content/2026-07-03-tgrera-enforcement-wave --week 2026-W27 \
+  --queue "$TMPQ" --publish-dir "$TMPP" ; echo "exit=$?"   # stdout: kept-posted ... instagram
+
+# Import-safety: modules import silently
+python3 -c "import sys; sys.path.insert(0,'tools/marketing-loops'); \
+  import captions, schedule, package, mark_posted; \
+  print(schedule.slot_for('2026-W27','instagram'))"   # -> 2026-W27/evening/18:00
 ```
 
-## 9. Evaluator attack script (adversarial — dims, tokens, schema, safe-zone, anti-stub, exact copy)
+## 9. Evaluator attack checklist (CLI, not Playwright)
 
-Run after §8 command (1). Every assertion must hold:
+Fixtures shipped under `tools/marketing-loops/fixtures/publish/` (each a full asset
+folder). Required NEW fixtures + expected result:
 
-```bash
-python3 - <<'PY'
-import json, sys
-from PIL import Image
-sys.path.insert(0, "tools/marketing-render")
-import measure as m
-A="content/2026-07-03-tgrera-enforcement-wave"
-mani=json.load(open(f"{A}/render/manifest.json"))
+| Fixture intent | Expected |
+|---|---|
+| `pkg-pass` — PASS, valid UTM, manifest 1 surface, `captions.md` `[all]` block, 3 channels (positive control) | exit 0; 3 packages; 3 queued rows w/ slot+package_path; caption = body + per-channel link |
+| `pkg-multi-surface` — manifest with ≥2 surfaces | `attachments` is the ordered ≥2 repo-relative PNG list |
+| `pkg-per-channel-caption` — `captions.md` has `[all]` + `[instagram]` override | instagram caption uses the override body; youtube/linkedin use `[all]` |
+| `pkg-no-captions` — no `captions.md` | exit 2, names the channels lacking a body, **no package, no queue write** |
+| `pkg-missing-channel-caption` — `captions.md` has only `[instagram]`, Channels include youtube | exit 2, names `youtube` (no `[all]` fallback), no write |
+| `pkg-bad-utm` — gate PASS but Flywheel campaign mismatch (or wrong medium) | exit 2, cites the Sprint-001 code (`campaign-mismatch`/`wrong-medium`), no write |
+| `pkg-no-manifest` — gate PASS but `render/manifest.json` absent | exit 2, no write |
+| `pkg-empty-surfaces` — manifest present but `surfaces: []` | exit 2, no write |
+| (reuse `killed`) — KILLED marker | gate refuses, exit 1, no package |
+| (reuse `verdict-fail`) — verdict FAIL | gate refuses, exit 1, no package |
 
-assert mani["schema_version"]=="1"
-assert mani["slug"]=="2026-07-03-tgrera-enforcement-wave"
-surfaces=mani["surfaces"]
-assert len(surfaces)==1, len(surfaces)
-s=surfaces[0]
-assert s["id"]=="chart-card" and s["role"]=="chart-card"
-assert s["canvas"]=={"w":1080,"h":1920}
-assert s["has_axis"] is False
-assert s["axis_min"] is None and s["zero_based"] is None and s["break_disclosed"] is None
+Adversarial probes the Evaluator should run:
 
-BG="#faf8f3"
-def near(px, hexcol, tol=24):
-    r,g,b=int(hexcol[1:3],16),int(hexcol[3:5],16),int(hexcol[5:7],16)
-    return abs(px[0]-r)<=tol and abs(px[1]-g)<=tol and abs(px[2]-b)<=tol
-
-img=Image.open(f"{A}/render/{s['png']}").convert("RGB")
-# (V2) real pixel dims from bytes
-assert img.size==(1080,1920), img.size
-# (bg dominance) bg token must dominate the canvas (text is sparse on a 1080x1920 card)
-px=img.load(); W,H=img.size
-bgc=sum(1 for i in range(2000) if near(px[(7*i)%W, (13*i)%H], BG))
-assert bgc >= 1900, ("bg does not dominate canvas", bgc)
-
-roles=[e["role"] for e in s["elements"]]
-assert roles.count("headline")>=1 and roles.count("source-stamp")>=1 and roles.count("wordmark")==1, roles
-
-for el in s["elements"]:
-    assert m.is_brand_token(el["color"]), el["color"]
-    assert m.is_brand_token(el["bg"]) and el["bg"]==BG, el["bg"]
-    role=el["role"]; fpx=el["font_px"]
-    # (V5) chart-card type minimums via measure (headline>=36, body>=24; stamp/wordmark exempt)
-    assert m.type_min_ok("chart-card", role, fpx)["passes"], (role, fpx)
-    # (V6) vertical safe zone for critical roles (source-stamp/wordmark exempt)
-    if role in ("headline","body","hook"):
-        assert m.safe_zone_ok(1080,1920, el["bbox"])["passes"], (role, el["bbox"])
-    # (V3 anti-stub) declared-color ink actually present inside the bbox
-    x,y,w,h=el["bbox"]
-    assert w>0 and h>0, ("degenerate bbox", role, el["bbox"])
-    crop=img.crop((x,y,x+w,y+h)); cpx=crop.load(); cw,ch=crop.size
-    ink=sum(1 for yy in range(0,ch,3) for xx in range(0,cw,3) if near(cpx[xx,yy], el["color"], 60))
-    assert ink>0, ("BLANK/STUB PNG — no declared ink in bbox", role, el["text"][:30])
-
-# (V8) source-stamp carries source attribution + as-of date
-stamp=[e for e in s["elements"] if e["role"]=="source-stamp"][0]
-assert "Source" in stamp["text"] and "as of" in stamp["text"], stamp["text"]
-assert "2026-06-22" in stamp["text"], stamp["text"]
-
-# (R6) wordmark: literal TERREM, accent-deep, right-anchored (right edge near x=990)
-wm=[e for e in s["elements"] if e["role"]=="wordmark"][0]
-assert wm["text"]=="TERREM" and wm["color"]=="#0d3d38", wm
-wx,wy,ww,wh=wm["bbox"]
-assert wx+ww==990, ("wordmark not right-anchored", wm["bbox"])
-
-# (exact copy) every authored element string must appear verbatim by (role,text); count == 6
-expected=[
-  ("headline","Telangana's regulator hit three builders in nine days."),
-  ("body","Jun 22 — R Homes: ordered to refund Rs 14.95L + 10.7% interest for pre-registration collection; project sales frozen."),
-  ("body","Jun 27 — Maharshi's Estates: penalty proceedings for selling plots in a project that was never registered."),
-  ("body","Jun 30 — Jayatri Infrastructure: refund with interest on a delayed Gopanpally project; 45 days to pay."),
-  ("source-stamp","Source: NewsMeter · Siasat · Deccan Chronicle · TGRERA orders as of 2026-06-22 / 27 / 30"),
-  ("wordmark","TERREM"),
-]
-got=[(e["role"],e["text"]) for e in s["elements"]]
-assert got==expected, ("COPY/ORDER MISMATCH", got)
-
-print("OK — dims, tokens, schema, bg-dominance, type-min, vertical safe-zone, anti-stub ink, source-stamp+date, wordmark right-anchored, exact-copy all hold")
-PY
-```
-
-(The `near`-sampling loop uses fixed strided indices — deterministic, no randomness.)
+1. **Real tgrera package** (temp queue + publish-dir, `--week 2026-W27`) → exit 0;
+   assert 3 package files; each `schema_version "1"`; `utm_source` matches channel;
+   `utm_link` carries `utm_source=<channel>&utm_medium=social&utm_campaign=tgrera-enforcement-wave`;
+   `attachments == ["content/2026-07-03-tgrera-enforcement-wave/render/chart-card.png"]`;
+   `schedule_slot` exactly per §3.2 W27 table; `caption` ends with the link after a
+   blank line; 3 queue rows `queued` with matching `schedule_slot`+`package_path`.
+2. **Idempotency** → re-run → `shasum` byte-identical for every package file AND the
+   queue; identical stdout; no duplicate rows.
+3. **Per-channel link correctness** → instagram/youtube/linkedin packages carry
+   `utm_source=instagram|youtube|linkedin` respectively, all same campaign, all
+   `utm_medium=social`.
+4. **Gate never bypassed** → real hyd → exit 1, stderr `[missing-verdict, killed]`,
+   temp queue **unchanged/not created**, publish-dir empty.
+5. **Missing caption** → `pkg-no-captions` and `pkg-missing-channel-caption` → exit
+   2, the missing channel named, **no** package file written, queue unchanged.
+6. **Invalid UTM** → `pkg-bad-utm` → exit 2, Sprint-001 violation code cited, no
+   write. (Proves UTM is enforced at publish without being folded into the gate.)
+7. **Manifest guards** → `pkg-no-manifest` and `pkg-empty-surfaces` → exit 2, no
+   write.
+8. **Mark-posted happy path** → seed a queue with a `queued` (tgrera, instagram)
+   row → mark-posted with valid date + `https://…` permalink → exit 0; row now
+   `state=posted`, `posted_date`, `permalink` set; other rows untouched.
+9. **Mark-posted refusals** → (a) same row again → exit 1 "already posted", no
+   write; (b) `(slug, channel)` not in queue → exit 2; (c) empty or
+   non-`http(s)://` permalink → exit 2; (d) malformed `--posted-on` (`2026-7-4`,
+   `2026-13-40`) → exit 2. Each writes nothing.
+10. **No-regress / no-overwrite** → after posting (tgrera, instagram),
+    re-run `package.py` → stdout `kept-posted … instagram`, the instagram package
+    file's mtime/bytes unchanged, the posted row intact; youtube/linkedin
+    re-packaged idempotently.
+11. **Cross-command regression (Sprint-002 stays passing)** → `enqueue.py` (creates
+    null-slot rows) → `package.py` (fills slot+package_path) → `enqueue.py` again →
+    the slot+package_path set by package.py **survive** (merge_rows keeps the queued
+    row wholesale); final queue byte-stable.
+12. **Import safety + determinism source** → `import captions, schedule, package,
+    mark_posted` prints nothing; `schedule.slot_for('2026-W27','instagram') ==
+    '2026-W27/evening/18:00'`; channel map is the imported Sprint-001
+    `CHANNEL_SOURCE_MAP` (no fork).
+13. **No network / no wall-clock** → grep the new sources for `datetime.now`,
+    `requests`, `urlopen`, `socket`, network `urllib` → none (only
+    `datetime.strptime` for `--posted-on` parsing and `urllib.parse` for query
+    handling are permitted; assert those are the only hits).
+14. **Frozen modules untouched** → `git`/diff shows `utm.py`, `gate.py`,
+    `queue.py`, `channels.py` unchanged; the full Sprint 001+002 unit suite still
+    passes.
 
 ## 10. Definition of done
 
-- The two created files in §2 exist (`chart-spec.md`, `test_chart_card.py`); `render.py` is modified additively; **nothing else** is created or modified (verify with `git status --porcelain` / `git diff --name-only` → only `render.py`, the two new files, and the TGRERA `render/` outputs).
-- `python3 -m unittest discover -s tools/marketing-render/tests -v` exits 0 (existing carousel tests + new chart-card tests).
-- `render.py` renders the TGRERA asset to one `1080×1920` `chart-card.png` + `manifest.json` under `render/`, exit 0, writing nowhere else.
-- §8 determinism (2), hyd non-regression (3), and import-purity (4) checks pass; §9 attack script prints `OK`.
-- Error states in §6 each exit non-zero with a specific message and leave no partial output.
-- `generator_trace.log` records commands run and their output/evidence.
-
-## 11. Non-goals (this sprint) — restated
-
-- No plotted-axis / bar-chart rendering engine (§0 rationale + Risk 3); `has_axis:true` is rejected fail-loud.
-- No validator, `qa-verdict.json`, `meta.md` verdict append, or contrast/axis/blacklist/provenance enforcement — Sprint 004.
-- No edit to TGRERA `meta.md` / `script.md`, no `qa-checklist.md` edit, no change to the hyd asset or `measure.py` / `test_render.py`.
-- No TGRERA carousel; no LinkedIn/PDF surfaces; no new third-party dependency beyond Pillow; no network at render time; no writes outside `<asset-folder>/render/`.
+- `captions.py` parses the marker-delimited `captions.md`, resolves per-channel
+  body with `[channel]→[all]` fallback, and returns `None` (never a fabricated
+  body) when absent; malformed blocks raise `ValueError`; no import side effects.
+- `schedule.py` `slot_for(week, channel)` is pure, wall-clock-free, matches the
+  §3.2 formula, and reproduces the W27 worked table exactly.
+- `package.py` runs the frozen gate (refuse=1), validates UTM/channels/manifest/
+  captions as exit-2 preconditions, and on success writes N deterministic PACKAGE
+  files + updates N QUEUE rows (`schedule_slot`+`package_path`) atomically and
+  idempotently, skipping/keeping `posted` rows without overwriting.
+- `mark_posted.py` transitions `queued`→`posted` with validated `--posted-on` +
+  `--permalink`, refuses non-`queued` rows (exit 1) and bad args/rows (exit 2),
+  writes deterministic queue JSON, and is intentionally non-idempotent.
+- `.claude/skills/loop-publish/SKILL.md` documents the gate→package→post→mark-posted
+  flow, invokes the CLIs, never bypasses the gate, adds no copy/taste — mirroring
+  `loop-qa`.
+- The real `content/2026-07-03-tgrera-enforcement-wave/captions.md` carries an
+  asset-authored (verbatim `Hook:`) caption body; real tgrera packages at exit 0
+  with the §3.3 ground-truth values; real hyd is refused at exit 1 with
+  `[missing-verdict, killed]` and no write.
+- Fixtures for every §9 row shipped under `tools/marketing-loops/fixtures/publish/`.
+- Unit tests prove caption resolution + missing-body error, schedule determinism,
+  package build/attachments/link/caption/idempotency/no-regress, mark-posted
+  transition + all refusals, and the cross-command regression; all pass alongside
+  the untouched Sprint 001+002 suites.
+- Evidence (command output, exit codes, before/after `shasum`, sample PACKAGE +
+  QUEUE JSON, grep-clean for wall-clock/network) logged in `generator_trace.log`.
+```

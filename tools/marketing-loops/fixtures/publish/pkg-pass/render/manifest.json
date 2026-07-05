@@ -1,0 +1,5 @@
+{
+  "schema_version": "1",
+  "slug": "pkg-pass",
+  "surfaces": [{"id": "card", "png": "card.png", "role": "chart-card"}]
+}

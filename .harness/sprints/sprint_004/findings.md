@@ -3,117 +3,109 @@ SCORE: 4.8
 BLOCKERS: 0
 HIGH: 0
 
-# Sprint 004 Findings — Validator CLI + verdict (V2–V12)
+# Findings — Sprint 004: Analytics CSV ingestion → validated INGEST structure
 
-Mode: EVALUATE. Sprint 004 builds `tools/marketing-render/validate.py`, a headless
-Python/Pillow CLI. There is no browser / no web UI, so no Playwright click-path
-exists (contract §0 states this explicitly and correctly). The gate was attacked
-directly from the shell with crafted-manifest fixtures + tiny PNGs and Python probes,
-exactly as contract §7/§9/§10 prescribe. Every acceptance command was reproduced
-independently by the Evaluator — no reliance on the Generator's self-reported output.
-
-## What was verified (all reproduced from a clean invocation)
-
-1. Full unit suite — `python3 -m unittest discover -s tools/marketing-render/tests`
-   -> `Ran 117 tests … OK`, exit 0. 93 pre-existing (S001/002/003) + 24 new. No
-   regression after the two source edits (`qa-checklist.md`, TGRERA `meta.md`).
-2. TGRERA PASS end-to-end (this sprint's demo) —
-   `validate.py content/2026-07-03-tgrera-enforcement-wave --checked-on 2026-07-04`
-   -> exit 0, stdout `VERDICT: PASS (36 checks, 0 failed, 6 skipped)`. qa-verdict.json
-   has verdict:"PASS", failed_checks:[], V7 + V10 recorded skipped (N/A for a
-   has_axis:false chart-card with no hook — not silently absent, not a false FAIL),
-   V2/V3/V4/V5/V8/V9/V11 all PASS.
-3. qa-verdict.json schema (§5.4) — top-level keys exact; 0 malformed check records;
-   every record status in {PASS,FAIL,skipped}; every FAIL carries a rule; needs_review
-   holds 3 informational provenance prompts. Schema-faithful.
-4. Idempotency — two extra runs -> meta.md holds exactly one qa-verdict:start block
-   and one provenance:start block; qa-verdict.json byte-identical to the prior run
-   (determinism with fixed --checked-on confirmed).
-5. All 12 fixtures discriminate — each fx-* exits 1 failing exactly its intended check
-   with the correct rule cited, and fx-good-min exits 0 PASS:
-   - fx-blank-png -> V3-ink FAIL (0 ink px < 50) — anti-stub loophole closed.
-   - fx-low-contrast -> V4-contrast FAIL (1.58:1 < 3.0:1).
-   - fx-size-lie -> V5-crosscheck FAIL (declared 44px vs measured ~24.1px band 20px) —
-     proves V5 reads real PNG pixels, not two manifest numbers.
-   - fx-small-headline -> V5-floor FAIL (30 < 48).
-   - fx-out-of-safezone -> V6 FAIL.
-   - fx-11-word-hook -> V7 FAIL (11 words > 10).
-   - fx-missing-source -> V8 FAIL.
-   - fx-blacklist -> V9 FAIL naming '90% of recall in first 6 seconds'.
-   - fx-truncated-axis -> V10 FAIL (axis_min=20, break not disclosed).
-   - fx-no-provenance -> V11 FAIL.
-   - fx-canvas-mismatch -> V2 FAIL (PNG 1080x1080 != 1080x1920).
-   Isolation holds: no fixture trips a second check family (fx-blank-png fails V3 on
-   all 4 declared elements by design).
-6. Error states (exit 2, §6) — nonexistent folder -> exit 2 + named path; deleted
-   manifest -> exit 2 `manifest/PNG not found; run render first`; non-token color
-   (#123456) -> exit 2 naming surfaces[0].elements[0].color. Distinct from a content
-   FAIL (exit 1). No tracebacks.
-7. Purity / no-network (§4.14) — AST scan of validate.py imports
-   {PIL, argparse, datetime, json, measure, pathlib, re, sys}; zero network modules.
-8. Inter precedence (Risk 1) — qa-checklist.md line corrected to
-   "Headings Inter 600; body Inter 400–500"; stale "IBM Plex Sans 600" heading line
-   gone; no font-family raster check implemented (correctly declared out).
-9. Acceptance #7 (contrast spot-check) — source-stamp #57534e on #faf8f3 @20px/400
-   treated as normal text (threshold 4.5) and passes 7.19:1 — proving
-   exempt-from-size-floor != exempt-from-contrast.
-10. Scope boundary — protected files untouched (mtimes: measure.py 09:18, render.py
-    10:47, test_render.py 10:11, test_chart_card.py 10:48 — all predate the S004 build
-    at 11:xx). V9 blacklist parses brand-kit.md §8 single-source (5 phrases), not a
-    hardcoded copy.
-
-## Trace review
-
-generator_trace.log records the calibration honestly and reproducibly: INK_TOL=60,
-INK_MIN_PX=50 (smallest real element wordmark = 804px, 16x margin; blank crop = 0),
-K_INTER=0.83 with per-element band/font_px ratios (0.72 all-caps wordmark -> 0.955
-headline) all inside +/-25%, and a 2x/0.5x lie falling outside. No skipped failures,
-no claims without artifacts, no broad rewrites. Disclosed residual risks (R-A K_INTER
-drift on extreme glyph mixes, R-C regex date presence, meta.md excluded from V9 to
-avoid the appended-block circular scan) are legitimate, spec-consistent, and correctly
-scoped to design intent — not defects.
-
-## Assessment against the Harsh Pass Standard
-
-Infrastructure, not UI. Every check has a real, reproduced effect (fixtures prove the
-gate is not a pass-everything stub). Error handling is explicit and recoverable with
-named fields. The Generator's evidence reproduces the claim exactly. No stubs, no dead
-checks, no placeholder verdicts. Applicability gating is recorded (skipped), never
-silently dropped and never a false FAIL. Output tone matches §7 (terse, mechanical,
-cite-the-rule).
-
-## Scoring (weights shifted toward infra: Functionality 30%, Evidence 30%, Craft 20%, Design 10%, Originality 10%)
-
-- Functionality: 5 — V2–V12 implemented, applicability-gated, correct PASS/FAIL/skip
-  and exit codes; TGRERA PASS, every fixture FAILs its target.
-- Evidence/process: 5 — 117 tests, 12 fixtures, idempotency, purity, determinism,
-  error states all independently reproduced; calibration recorded.
-- Craft: 5 — clean cite-the-rule output, idempotent meta writes, precondition errors
-  name the offending path/field, unknown-field tolerance.
-- Design (tooling tone): 4.5 — matches §7 terse mechanical spec.
-- Originality: 4 — spec-faithful infrastructure; fidelity is the goal, not novelty.
-
-Weighted total: 5(.30) + 5(.30) + 5(.20) + 4.5(.10) + 4(.10) = 4.85 -> 4.8.
-Passing bar met: 0 blockers, 0 high findings, evidence >= 4, functionality >= 4,
-weighted total >= 4.
+Mode: EVALUATE. Headless CLI + importable-library deliverable (no routes, screens, or
+Playwright surface). Verification = exact CLI invocations + exit codes + stderr
+substrings + on-disk/stdout JSON assertions, per contract §9 and spec §5.2.
 
 ## Verdict
 
-PASS. No findings at Blocker/High/Medium/Low severity. The validator mechanically
-discriminates PASS from FAIL, cites the rule for every check, passes the TGRERA card
-end-to-end, and fails every crafted violation on the correct check. Sprint 005
-(adversarial content asset folders, README wiring, /loop-qa skill update, cross-fixture
-end-to-end) remains correctly out of scope per contract §"Explicitly NOT".
+PASS. Every behavior the contract pins is implemented and independently reproduced. All
+205 unit tests (Sprint 001+002+003+004) pass. All 12 fixture rows in the §9 attack table
+behave exactly as specified. All five B-A3 corruption paths reject with a cited message,
+exit 2, empty stdout. The B-A4 blank-vs-zero distinction, the absent-source-vs-bad-path
+distinction, and the partial-WRR-component signal are correct. Output is byte-identical
+across runs, has no wall-clock, imports no network module. No frozen Sprint 001–003
+module regressed. No write leaked into real content/ or metrics/.
 
-## Post-verdict hardening (independent on-distribution mutation, per advisor)
+## Evidence (reproduced by the Evaluator, not taken from the trace)
 
-To close the circularity risk (fixtures + tests are generator-authored), the two
-loophole-closing seams were re-tested by mutating the REAL TGRERA manifest against the
-REAL rendered PNG (calibration is tuned on this render, so this is the on-distribution
-attack the synthetic fixtures do not cover):
-- V5-crosscheck: doubled headline font_px 44 -> 88 on the unchanged real PNG ->
-  FAIL "declared 88px vs measured ~50.6px (band 42px) outside +/-25%", exit 1. The
-  anti-lie seam measures real pixels on real data, not two manifest numbers.
-- V3-ink: changed headline color #1c1917 -> #dc2626 (not the color rendered there) ->
-  FAIL "0 ink px < 50", exit 1. The anti-stub seam catches a color lie on real data.
-Both fired correctly. PASS is airtight.
+### Unit suite
+python3 -m unittest discover -s tools/marketing-loops/tests -> Ran 205 tests — OK.
+Test files substantial (test_csvspec 159 / test_assetmap 89 / test_ingest 272 lines).
+
+### Full happy path (B-A1/B-A2/B-A6/B-A7 + WRR components)
+4 sources on full/ -> exit 0. Craft rows joined with correct slug+hook# (tgrera->#11,
+rera->#7) per channel; flywheel grouped {rera:18, tgrera:42}; three WRR components
+present with correct sums (returning_viewers=200 unfiltered, digest_opens=95 unfiltered,
+returning_visitors_social=52 social-filtered — organic google row correctly excluded
+from comp3 only); absences []; schema_version "1"; sources_provided all true. Ordering:
+assets by slug, craft by (campaign,channel), flywheel by campaign — as pinned.
+
+### B-A3 corruption suite (each: exit 2, cited, 0 stdout bytes)
+- truncated/site.csv -> "row 2 has 5 columns, expected 7" (od confirms file ends mid-row).
+- wrong-header/site.csv -> "missing required header(s): digest_opens".
+- wrong-colcount/ig.csv -> "row 1 has 6 columns, expected 5".
+- non-numeric/ig.csv -> "row 2 column 'shares': non-blank value 'x' is not an integer".
+- blank-join/site.csv -> "row 1 column 'utm_campaign': blank join value (row cannot join)".
+- Beyond fixtures: NUL byte -> "not parseable as CSV (line contains NUL)" exit 2;
+  unterminated quote -> exit 2. Corruption never silently becomes a blank cell.
+
+### B-A4 blank-vs-zero (never conflated)
+blank-cell/ig.csv -> craft clicks: null (absent). zero-cell/ig.csv -> craft clicks: 0
+(present). Distinct, exit 0 both.
+
+### Absent-source vs bad-path (two distinct states)
+Omit --youtube -> exit 0, sources_provided.youtube=false, a source absence.
+--youtube /no/such/file.csv -> exit 2 "--youtube file not found".
+
+### WRR component presence (Sprint-005 B-A5 signal, correctly deferred)
+Blank only digest_opens column (other two populated) -> digest_opens
+{present:false,value:null}, other two present:true with correct sums, plus a
+wrr-component absence for digest_opens only. Sprint 004 emits NO summed WRR anywhere —
+the no-partial-sum decision is correctly left to Sprint 005.
+
+### Flags, not rejections (B-A11)
+unmatched/ig.csv -> craft slug=null, hook_number=null, an unmatched-campaign absence,
+exit 0. wrong-utm/content/ (meta.md utm_medium=organic) -> asset utm_valid=false,
+utm_violations=['wrong-medium'], a wrong-utm absence, exit 0.
+
+### Empty + header-only states
+No sources -> all-absent INGEST, exactly 4 source absences (the earlier over-count to 7
+was repaired per trace 16:44 and is confirmed fixed), exit 0. header-only/site.csv ->
+site present:true, flywheel [], WRR components all absent + three wrr-component absences,
+exit 0 (present-but-empty != corrupt).
+
+### Determinism / hygiene
+Two identical runs -> shasum byte-identical (16e39d1d...). --out NOT written on corrupt
+input (exit 2, file absent); written on success with empty stdout. import csvspec,
+assetmap, ingest prints only ok (import-safe). grep -E
+"datetime.now|requests|urlopen|socket|urllib" over the three new sources -> clean. Bad
+--week (2026-27, 2026-W5) -> exit 2, no JSON.
+
+### No regression / no leak
+205-test suite (incl. all frozen Sprint 001–003 tests) passes; frozen module mtimes
+predate Sprint 004. Real content/ still holds only the two real assets + TEMPLATE.md +
+the Sprint-003 captions.md; no publish-queue.json and no metrics/*.md leaked.
+
+## Non-blocking observations (no action required this sprint)
+
+- O-1 (Low, Process): In ingest.run() the asset-map build (which can raise a
+  campaign-collision ValueError->exit 2) runs after CSV parsing, whereas contract §3.4
+  lists content-dir/asset-map (step 4) before CSV parse (step 5). Both outcomes are exit
+  2 with no output, and no fixture combines a collision with a corrupt CSV, so the
+  observable contract is unaffected. Cosmetic ordering only.
+- O-2 (Low, Craft): WRR comp1/comp2 are unfiltered column sums while comp3 is
+  social-filtered. Matches contract §3.4 step 6 exactly (only comp3 scoped to social);
+  the full fixture's organic row carries 0,0 so it is not value-changing. Correct — noted
+  so Sprint 005 keeps the same filtering. PROVEN behaviorally (advisor-flagged gap closed): a discriminating site.csv with a nonzero organic row (google,organic,tgrera,7,50,50,50) -> returning_viewers=250 & digest_opens=145 (unfiltered, organic INCLUDED) while returning_visitors_social=52 (social-filtered, organic EXCLUDED) and flywheel tgrera=42 (organic clicks excluded). A wrong social-filter on comp1/comp2 would have yielded 200/95; it did not.
+
+## Scoring
+
+Weights adjusted for systems/infrastructure (Functionality + Evidence up, Design +
+Originality down; no UI, no auth/money/PII so Security stays baseline): Functionality
+30%, Evidence/process 30%, Craft 20%, Design 10%, Originality 10%.
+
+- Functionality: 5 — every contract behavior + every edge (blank/zero, absent/bad-path,
+  partial WRR, NUL, unterminated quote, unmatched, wrong-UTM) verified.
+- Evidence/process: 5 — 205 tests, cited errors, byte-identical determinism, grep-clean,
+  independently reproduced; trace claims held under attack.
+- Craft: 5 — pure modules, cited recoverable messages, deterministic ordering, single
+  source of truth (reuses frozen utm, no forked map/regex), no import side effects.
+- Design: 4 — versioned schemas, clean INGEST seam, exit-code taxonomy consistent with
+  render/Sprint 001–003.
+- Originality: 4 — competent, idiomatic; N/A dimension for a headless ingestion CLI.
+
+Weighted total = 5(.30) + 5(.30) + 5(.20) + 4(.10) + 4(.10) = 4.8.
+Passing bar met: 0 blockers, 0 high, Evidence >=4, Functionality >=4, weighted >=4.
