@@ -195,6 +195,32 @@ State-data legality is the weakest link: incumbent practice is precedent, not cl
 3. Does registration-data content convert? (No traffic/conversion data found for Zapkey's 145k pages or Square Yards' studies.)
 4. First-party IST priors: 4–6 week structured posting A/B on TERREM's own channels (already in Loop 5).
 
+## Round 4 (2026-07-06): creative craft for static data content + direct publishing APIs
+
+Method: same harness — 106 agents, 3-vote adversarial verification.
+
+### Part A — what stops the scroll (static data content)
+
+- **R4-A1. Carousels dominate Instagram for data content** — **High**, triangulated across three independent large-N datasets: Buffer (52M posts) 6.90% median engagement vs 4.44% single image vs 3.31% Reels; Socialinsider (35M) 0.55% vs 0.37% static; Metricool (24.3M) **9x more saves** than single images; 100K–1M-follower tier: 98 saves/post vs 43, most views/post. Reels still get ~36% more *reach* (Buffer) — carousels win engagement-per-reach and saves, the metrics that matter for save-worthy reference content. Correlational (vendor data, self-selection) but direction is safe to build on. [Buffer](https://buffer.com/resources/state-of-social-media-engagement-2026/) · [Metricool](https://metricool.com/instagram-research-study/) · [Socialinsider](https://www.socialinsider.io/social-media-benchmarks/instagram)
+- **R4-A2. LinkedIn: carousel/multi-image ≈2–3x everything else** — **High**. Buffer: carousels 21.77% vs video 7.35% vs images 6.52% (dataset artifact — do NOT cite as universal; independents put carousels at 3.7–6.6%); Metricool (673,658 posts, 2026): multi-image 3.71% vs video 1.80%; video is the most-USED format yet underperforms. Cross-corroborated by Socialinsider and AuthoredUp (+39% reach).
+- **R4-A3. Facebook: format barely matters** — **High**. Images 5.20%, video 4.84%, text 4.76%, links 4.43% — all within ~1pt. **Reuse Instagram assets on Facebook; zero Facebook-specific creative.**
+- **R4-A4. Voronoi/Visual Capitalist numeric design floors** — **High** (only published numeric text-density rules from a best-in-class data-viz brand): 4:5 vertical canvas (1200×1500); **body copy and chart labels ≥25pt; sources/footnotes ≥23pt — because text renders roughly half-size on mobile.**
+- **R4-A5. Chartr convention: the chart IS the content unit, radically simplified** — **Medium**. Each visual stands alone without its caption — one insight, one visual.
+- **R4-A6. Finshots (strongest India precedent)** — **High**: dedicated infographic vertical, ~200 posts sustained Sep 2019–Jan 2026; editorial convention = **one dataset per post, framed as a single concrete India-focused comparison or ranking** ("State-Wise Top 1% Income", "Indian Car Market Share 2021–2025").
+- **R4-A7. NEGATIVE results** — no verified A/B or large-N evidence exists on: first-slide/cover craft, faces-vs-no-faces in static posts, number-to-text ratios, optimal carousel length. Treat all cover-craft rules as [hypothesis — A/B test] with our own Loop 5 data. Also: Metricool's 2025 cross-platform landing page hides format percentages behind lead-gen — don't cite it.
+
+### Part B — direct publishing APIs (2026 state)
+
+- **R4-B1. Instagram publishing (official Meta docs)** — **High**. Requires a professional (Business/Creator) account. Two login flavors: **Instagram Login** — `instagram_business_basic` + `instagram_business_content_publish`, token against `graph.instagram.com`, **no Facebook Page needed**; or **Facebook Login** — `instagram_basic` + `instagram_content_publish` + `pages_read_engagement` via a linked Page against `graph.facebook.com`.
+- **R4-B2. Publishing flow** — **High**. Two-step container model: `POST /<IG_ID>/media` (image must be **publicly hosted** — `image_url`; ARCHITECTURE CONSTRAINT: rendered PNGs need a public URL) → `POST /<IG_ID>/media_publish` with `creation_id`; poll `status_code`; containers expire in 24h. Carousels: ≤**10** child containers (`is_carousel_item=true`) + parent (`media_type=CAROUSEL`).
+- **R4-B3. Instagram rate limit — documented discrepancy** — **Medium**: publishing guide says **100 API posts/24h** (carousel counts as one); the `content_publishing_limit` endpoint's reference says `quota_total` is "currently 50". Both verified live. Check programmatically via `GET /<IG_USER_ID>/content_publishing_limit`. Either way far above TERREM's cadence. (The flat "50/24h" phrasing was REFUTED 0-3 — it's a discrepancy, not a settled 50.)
+- **R4-B4. LinkedIn CRITICAL NEGATIVE** — **High**: **organic carousel posts are NOT supported via the LinkedIn API** ("Only create sponsored carousel post"). Native carousels were removed as an organic format in late 2023. The organic paths: **MultiImage post type** or **multi-page PDF Documents posts** (render as swipeable carousel-like slides). TERREM's LinkedIn pipeline publishes MultiImage or PDF documents. [Posts API](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api?view=li-lms-2025-11)
+- **R4-B5. GAPS (nothing survived verification):** Facebook Pages Graph API publishing specifics; LinkedIn OAuth scopes/review (`w_member_social` vs `w_organization_social`), image-upload endpoints, approval timelines; Meta App Review requirements for the publish permissions (and whether Development Mode + app-role accounts suffices for founder-only posting); third-party scheduler APIs (Ayrshare/Buffer/Zapier) build-vs-buy. **These are the round-5 questions — resolve before writing publisher code.**
+
+### Round 4 additions to the DO-NOT-USE blacklist
+- "Instagram limits publishing to 50 posts/24h" as a flat claim (0-3 — it's a documented discrepancy; cite both sources or check the endpoint)
+- Buffer's "21.77% LinkedIn carousel engagement" as a universal benchmark (dataset artifact)
+
 ## Source quality ledger
 
 | Source | Quality | Angle |

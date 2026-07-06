@@ -1,6 +1,6 @@
 # Pipeline V2 — From Clean Cards to Scroll-Stopping Posts, Published Directly
 
-Status: DRAFT — research round 4 (creative craft + publishing APIs) in progress; §4 and §6 get finalized from its verified findings.
+Status: FINALIZED against research round 4 (RESEARCH.md R4-A/B), 2026-07-06. Publisher build (§6) is gated on the round-5 questions (R4-B5) + founder checklist (SETUP-CHECKLIST.md).
 Basis: user directive 2026-07-06 ("TGRERA card is vague, no hook; feed branding/assets/business model; post directly to Instagram/LinkedIn/Facebook").
 
 ## 1. Ultrathink autopsy: why the TGRERA card fails as a hook
@@ -47,23 +47,32 @@ Loop 3 v2 picks **hook × format**, not just hook. Format library (each a render
 | **CHART** | v1 chart card, upgraded hierarchy | Trend stories (post-Path A) |
 | **CHECKLIST** | Numbered utility steps, big index numerals | "Check before you pay" utility posts |
 
-Hard rules v2 adds (draft; finalize from research):
-- **One dominant element** ≥ N× body size (measurable — QA-checkable from manifest).
-- **Feed-thumbnail test as a gate:** headline + dominant element legible at 360px; QA renders a 360px preview and checks min effective sizes.
-- **So-what line mandatory on-card** (the utility/CTA, e.g., "Check any project's RERA number free → intel.terrem.in").
-- **Handle/wordmark + source stamp** (kept from v1).
-- Carousel covers follow first-slide hook craft (≤10 words, one idea) — kept, now with a visual dominant element required.
+Hard rules v2 (finalized from round-4 evidence; each QA-checkable):
+- **Carousel-first strategy** (R4-A1/A2: 6.90% vs 4.44% on IG, 9x saves; 2–3x on LinkedIn): the default asset is a 4:5 carousel, ≤10 slides (Instagram API cap, R4-B2). Single cards are the exception (reactive takes), not the rule.
+- **One dataset per post, one concrete comparison/ranking** (Finshots convention, R4-A6; Chartr stand-alone rule, R4-A5). If a post needs two datasets it's two posts.
+- **The visual must stand alone without its caption** (R4-A5) — so-what line + source + handle on-card, always.
+- **Type floors raised** (Voronoi, R4-A4 — text renders ~half-size on mobile): body & chart labels ≥26px, footnotes/sources ≥24px on the 1080-wide canvas (≈ Voronoi's 25pt/23pt at 1200-wide). Headline floor unchanged (≥48px).
+- **One dominant element ≥3× body size** on every surface — the number or visual structure doing the hook's work. QA-checkable from manifest.
+- **Feed-thumbnail gate:** QA renders a 360px preview; headline + dominant element must clear minimum effective sizes.
+- **Cover-slide craft = hypothesis lane** (R4-A7: no verified evidence exists on cover patterns, faces, carousel length) — covers follow the ≤10-word/one-idea rule and get A/B-tested via Loop 5; log cover pattern (BIG-NUMBER vs CHART-FIRST) per asset in meta.md so our own data answers what research couldn't.
+- **Platform mapping** (R4-A3, R4-B4): Instagram = native carousel; **Facebook = reuse Instagram assets unchanged** (format barely matters: 5.20% vs 4.84% vs 4.76%); **LinkedIn = MultiImage post or multi-page PDF document** (organic carousels are API-impossible — verified negative).
 
 ### 5. TGRERA card, redesigned under v2 (the concrete example)
 
 RECEIPTS format: headline compressed to "3 builders. 9 days." (giant, top-left); three chips each led by its amount/consequence at display size (₹14.95L REFUND +10.7% · SALES FROZEN · 45 DAYS TO PAY) with builder/date at body size; so-what strip: "All three collected money on unregistered or delayed projects. Check the RERA number before you pay — free → intel.terrem.in"; source stamp + wordmark. Every fact identical to v1; the *information hierarchy* finally matches the story.
 
-### 6. Publisher — direct posting (pending research Part B; structure fixed, details from findings)
+### 6. Publisher — direct posting (finalized architecture; build gated on R4-B5 answers + checklist)
 
-- Targets: Instagram professional account, Facebook Page, LinkedIn (company page and/or founder profile) — exact API surfaces, permissions, review steps, and rate limits from round-4 verified findings.
-- Architecture: `tools/marketing-loops/publish_api.py` consuming the EXISTING queue schema (built as the API seam in run 2) — queue rows go `queued → posted` automatically with returned permalinks; `mark_posted.py` remains the manual fallback.
-- Credentials: `.env`-style local secrets, NEVER committed; setup checklist for the founder (accounts, app review) generated from research.
-- Fail-safe: publisher only ever posts rows that passed the gate (frozen modules); dry-run mode default until credentials verified; per-day post caps.
+**Verified API surfaces (RESEARCH.md R4-B):**
+- **Instagram (primary):** professional account; prefer **Instagram Login flavor** (`instagram_business_basic` + `instagram_business_content_publish`, `graph.instagram.com`, no Facebook Page dependency). Two-step container flow: `POST /media` per image (carousel children `is_carousel_item=true`, ≤10) → parent `media_type=CAROUSEL` → `media_publish`; poll `status_code`; containers expire 24h. Rate limit 50-or-100/24h (documented discrepancy) — check `GET /<IG_USER_ID>/content_publishing_limit` at runtime; TERREM posts ~1/day, far below either.
+- **LinkedIn:** MultiImage post type or PDF document post — **never** attempt organic carousels via API (verified impossible). Renderer v2 therefore also emits a **multi-page PDF** variant of each carousel (slide PNGs → PDF), which is the LinkedIn-native "carousel".
+- **Facebook Page:** reuse Instagram images; exact Pages API endpoints are a round-5 gap — do not code this leg until verified.
+
+**Architecture constraint discovered (R4-B2):** `image_url` must be a **publicly hosted URL** — the Graph API fetches it; you cannot upload bytes directly for feed images. TERREM needs a public static path for rendered PNGs (options: `intel.terrem.in/social-assets/<slug>/…` on the self-hosted server, or an S3/R2 bucket). This goes on the founder checklist.
+
+**Code shape:** `tools/marketing-loops/publish_api.py` consumes the existing queue (the API seam built in run 2): reads `queued` rows → uploads/publishes per channel adapter → writes `posted` + permalink (same transition `mark_posted.py` does manually, same no-regress rules). Secrets in untracked `.env`; **dry-run default** until credentials verified; per-day cap enforced in code; only gate-passed rows are ever eligible (frozen modules, unchanged).
+
+**Round-5 questions to resolve before writing the publisher** (R4-B5): Meta App Review requirements for the publish permissions — and whether Development Mode with app-role (founder-owned) accounts suffices indefinitely for self-posting; LinkedIn OAuth scopes/review path for member vs organization posts; Facebook Pages endpoints; Ayrshare/Buffer-style third-party API as a lower-friction alternative (build-vs-buy).
 
 ### 7. Execution plan (after research lands)
 
