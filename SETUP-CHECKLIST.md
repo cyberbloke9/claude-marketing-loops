@@ -1,6 +1,12 @@
 # Founder Setup Checklist — Direct Publishing
 
-The only non-code dependencies for Pipeline V2 §6. Everything below requires account ownership; none of it can be done by an agent. Verified API facts: RESEARCH.md R4-B (round-5 gaps marked).
+The only non-code dependencies for Pipeline V2 §6. Everything below requires account ownership; none of it can be done by an agent. Verified API facts: RESEARCH.md R4-B + **Round 5 (all major gaps now resolved)**.
+
+## ⚡ Round-5 headline: this is much easier than feared
+
+- **Instagram + Facebook: NO Meta App Review, NO screencast, NO Business Verification** — because the app only serves accounts you own, Standard Access + app roles is enough (R5-1/R5-4). Realistic setup: **1–3 days**.
+- **LinkedIn company page: weeks** (vetted Community Management API application — R5-5). **Do the founder-profile workaround first** (`w_member_social`, "Share on LinkedIn" product — R5-6): posts to your profile, works for MultiImage + PDF documents, and founder-as-face matches the round-1 evidence anyway. Apply for Community Management in parallel; switch the adapter when approved.
+- **Build vs buy: build.** No third-party scheduler claim survived verification (R5-7); the direct path is verified and review-free for Meta.
 
 ## 1. Accounts (do first, ~30 min)
 

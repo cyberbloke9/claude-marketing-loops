@@ -221,6 +221,34 @@ Method: same harness — 106 agents, 3-vote adversarial verification.
 - "Instagram limits publishing to 50 posts/24h" as a flat claim (0-3 — it's a documented discrepancy; cite both sources or check the endpoint)
 - Buffer's "21.77% LinkedIn carousel engagement" as a universal benchmark (dataset artifact)
 
+## Round 5 (2026-07-06): publishing-access reality — the decision-ready answers
+
+Method: same harness — 103 agents, 3-vote adversarial verification. Resolves the R4-B5 gaps.
+
+### R5-1. Instagram shortcut CONFIRMED — no App Review for your own accounts
+**High** (Meta official docs, 4 merged claims all 3-0): App Review is **"Not required"** when "my app is only for a business I own or manage." Standard Access (the automatic default) is "all your app needs" if the app serves only your own professional account; it is automatically approved for all permissions for users holding an **app role** (admin/developer/tester). Preconditions: the TERREM IG professional account accepts an app-role invite; Page Publishing Authorization if a linked Page requires it. [App review](https://developers.facebook.com/docs/instagram-platform/app-review/) · [Overview](https://developers.facebook.com/docs/instagram-platform/overview/) · [Access levels](https://developers.facebook.com/docs/graph-api/overview/access-levels/)
+
+### R5-2. Advanced Access (review + Business Verification) is only for serving OTHERS
+**High**: needed only when serving accounts the developer doesn't own/manage (Tech Provider / multi-tenant). If TERREM ever posts for customers, review becomes unavoidable. Boundary is app roles, not business count.
+
+### R5-3. Correct integration = Instagram Login flavor
+**High**: `graph.instagram.com`, permissions exactly `instagram_business_basic` + `instagram_business_content_publish` (dependency: only the former; no Page permissions). NOTE: the name is `…_content_publish`, NOT `…_content_publishing` (that variant was REFUTED 0-3 — blacklist it).
+
+### R5-4. Facebook Pages: same own-business shortcut
+**High**: Standard Access suffices for your own Page; `pages_manage_posts` + `pages_read_engagement` + `pages_show_list` with a Page token. **Instagram + Facebook realistic setup: ~1–3 days, no screencast, no Business Verification.**
+
+### R5-5. LinkedIn is the bottleneck — company-page posting is gated
+**High**: organic company-page posting (MultiImage + PDF documents via versioned `/rest/images`, `/rest/documents`, `/rest/posts`) requires the **Community Management API** — a vetted product: application reviewed by LinkedIn, registered legal organization (business email, legal name, address, website, privacy policy), Development tier first, Standard tier needs a screencast; **no published timeline, community reports suggest weeks.**
+
+### R5-6. LinkedIn workaround: member-profile posting
+**Medium-High**: the lighter "Share on LinkedIn" product with `w_member_social` posts to the **founder's profile** (not the company page); both the Images and Documents APIs accept person-URN owners — so MultiImage and PDF-document posts to a personal profile are feasible without Community Management vetting. Founder-as-face aligns with the verified analyst-on-camera findings (round 1).
+
+### R5-7. Build-vs-buy: NEGATIVE — zero verified claims
+Nothing on Ayrshare/Postiz/Mixpost/Buffer-API pricing, carousel support, or review-burden transfer survived verification. Build-vs-buy remains open; direct APIs are now verified enough that building is the default path.
+
+### Round 5 additions to the DO-NOT-USE blacklist
+- Permission name "instagram_business_content_publishing" (0-3 — correct name ends in `_publish`)
+
 ## Source quality ledger
 
 | Source | Quality | Angle |
