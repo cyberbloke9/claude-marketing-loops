@@ -1,99 +1,89 @@
 VERDICT: PASS
-SCORE: 4.9
+SCORE: 4.7
 BLOCKERS: 0
 HIGH: 0
 
-# System Acceptance — TERREM Marketing Loops (Gap 2 publish + Gap 3 analytics)
+# Acceptance — EVALUATE_SYSTEM (Run 003, all sprints 001–006)
 
-Cross-sprint, end-to-end regression pass over ALL six shipped sprints together
-(001 UTM → 002 gate/queue → 003 package/mark-posted → 004 CSV ingest →
-005 scorecard → 006 acceptance runner). Goal: prove the sprints still work
-*together* and that no later sprint silently broke an earlier one.
+Cross-sprint, end-to-end regression pass over the WHOLE project (Renderer V2 Format
+Library + QA Gate V2, layered on run-001 renderer + run-002 publish/analytics loops).
+Scope: spec.md (R10–R19, V13–V19), all six sprint contracts, and the cumulative
+behavior of runs 001/002/003 exercised together from a clean state. No cross-sprint
+regression found. All evidence below is reproduced by the Evaluator, not taken from
+Generator claims.
 
-## Result: PASS — no cross-sprint regression found
+## Environment
+- Python 3.9.6, Pillow 11.3.0, vendored Inter fonts. Zero network at render time.
 
-Every cumulative behavior the spec + the six contracts promised was
-re-exercised from a clean state and held. All verification was reproduced
-independently by the evaluator, not taken from the Generator's claims.
+## Cumulative behavior re-exercised (all PASS)
 
-## Evidence (evaluator-run, this session)
+### 1. Full test suites — green together (regression budget honored)
+- `tools/marketing-render/tests` → **Ran 266 tests, OK** (RC 0). Run-001's baseline of
+  139 render tests was **consciously extended** (additive v2 tests), never weakened.
+- `tools/marketing-loops/tests` → **Ran 254 tests, OK** (RC 0). Run-002 loop suite fully
+  intact — no run-003 change regressed the publish/analytics layer.
 
-### Whole-system gates
-- **Cross-gap acceptance runner** `tools/marketing-loops/acceptance.py` →
-  `ACCEPTANCE: PASS (50/50 expectations met)`, exit 0. Covers UTM verifier,
-  publish gate/enqueue, package/mark-posted, analytics rejection-vs-missing,
-  golden scorecards, and the end-to-end seam chain.
-- **Full unit suite** `python3 -m unittest discover` → `Ran 254 tests … OK`
-  (Sprints 001–006 all green together — no regressed test).
-- **Frozen renderer acceptance** `tools/marketing-render/acceptance.py
-  --checked-on 2026-07-04` → `ACCEPTANCE: PASS (14/14)`, exit 0. The
-  pre-existing toolchain is untouched and still passes.
+### 2. Renderer acceptance runner — 25/25
+`tools/marketing-render/acceptance.py` → `ACCEPTANCE: PASS (25/25)`, exit 0. Covers:
+- TGRERA v2 end-to-end: 2 format-slide PNGs + carousel.pdf + schema-"2" manifest, no
+  chart-card.png; decoded-RGBA PNGs pixel-identical and carousel.pdf byte-identical on
+  re-render; validate exit 0, verdict PASS.
+- **12 frozen v1 fixtures** each reach their existing verdict on the RIGHT check with the
+  RIGHT rule (V2/V3/V4/V5-floor/V5-crosscheck/V6/V7/V8/V9/V10/V11 + fx-good-min exit 0).
+- **9 v2 adversarial fixtures** each fire EXACTLY their named check (one-fixture-one-check):
+  V13-dominant-ratio, V14-type-floor, V14-wordmark, V15-thumbnail, V16-so-what,
+  V17-cover-pattern, V18-slide-count, V19-one-dataset + fx-v2-good exit 0.
 
-### Independent cross-gap seam chain (evaluator-run, NOT via the runner)
-Ran `verify_utm → enqueue → package → mark_posted → scorecard` by hand on the
-real PASS asset `content/2026-07-03-tgrera-enforcement-wave`, all writes to a
-throwaway temp dir, week `2026-W27`:
-- enqueue → 3 `queued` rows; package → generated queue slots
-  `instagram=evening/18:00`, `youtube=morning/11:00`, `linkedin=evening/17:30`.
-- mark_posted instagram → row `posted`, other two remain `queued`.
-- scorecard consuming **the generated queue** → Posting-time A/B table placed
-  instagram's 51 clicks in **Evening**, youtube's 30 in **Morning**, linkedin's
-  67 in **Evening** — i.e. the scorecard's A/B buckets are driven by the slots
-  the publish layer wrote, not a fixture. The Gap-2→Gap-3 seam is genuine and
-  load-bearing.
-- instagram package `utm_link` =
-  `…?utm_source=instagram&utm_medium=social&utm_campaign=tgrera-enforcement-wave`
-  (correct per-channel UTM).
+### 3. Loops acceptance runner — 50/50
+`tools/marketing-loops/acceptance.py` → `ACCEPTANCE: PASS (50/50)`, exit 0. Run-002
+chain (enqueue → package → schedule → mark_posted → scorecard → idempotency) intact.
 
-### Earlier-sprint behaviors still hold under the full system
-- **S001** `verify_utm.py content` → exit 0; both real assets `OK` (incl. the
-  KILLED hyd asset — UTM validity orthogonal to gate).
-- **S002/003** real KILLED hyd asset → `REFUSED … [missing-verdict, killed]`,
-  exit 1, **queue file not created** (gate never bypassed, no-write-on-refusal).
-- **S005** `wrr-partial` scorecard → WRR this-week cell **blank**, component
-  `returning_viewers` listed under Missing data, and the forbidden partial sums
-  (`147`/`252`/`295`) appear **nowhere** in the output. No invented number.
-- **S004/S005** every corrupt-CSV row (truncated / wrong-header / wrong-colcount
-  / non-numeric / blank-join) → exit 2, cited, **no scorecard written**.
+### 4. Reference asset TGRERA — independent fresh render + validate
+- `render.py content/2026-07-03-tgrera-enforcement-wave` → format-01.png, format-02.png,
+  carousel.pdf, manifest.json; RC 0.
+- `validate.py … --checked-on 2026-07-08` → `VERDICT: PASS (98 checks, 0 failed)`, RC 0.
+- Manifest: schema "2", 2 format-slides (RECEIPTS + CHECKLIST). Each content slide carries
+  exactly one dominant (132px) at 4.4× body (30px) ≥ 3× (V13); body ≥26 / source-stamp 26
+  ≥24 (V14); wordmark on every slide (V14); so-what + source-stamp present (V16/V8);
+  ≤10 slides (V18); meta.md carries cover-pattern (pattern: BIG-NUMBER) + one_dataset (V17/V19).
+  The 2-slide structure is NOT a shortfall: sprint_006/contract.md §1.1 normatively pins
+  TGRERA as a Path-A **2-slide** carousel (F1 RECEIPTS cover with headline "3 builders. 9
+  days.", dominant "SALES FROZEN" 132px, three order chips at body; F2 CHECKLIST dominant
+  index "3" 132px, steps, INLINE so-what + INLINE source-stamp, wordmark). The render matches
+  that accepted contract exactly. Path-A (all-dominant-bearing content slides, so-what/source
+  inline rather than as dedicated utility slides) is a conscious contract choice that spends
+  zero regression budget — it edits no frozen render/validate/measure code. Risk-6's 6-slide
+  layout is spec-labeled [ASSUMPTION] with explicit "count/layout is the Generator's" latitude.
+  Compliant with the accepted contract, not a regression.
+- Determinism re-render (independent of the runner): decoded-RGBA PNG sig identical
+  (05145bcf789e) AND carousel.pdf byte sig identical (e906c4192daf) across two runs.
 
-### Hygiene / integrity
-- **Repo not dirtied:** after the runner AND all evaluator runs,
-  `git status --porcelain` shows no `content/publish-queue.json`, no
-  `content/*/publish/`, no `metrics/2026-*.md` — all mutable writes went to temp.
-- **No network / no wall-clock:** no `requests`/`urlopen`/`socket`/
-  `http.client`/`urllib.request` in any `tools/marketing-loops/*.py`; runner
-  hygiene grep clean.
-- **Skills present:** `.claude/skills/loop-publish/SKILL.md` and
-  `.claude/skills/loop-measure/SKILL.md` both exist.
-- **README:** Phase-0 analytics-plumbing box checked, reworded to what shipped
-  (UTM verifier + publish layer + scorecard compiler) — no dashboard/
-  production overclaim.
+### 5. Frozen v1 surfaces not retroactively broken (Risk-1 guarantee holds)
+- All 7 format tags present in render.py: BIG-NUMBER, TIMELINE, RECEIPTS, VS-CONTRAST,
+  LEADERBOARD, CHART, CHECKLIST.
+- The hyd-premium-vs-budget v1 carousel (body 25px) validates to `FAIL (117 checks, 1
+  failed)` firing ONLY V11-provenance — its **pre-existing** deliberate provenance kill
+  (commit 512b4cc "QA kill: Ledger #1 synthetic-data provenance"). Critically it does
+  **not** fail any raised-floor v2 check (V14) despite 25px body, proving the v2 hard
+  rules are scoped to format-slide surfaces and do not reach v1 carousel-slide/chart-card
+  surfaces. This is the unchanged existing verdict required by spec §10 Risk 1 — not a
+  regression introduced by sprints 001–006.
 
-## Scoring (systems/infra weighting: Functionality + Evidence emphasized)
-- Functionality: 5 — both gaps work end-to-end; seam proven genuine.
-- Evidence/process: 5 — independently reproduced; determinism, golden files,
-  no-write/no-partial-sum invariants all verified by the evaluator.
-- Craft: 5 — stdlib-only, deterministic, frozen-module discipline, cited errors.
-- Design (schema-as-DNA, recoverable messages): 4.5.
-- Originality (adversarial-fixture DNA, no-partial-sum discipline): 4.5.
-- Weighted total (Func 30 / Evid 30 / Craft 20 / Design 10 / Orig 10): **4.9**.
+## Cross-sprint regression check
+No behavior that passed in an earlier sprint is broken by a later sprint. Run-001 render
+V1 path, run-001 V2–V12 checks, run-002 loop chain, and run-003 V2 renderer/QA all pass
+together from a clean state. TGRERA's conscious surface-type re-point (chart-card →
+format carousel + PDF, spec Risk 2) is reflected in acceptance.py and reactive-single
+coverage is retained via fx-good-min.
 
-## Notes (non-blocking)
-- `tools/marketing-loops/` is untracked in git, so frozen-module integrity has
-  no git baseline to diff content against; it was corroborated by mtime (only
-  `acceptance.py` and `test_acceptance.py` are dated to the Sprint-006 build;
-  Sprints 001–005 modules predate it). This is not an unchecked gap: the product
-  is behavior, not file identity — even a silent edit to an earlier module would
-  have had to evade all of the 254 unit tests, the 50 acceptance rows, and the
-  evaluator's manual earlier-sprint spot-checks, and none of those regressed.
-  Integrity is therefore backstopped by behavior verification regardless of mtime.
-- Runner-level determinism confirmed this session: two `acceptance.py` runs
-  produced a byte-identical report (matching shasum).
-- Golden-scorecard cell arithmetic (e.g. `expected/full.md` WRR=347, craft
-  cells) was verified at the Sprint-005 gate; this session independently
-  re-derived the *edge* content (wrr-partial blank + no partial sum, and the
-  seam-driven A/B columns 51/30/67) and relied on the prior per-sprint pass for
-  the full golden's cell arithmetic — in scope for that gate, not re-computed here.
+## Scoring
+- Functionality: 5.0 — every promised behavior across 3 runs reproduced end-to-end.
+- Evidence/process: 5.0 — real renders, byte/pixel determinism verified, adversarial
+  fixtures fire on named checks, both acceptance runners + both test suites green.
+- Craft: 4.7 — clean additive layering, frozen v1 constants untouched, one-fixture-one-check.
+- Design: 4.5 — brand-locked tokens, one-dominant hierarchy enforced mechanically.
+- Originality: 4.0 — infrastructure; deterministic PDF + measured 360px thumbnail gate are non-trivial.
+- Systems-weighted total (Functionality 30% + Evidence 30% + Craft 20% + Design 10% +
+  Originality 10%) = **4.7**. Bar met: no blockers, no highs, evidence ≥4, functionality ≥4.
 
-No blockers, no high findings. The shipped sprints work together with no
-cross-sprint regression. **VERDICT: PASS.**
+No findings. VERDICT: PASS.

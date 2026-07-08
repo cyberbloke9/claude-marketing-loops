@@ -29,7 +29,13 @@ import measure  # noqa: E402
 import render  # noqa: E402
 
 _CONTENT = _TOOL_DIR.parent.parent / "content"
-_TGRERA = _CONTENT / "2026-07-03-tgrera-enforcement-wave"
+# Sprint-006 CONSCIOUS RELOCATION (Risk 2/C, parallel to acceptance run_tgrera
+# re-point): the live content/2026-07-03-tgrera-enforcement-wave folder is now a
+# schema-v2 format-slide carousel, so the frozen chart-card coverage below is
+# re-pointed to a byte-identical retained v1 snapshot. Every assertion is
+# preserved (same chart-spec copy, same committed render/chart-card.png); only
+# the asset PATH moves — no assertion weakened or deleted.
+_TGRERA = _TOOL_DIR / "tests" / "data" / "2026-07-03-tgrera-enforcement-wave"
 _HYD = _CONTENT / "2026-07-03-hyd-premium-vs-budget"
 
 # The authored receipts card, exact copy in file order (contract s5.6). Kept as

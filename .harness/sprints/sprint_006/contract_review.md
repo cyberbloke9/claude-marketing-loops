@@ -3,74 +3,83 @@ SCORE: n/a
 BLOCKERS: 0
 HIGH: 0
 
+---
+
 ## Summary
 
-This contract closes the final sprint of the TERREM marketing-loops build by delivering a cross-gap acceptance runner and README rollout documentation. All required artifacts exist, the contract is comprehensive and testable, and no blocking deficiencies were found.
+The Sprint 006 contract is **testable, specific, and well-scoped**. It authorizes TGRERA as a pure v2 carousel (format-slides only, no chart-card), validates it through the V2 gate to a clean PASS, and re-points `acceptance.py`'s TGRERA baseline from a frozen v1 chart-card to the new v2 carousel PNG/PDF determinism. The scope is limited to asset authoring + acceptance.py update; no render.py, validate.py, or measure.py changes are required. Pass/fail conditions are explicit (PASS verdict, `failed_checks: []`, pixel/byte determinism, no regression), commands are detailed (§6.1), and adversarial tests isolate each check (§6.2).
 
-## Verification of Core Artifacts
+## Testability & Specificity
 
-**Frozen CLIs (Sprints 001–005):** Confirmed present under `tools/marketing-loops/`: `verify_utm.py`, `enqueue.py`, `package.py`, `mark_posted.py`, `scorecard.py`, `ingest.py`, `schedule.py`, `utm.py`, `gate.py`, `captions.py`, `channels.py`, `queue.py`, `assetmap.py`, `csvspec.py`.
+- **Commands (§6.1):** Seven concrete, runnable commands verify rendering, validation, determinism, acceptance, test suites, and v1 path immutability. Each produces machine-readable output (exit codes, JSON, test counts). ✓
+- **Adversarial matrix (§6.2):** Fifteen attacks, each targeting a single check with the right rule cited (V16 missing so-what, V14 body at 24px, V15 thumbnail-illegible, V17 invalid pattern, R14 11-slide render fail). One-fixture-one-check discipline enforced. ✓
+- **File scope (§2):** Four files touched: `formats.md` (new), `meta.md` (add block), `chart-spec.md` (supersede), `acceptance.py` (re-point). All others frozen. ✓
+- **Expected outputs (§1.4, §6.1):** PASS verdict, `failed_checks: []`, PNG determinism (decoded-RGBA SHA), PDF byte-equality, schema v2 with pdf key, no chart-card.png, all v1/v2 fixture verdicts unchanged. ✓
 
-**UTM fixture assets:** All 8 fixtures exist under `fixtures/`: `2026-07-03-valid-asset`, `2026-07-03-wrong-medium`, `2026-07-03-campaign-mismatch`, `2026-07-03-unknown-source`, `2026-07-03-absent-source`, `2026-07-03-malformed-query`, `2026-07-03-missing-line`, `2026-07-03-multi-defect`.
+## Non-Vagueness
 
-**Publish fixtures:** All 18 fixtures confirmed under `fixtures/publish/`: gap-2 gate tests (`pass-one-channel`, `pass-three-channels`, `missing-verdict`, `verdict-fail`, `failed-checks-nonempty`, `killed`, `missing-verdict-and-killed`, `unparseable-verdict`, `no-channel`, `unmapped-channel`), plus package-generation tests (`pkg-pass`, `pkg-no-captions`, `pkg-missing-channel-caption`, `pkg-bad-utm`, `pkg-empty-surfaces`, `pkg-no-manifest`, `pkg-multi-surface`, `pkg-per-channel-caption`).
+- **Slide plan (§1.1):** Two slides specified (RECEIPTS cover, CHECKLIST utility+evidence), with dominant figures, inline so-what/source, wordmark on each. The contract allows flexibility on chip count (2-4 per RECEIPTS grammar) and copy wording, but mandatory roles/structure are clear. ✓
+- **Meta.md blocks (§1.2):** Exact block format with required keys (`pattern`, `one_dataset`), literal values (pattern ∈ {BIG-NUMBER, CHART-FIRST}), and preservation of existing provenance block. ✓
+- **Determinism (R8/R16/R18):** No network at render time, fonts from vendored `fonts/` only, identical input → pixel-identical PNGs (decoded-RGBA SHA) and byte-identical PDF. Stated as inherited from prior sprints. ✓
+- **Regression budget (§9 Risk D):** Render suite must stay ≥266 OK; loop suite must stay 254 OK; acceptance.py must stay PASS with all 12 v1 + 9 v2 fixture rows unchanged and only `run_tgrera` re-pointed. ✓
 
-**Metrics fixtures:** All test-case directories present: `full/`, `truncated/`, `wrong-header/`, `wrong-colcount/`, `non-numeric/`, `wrr-partial/`, `wrong-utm/`, `unmatched/`, `blank-cell/`, `blank-join/`, `header-only/`, `zero-cell/`.
+## Load-Bearing Assumptions (Verified)
 
-**Golden scorecards:** All expected markdown files present under `fixtures/metrics/expected/`: `full.md`, `empty.md`, `partial.md`, `wrr-partial.md`, `wrong-utm.md`, `unmatched.md`.
+- **V8-skipped-on-format-slides (§1.4, §0.1):** The contract asserts V8 (source-stamp presence) is "skipped" on format-slides and applies only to chart-card/carousel-slide surfaces. Verified in `validate.py` frozen code: V8 check conditionally applies `is_chart or (srole == "carousel-slide" and has_stamps)`, returning "skipped" for `format-slide`. This is Sprint-005 frozen behavior. ✓
+- **Prior-sprint implementations (Sprints 001-005):** The contract assumes V13-V19 checks, measure functions, manifest v2 schema, and PDF emitter are already correct. This is unavoidable in cumulative work and acceptable given the contract's explicit "frozen" lists. The §7 pre-contract probe (Path-A asset rendered + validated → PASS, 98 checks, 0 failed) provides empirical evidence. ✓
 
-**Real PASS asset:** `content/2026-07-03-tgrera-enforcement-wave/` confirmed present with `verdict: "PASS"`, `failed_checks: []`, and `captions.md` present.
+## Non-Gameable
 
-## Strengths
+- **Asset authenticity:** Copy restricted to public-order-only (provenance block kept, no TERREM DB numbers). Wordmark required on every slide. Dominant and so-what must be present and render-checkable (R11, V13, V16). ✓
+- **V15 anti-gaming (Risk A + §4 Risk 5):** The contract forbids lowering thresholds to make TGRERA pass. "If the shipped headline band ever measures < 13, the asset copy/format must change (author-side) — not the threshold." The pre-contract probe recorded headline → 360px band **16** (floor 13, +3 margin). BUILD must re-confirm in trace. Thin but documented and enforced. ✓
+- **No chart-card leak (Risk B):** Explicitly checked: `ls` verify no `chart-card.png`, manifest check `pdf` key present and all surfaces `format-slide`. ✓
+- **Determinism attestation:** PNG and PDF byte-equality tested in §6.1(c) and §6.2 rows 3-4, and enforced by §10 definition of done points 4-6. ✓
 
-1. **Clear and complete specification:** §3 defines invocation, exit codes, temp directory isolation, normative expectation table, cross-gap seam chain (6 numbered steps with specific assertions), and table coverage checking.
+## Well-Structured Risks & Mitigations
 
-2. **Testable at every level:** Each row in the expectation table (§3.3) specifies fixture name, expected exit code, cited reason substring, and whether writes should occur. The seam chain (§3.4) defines path-independent invariant assertions (JSON fields, not byte-equality, accounting for temp-dir path instability). Golden markdown files are byte-compared. Attack checklist (§9) provides 12 specific failure modes to verify.
+- **Risk A (V15 headline +3 margin):** Documented; BUILD must record 360px bands in trace and confirm ≥13/21. Contingency: author-side copy/format change, not threshold lowering. ✓
+- **Risk B (mixed-asset leak):** Supersede `chart-spec.md`; verify `render_asset` emits no chart-card.png. ✓
+- **Risk C (acceptance re-point is conscious extension):** `run_tgrera` re-points from v1 chart-card baseline to v2 carousel baseline; all other fixture rows kept byte-identical. Reactive-single coverage retained via `fx-good-min`. ✓
+- **Risk D (regression budget):** 266/254/PASS counts must not fall. ✓
+- **Risk E (provenance drift):** Copy must be public-order-only; provenance block kept intact (V11). ✓
 
-3. **Not gameable:** 
-   - Cited-reason enforcement prevents false passes (wrong exit reason fails the row).
-   - Table coverage checking catches unchecked fixtures or missing directories.
-   - Determinism requirements (sorted output, fixed table order) prevent randomness.
-   - "No write" assertions after refusals prevent sneaky queue/package writes.
-   - Repo cleanliness check prevents leftover artifacts.
-   - Frozen-module integrity check prevents modification of earlier sprints.
+## Minor Clarity Notes (Advisory, not blocking)
 
-4. **Well-justified design choices:** §7 explicitly explains why generated artifacts are NOT byte-compared (temp paths are absolute and unstable) but use path-independent field invariants instead. This is sophisticated and correct.
+1. **Pattern vs. format distinction:** The contract correctly distinguishes the RECEIPTS *format* tag (one of seven templates) from the `pattern:` *designation* in meta.md (BIG-NUMBER or CHART-FIRST for A/B). Both are required but separate; this is explained in §1.2 and Risk 6 but requires reading the full contract to internalize. Well-resolved in text. ✓
 
-5. **Assumptions properly documented:** §11 lists A-6.1 (frozen CLI messages stable), A-6.2 (week 2026-W27 canonical), A-6.3 (join key is utm_campaign), A-6.4 (unparseable-verdict exit code flexibility). Each is reasonable and grounds the contract's dependencies.
+2. **"Three order chips" example:** Described in §1.1 but flexed to 2-4 in the "Generator may adjust" clause. Clear once read in full. ✓
 
-6. **Verification commands explicit:** §8 provides 5 exact reproducible commands for the Evaluator, plus hygiene greps for network/wall-clock contamination.
+3. **§10 point 3 prescriptive skipped-check naming:** The contract specifies "V13–V19 all applicable-and-passing per §1.4 (V8/V5-floor/V7/V10 `skipped` as specified)". This is advisable to verify the validator reports skipped checks with the right reason; it's testable and not a vague demand. ✓
 
-## Findings
+## Absence of Keyboard / Responsive / ARIA
 
-### Finding M-001: Ambiguous fixture-to-row mapping in publish table
+§5 correctly marks these N/A for a CLI/raster sprint (no DOM, no viewport). ✓
 
-**Severity:** Medium  
-**Category:** Specification clarity  
-**Status:** Clarify  
+## Non-Goals Honored
 
-**Issue:**  
-§3.3 (Gap 2 publish table) row 160 is:  
-```
-| `no-channel` / `unmapped-channel` | 2 | zero/unmapped channels | **no** |
-```
-
-This single row names two fixture directories. However, §3.5 table coverage states: "the set of committed fixture directories on disk and the set named by table rows, and fails if any on-disk fixture is unnamed or any table row names a missing directory."
-
-The phrase "exactly one expectation-table row" (advisor notes) could be read as requiring each directory to have its own row. The current phrasing leaves ambiguous whether one row covering two directories satisfies coverage, or if two separate rows are required.
-
-**Expected clarification:**  
-Either:
-1. Confirm that a single row with "fixture-a / fixture-b" syntax covers both directories for the coverage invariant.
-2. Create two separate rows (one per fixture directory).
-3. Reword §3.5 to explicitly allow "one or more rows may name a single fixture directory" if intent is flexibility.
-
-**Pass condition:**  
-The contract or the Generator's trace clarifies the intended semantics and implements coverage checking accordingly (both interpretations are valid; consistency is required).
+§8 correctly excludes: render.py/validate.py/measure.py changes, utility (dominant-less) standalone slides, PDF-fidelity lossy-page rework, v1 fixture edits, semantic "one-dataset" judgment, stub/placeholder copy, publisher/posting, and new brand tokens. The contract scope is tight. ✓
 
 ---
 
-## No Blockers
+## Recommendation for BUILD
 
-The contract is complete, grounded in existing artifacts, and ready for implementation. The ambiguity noted above is not a gate-closer — it is a minor specification clarity item that the Generator can resolve by choosing one interpretation and documenting it in the trace.
+Execute in this order, **recording each step in trace:**
 
+1. **Before code:** Confirm 266 render tests + 254 loop tests green; `acceptance.py` exits PASS on all 12 v1 + 9 v2 fixtures.
+2. **Author TGRERA:** Create `formats.md` with 2-slide Path-A carousel (RECEIPTS + CHECKLIST, both dominant-bearing, inline so-what/source, wordmark per slide). Ensure all copy is public-order-only.
+3. **Update meta.md:** Add `<!-- cover-pattern:start -->` block with `pattern: BIG-NUMBER` (RECEIPTS is the format; BIG-NUMBER is the cover pattern). Keep provenance block.
+4. **Supersede chart-spec.md:** Rename or mark inactive so `render_asset` emits only format-slides (no chart-card.png).
+5. **Render + validate:** Run §6.1 commands (a)-(b). Record manifest schema/pdf/roles and verdict/failed_checks.
+6. **Re-render + compare:** Run §6.1(c) twice; record PNG decoded-RGBA SHA-256 and PDF byte-hash both times. Verify identical.
+7. **Record V15 bands:** Manually or via V15 measurement tool, record headline + dominant 360px ink-band heights at 360px resampling. Confirm ≥13/21 and document in trace.
+8. **Run acceptance.py:** Confirm exit 0, PASS, with `run_tgrera` on new v2 baseline and all other fixture rows unchanged.
+9. **Run §6.2 adversarial tests:** Rows 1-5 (happy path), then rows 6-9 (mutations, each should fire the right check). Document any deviations.
+10. **Verify regression:** Run §6.1(e)-(g) and confirm render suite ≥266, loop suite 254, and `fx-good-min` exits 0 with zero V13-V19 checks.
+
+---
+
+## Verdict
+
+The contract is **ready to execute**. It has exact commands, expected outputs, adversarial attacks, regression safeguards, and well-documented risks. The only load-bearing assumption (V8 skipped on format-slides) is verified as Sprint-005 frozen code. No vagueness, no gaming opportunities, no blockers.
+
+**ACCEPT.**

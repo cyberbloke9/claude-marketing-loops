@@ -3,108 +3,131 @@ SCORE: 4.8
 BLOCKERS: 0
 HIGH: 0
 
-# Sprint 003 Evaluation — Publish packages + schedule slot + mark-posted + `/loop-publish`
+# Sprint 003 Findings — Format Templates Batch B (TIMELINE, VS-CONTRAST, LEADERBOARD, CHART)
 
-CLI / library + one skill deliverable (no web UI; Playwright N/A per contract).
-Verification is exact CLI invocations, exit codes, stdout/stderr substrings, on-disk
-JSON byte assertions, and source greps — all re-run independently by the Evaluator
-from a clean state, not read from the Generator's trace.
+Mode: EVALUATE. Evaluated by rendering real PNGs, hashing decoded-RGBA bytes, feeding
+violating `formats.md` fixtures, measuring the emitted manifest with Sprint-001 `measure`
+functions, visually inspecting all four rendered slides, running both unittest suites, and
+running the full `acceptance.py` gate. No browser/Playwright (CLI/raster sprint, per contract §0).
 
-## Evidence summary (all re-executed by the Evaluator)
+Environment: Python 3.9.6, Pillow 11.3.0, network not required (import-ok offline).
 
-| Probe (contract §9) | Result | Verdict |
-|---|---|---|
-| Unit suite `unittest discover` | Ran 151 tests — OK (S001+S002+S003) | PASS |
-| 1. Real tgrera `--week 2026-W27` | exit 0; 3 packages; `schema_version "1"`; per-channel `utm_source` correct; `utm_campaign=tgrera-enforcement-wave`; `attachments == ["content/2026-07-03-tgrera-enforcement-wave/render/chart-card.png"]`; slots IG `evening/18:00`, YT `morning/11:00`, LI `evening/17:30` (matches §3.2 W27 table); caption = body + `\n\n` + link; 3 `queued` rows w/ non-null slot+package_path | PASS |
-| 2. Idempotency | re-run → byte-identical shasum for all 3 packages AND queue; identical stdout | PASS |
-| 3. Per-channel link correctness | IG/YT/LI carry `utm_source=instagram\|youtube\|linkedin`, same campaign, all `utm_medium=social` | PASS |
-| 4. Gate never bypassed (real hyd) | exit 1; stderr `[missing-verdict] [killed]`; temp queue **not created**, publish-dir **not created** | PASS |
-| 5. Missing caption | `pkg-no-captions` / `pkg-missing-channel-caption` → exit 2; names channel(s) lacking a body (`youtube`, no `[all]` fallback); no write | PASS |
-| 6. Invalid UTM (`pkg-bad-utm`) | exit 2; cites Sprint-001 `campaign-mismatch`; no write (UTM enforced at publish, not folded into gate) | PASS |
-| 7. Manifest guards | `pkg-no-manifest` / `pkg-empty-surfaces` → exit 2; no write | PASS |
-| 8. Mark-posted happy path | `queued`→`posted` exit 0; row records date + permalink; others untouched | PASS |
-| 9. Mark-posted refusals | 2nd mark → exit 1 "already posted"; not-found → 2; non-URL permalink → 2; `2026-13-40` → 2; unknown channel `twitter` → 2; each no write | PASS |
-| 10. No-regress / no-overwrite | after posting IG, re-package → `kept-posted ... instagram`, YT/LI re-packaged; posted row intact | PASS |
-| 11. Cross-command regression | enqueue (null slots) → package (fills) → enqueue again → slots survive; queue byte-stable; 3 rows, no dup | PASS |
-| 12. Import safety + determinism source | modules import silently; `slot_for('2026-W27','instagram')=='2026-W27/evening/18:00'`; `CHANNEL_SOURCE_MAP` imported (no fork) | PASS |
-| 13. No network / no wall-clock | grep of 4 new sources → zero hits for `datetime.now\|utcnow\|time.time\|requests\|urlopen\|urlretrieve\|socket`; only `strptime` + `urlparse` present | PASS |
-| 14. Frozen modules untouched | mtimes: `utm.py` 14:04, `gate.py` 14:32, `channels.py` 14:32, `queue.py` 14:33 — all predate the Sprint-003 build (`captions.py` 15:58, `schedule.py`/`mark_posted.py` 16:04, `package.py` 16:09); S001+S002 suites green inside the 151 (no git in workspace, so mtime + suite-pass is the observable proof) | PASS |
-| Malformed `captions.md` (unclosed block) | exit 2, cited "never closed (missing :end)", no write | PASS |
-| Per-channel caption override | IG uses `[instagram]` override; YT/LI fall back to `[all]` | PASS |
-| Multi-surface attachments | ordered ≥2 repo-relative POSIX PNG list, `surfaces[]` order | PASS |
-| `/loop-publish` SKILL.md | frontmatter (`name`+`description`) + gate→package→post→mark-posted steps; "never bypasses the gate", "writes no marketing copy", exit-code map; matches `loop-qa`'s frontmatter shape + "mechanical" framing (verified by reading `loop-qa/SKILL.md`) | PASS |
-| content/ leakage (contract §6) | after all temp-queue runs, `content/` holds only the two real assets + TEMPLATE.md + the committed `captions.md`; no `publish-queue.json`, no `publish/` dir leaked | PASS |
+## Verdict rationale
 
-## Findings
+Every row of the contract §7 command block and the §8 adversarial matrix reproduces as
+specified. All four batch-B formats render at 1080×1350 with exactly one `dominant` (132px,
+accent) at ratio >=3x body_reference, raised v2 floors, exactly one wordmark; CHART draws
+genuine zero-based `--chart-up` bars with direct chart-labels (decorative primitives, not
+manifest elements); VS-CONTRAST is asymmetric-by-construction (one 132 dominant + one 52
+headline). The v1 path stays byte-frozen (hyd + tgrera re-render to schema "1", `git status
+--porcelain content/` empty). No forbidden files were changed. `acceptance.py` PASSes 14/14.
 
-### Finding F-001: Whitespace-only caption block yields a link-only caption instead of erroring
+## Evidence log (all reproduced by the Evaluator)
 
-Severity: Low
-Category: Functionality
-Status: Low (non-blocking; does not sink PASS)
+- Canvas + schema + tags (§7b): `canvas+schema+tags OK` — all four PNGs 1080x1350,
+  schema_version "2", role format-slide, has_axis:false, tags {TIMELINE, VS-CONTRAST,
+  LEADERBOARD, CHART} all present.
+- Determinism (§7c, R18): `determinism OK` — decoded-RGBA PNG SHA-256 + manifest bytes
+  identical across two same-basename renders (/tmp/s3a vs /tmp/s3b).
+- V13/V14 via measure (§7d): `V13/V14 (measure) OK` — dominant_ratio_ok passes each surface
+  (TIMELINE/VS/LEADER 132/30=4.40; CHART 132/26=5.08 no-body fallback), exactly one dominant +
+  one wordmark each, every non-wordmark element clears format_slide_type_min.
+- CHART decorative bars (§7e): roles = [chart-label x3, dominant, headline, source-stamp,
+  wordmark] — no phantom "bar" manifest rows; >=2 chart-labels; all roles within allowed set.
+- validate.py on v2 asset (§7f, F-001): clean exit 2, cited "V13-V19 ... Sprint 005" message,
+  no traceback, nothing written.
+- Regression freeze (§7g, rows 22-23): hyd schema "1", tgrera schema "1"; `git status
+  --porcelain content/` empty (byte-frozen on re-render).
+- Suites (§7h, row 28): render `Ran 252 tests ... OK` (baseline 219; +33, none weakened);
+  loop `Ran 254 tests ... OK`.
+- No-network import (§7i, row 29): `import-ok`.
+- Acceptance gate: `ACCEPTANCE: PASS (14/14 expectations met)` — all 12 v1 fixtures reach
+  their existing verdicts; tgrera determinism + validate PASS unchanged.
 
-**Contract Clause.** §3.1: "if `captions.md` … has no resolvable body for a channel …
-`package.py` exits 2 … The tool NEVER substitutes, defaults, or generates caption
-text." §3.1 defines "absent" as *neither* the `caption:<c>` nor `caption:all` block
-existing.
+### Adversarial fail-loud matrix (rows 10-19, 25) — every attack caught on the right check, no partial write
 
-**Reproduction.** A `captions.md` with a present-but-empty `caption:all` block
-(`<!-- caption:all:start -->` immediately followed by a blank line then
-`:end`). `_strip_blank_edges` yields `""`, `body_for` returns `""` (key present, not
-`None`), and `package.py`'s `is None` check does not flag it.
+| Attack | Result |
+|---|---|
+| CHART Bar no numeric run | ValueError "Bar line ... has no numeric value", exit 1, no partial write |
+| CHART 1 bar | ValueError "at least 2 Bar chart-labels, got 1" |
+| CHART missing Source | ValueError "at least one Source, got 0" |
+| TIMELINE 1 event | ValueError "at least 2 Event chips, got 1" |
+| LEADERBOARD 1 row | ValueError "at least 2 Row elements, got 1" |
+| VS-CONTRAST 0 headlines | ValueError "exactly one headline ... got 0" |
+| VS-CONTRAST 2 headlines | ValueError "exactly one headline ... got 2" |
+| VS-CONTRAST 1 body label | ValueError "at least 2 Body side-labels, got 1" |
+| CHART 2 dominants | ValueError "exactly one dominant, got 2" |
+| Missing wordmark | ValueError "exactly one wordmark, got 0" |
+| Bogus PIE-CHART | ValueError "unknown/unsupported format tag" (re-pointed test) |
+| 11 slides (mixed A+B) | ValueError "cap is 10 (R14 ...)", no partial write |
 
-**Expected (spec north star).** An empty authored body should be treated like an
-absent one → exit 2, "no caption body for channel(s)…", no write.
+- Tokens (row 24): every emitted color/bg is one of the nine §9 tokens (bad tokens: NONE).
+- Conscious regression change (DoD #6): test_unknown_format_tag_fail_loud re-pointed to
+  PIE-CHART; test_batch_b_tags_now_render added. Confirmed at test_render_v2.py:321-333. This is
+  the only flipped assertion; the "unknown tag fails loud" guarantee is preserved.
 
-**Actual.** exit 0; the packaged `caption` field is `"\n\n<utm_link>"` — a bare-URL,
-copy-less caption is shipped.
+### Visual inspection (rows 27, 2-4)
 
-**Why Low, not High/Blocker.** It is strictly contract-compliant (§3.1 defines absent
-as block-nonexistence, and the block exists). It requires deliberately malformed
-authored input; it is unreachable with any shipped fixture or the real committed
-`captions.md` (which carries a real body). No spec behavior the contract pins is
-broken. Documented so a future author does not read a link-only caption as intended.
+- CHART: genuine zero-based proportional bars (Gachibowli 18000 fills the track, Kokapet 14500
+  ~80%, Narsingi 9200 ~50%), direct labels drawn on --bg above each bar (not on the bar), single
+  accent = the Rs18k dominant, bars in --chart-up teal. Tufte-clean, no chartjunk.
+- VS-CONTRAST: asymmetric split — Rs18k dominant (132, accent) vs Rs7k headline (52, ink),
+  Premium/Budget body labels, 1px --border divider, wordmark. Reads as one dominant, not two.
+- TIMELINE: "9 days" accent anchor dominant + three bordered event chips (RECEIPTS primitive) +
+  headline eyebrow + wordmark. One accent.
+- LEADERBOARD: "Gachibowli" accent dominant top value + muted ranked rows 2-4 + headline +
+  wordmark. One accent = dominant, no second accent.
 
-**Required Fix (defer-safe, not required for this PASS).** In `captions.body_for` or
-`package.py`, treat a body that is empty after `.strip()` as `None`.
+### Scope discipline
 
-**Pass Condition.** A present-but-empty caption block for a to-be-packaged channel →
-exit 2 with the missing-caption message, no write.
+- Forbidden files untouched: acceptance.py, make_fixtures.py, and fixture PNGs/manifests are
+  byte-clean. measure.py/validate.py show diffs vs HEAD, but these are cumulative Sprint-001/002
+  changes (never committed by the harness), not Sprint-003 edits — the Sprint-003 build touched
+  only render.py, test_render_v2.py, and new tests/inputs/ fixtures.
 
-## Harsh-pass standard
+## Non-blocking note (informational, not a finding)
 
-- No dead controls; every path has a real effect or a cited refusal.
-- Error messages are specific and recoverable (name asset + channel + concrete fact).
-- No fabricated content: absent caption → exit 2, never invented; real caption body is the verbatim `meta.md` Hook line.
-- Deterministic, byte-identical on re-run; no wall-clock, no network.
-- Atomicity: on every exit-1/2 path, zero package files and zero queue writes (temp queue/publish-dir confirmed absent).
-
-## Trace review
-
-`generator_trace.log` complete and honest; claims map to reproducible artifacts.
-The two refinement entries are narrow and justified. The "grep-hardening" docstring
-edit is cosmetic and does not mask behavior — clean state re-confirmed against actual
-code here. No skipped failures, no premature-completion language, no claim without an artifact.
+fixtures/fx-good-min/meta.md and .../qa-verdict.json show a dirty diff, but it is a
+date-stamp-only change (checked_on: 2026-07-04 -> 2026-07-06). This is an inherent side-effect
+of the acceptance runner: acceptance.py runs validate.py against each fixture, which stamps the
+current date into the verdict block on every run. The verdict stays PASS with no failed checks,
+all fixture PNGs/manifests are byte-frozen, and acceptance still reports 14/14. It is not
+attributable to Sprint 003 and causes no behavioral regression, so it is not scored as a finding.
+(Optional hygiene: `git checkout` the two stamped files, or have the acceptance runner write the
+verdict stamp to a temp copy so committed fixtures never go dirty.)
 
 ## Scoring
 
-Weights (CLI/infra): Functionality 30%, Craft 25%, Evidence 25%, Design(schema/seam) 15%, Originality 5%.
-- Functionality 5.0 — every probe/fixture reproduces the contract's exact exit code, stdout/stderr, and on-disk bytes; gate never bypassed; atomic; idempotent; deterministic. (F-001 is a Low outside the contract's pinned behavior.)
-- Craft 5.0 — pure importable modules, no import side effects; order-independent UTM-link rebuild; specific messages; frozen modules untouched; single-source channel map.
-- Evidence 5.0 — trace claims independently reproduced end-to-end from a clean state.
-- Design 4.5 — versioned PACKAGE schema; `{queued,posted}` seam preserved; slot feeds later Gap-3 A/B table.
-- Originality 4.0 — domain-specific, no slop/filler.
+Weights adjusted for a raster/infrastructure sprint (Functionality + Evidence emphasized).
 
-Weighted = 0.30·5 + 0.25·5 + 0.25·5 + 0.15·4.5 + 0.05·4 = **4.83 → 4.8**.
-Evidence ≥ 4 ✓, Functionality ≥ 4 ✓, no Blockers, no High (F-001 is Low), weighted ≥ 4 ✓.
+- Functionality: 5 — all four formats render; every fail-loud path fires on the correct check
+  with a descriptive message and no partial write; determinism holds; freeze holds.
+- Design: 5 — brand-locked, one-accent discipline, genuine data-ink CHART, asymmetric VS.
+- Craft: 5 — additive scope, byte-frozen v1/batch-A, atomic emission, clean error messages.
+- Originality: 4 — real chart marks and asymmetric composition rather than inert text cards.
+- Evidence/process: 5 — trace records baselines before code, files changed, +33 tests, the
+  conscious re-point justification, and freeze evidence; all reproduced independently here.
 
-## Verdict
+Weighted total ~= 4.8/5. No blockers, no high findings, evidence >=4, functionality >=4.
 
-**PASS.** Sprint 003 delivers the package + posting-transition layer exactly to
-contract: deterministic per-channel PACKAGE files, a wall-clock-free schedule slot
-matching the §3.2 table, an atomic gate-respecting packager, a non-idempotent
-mark-posted transition with full refusal coverage, and a `/loop-publish` skill that
-never bypasses the gate and writes no copy. Frozen Sprint-001/002 modules are
-untouched and their suites remain green. One Low (F-001, empty caption block →
-link-only caption) is documented but does not block — it is contract-compliant and
-unreachable with shipped fixtures/content.
+
+## Additive-only verification (DoD #6 — verified by presence, not just count)
+
+A rising test count (219->252) cannot detect a silent deletion, so confirmed directly:
+all eight Sprint-002 batch-A test classes are intact and byte-preserved at the TOP of
+test_render_v2.py (TestCanvasAndSchema, TestDominantAndFloors, TestFormatGrammar,
+TestSchemaAcceptance, TestDeterminism, TestFailLoud, TestAntiTofu, TestV1Freeze; lines
+69-405), including batch-A determinism (test_written_outputs_byte_identical_across_runs),
+anti-tofu / missing-glyph, and v1-freeze (test_v1_freeze_still_holds). The seven new
+TestBatchB* classes are appended below (lines 441+). Only the one flipped assertion
+(test_unknown_format_tag_fail_loud -> PIE-CHART) changed. Additive-only confirmed.
+
+## LEADERBOARD note (non-blocking, plain-reading holds)
+
+LEADERBOARD's dominant is the winning entry NAME ("Gachibowli"), not a numeric ask value,
+and ask amounts are not shown despite the "by ask" title. This is acceptable: the spec's
+"top row's value" plainly accommodates the winning entry, visual grammar is explicitly the
+Generator's to choose, and every mechanical gate (V13 ratio 4.40, raised floors, exactly one
+dominant) passes. Not a finding.
+
+VERDICT: PASS.

@@ -1,136 +1,116 @@
 VERDICT: ACCEPT
 SCORE: n/a
 BLOCKERS: 0
-HIGH: 1
+HIGH: 0
 
-## Summary
+## Contract Review — Sprint 001 (Measurement Core + Schema-v2 Seam)
 
-Sprint 001 contract is well-formed, specific, and achievable. It defines a single, focused deliverable (shared UTM module + CLI verifier), with exact function signatures, deterministic exit codes, and a concrete fixture requirement. The positive control assertions (both real assets pass the UTM scan) are factually correct. No blockers found.
+### Scope Clarity ✓
 
-One HIGH concern identified: message-quality requirement is stated but not explicitly tested in the attack checklist.
+The contract is precise and tightly scoped: **pure functions only**, no rendering, no V-check wiring, no check-routing edits. The "Isolation guarantee" (§1.2) is explicit — edits to schema-acceptance frozensets only, no changes to `_FORMAT_BY_ROLE`, `_SAFEZONE_ROLES`, or `run_checks`. This prevents the "shipped-but-untested bug" risk (routing v2 surfaces through v1 checks before V13–V19 exist) and is correctly motivated.
 
----
+### Exact Signatures & Return Types ✓
 
-## Contract Strengths
+All required functions specified:
+- `body_reference(elements) -> int` (deterministic fallback to 26)
+- `count_dominant(elements) -> int`
+- `is_utility_slide(elements) -> bool` (well-defined: empty list → False, content role present → False)
+- `dominant_ratio_ok(elements) -> dict` (with explicit keys: `exempt`, `dominant_count`, `body_reference`, `dominant_font_px`, `ratio`, `passes`, `reason`)
+- `format_slide_type_min(element_role, font_px) -> dict` (with `minimum` and `passes` keys)
+- `thumbnail_ink_ok(role, effective_px) -> dict` (with role, minimum, effective_px, passes keys)
+- `thumbnail_scale_band(full_band_px, canvas_w=1080, thumb_w=360) -> float`
+- `parse_cover_pattern_block(meta_text) -> dict|None`
+- `cover_pattern_valid(parsed) -> bool`
+- `one_dataset_present(parsed) -> bool`
 
-### 1. Exact Scope & Non-Goals (§1, §7)
-- Clear: UTM module + verifier CLI only
-- Everything else deferred (publish gate, queue, packages, scorecard, skills)
-- Explicit non-goals prevent scope creep
+Constants pinned: `_V2_TYPE_MINIMUMS` table (8 rows, source cited for each floor), `THUMB_W`/`CANVAS_W`/`THUMB_HEADLINE_MIN_PX`/`THUMB_DOMINANT_MIN_PX`.
 
-### 2. Specific Technical Contracts (§3)
-- Function signatures fully specified (`parse_flywheel_line()`, `campaign_from_slug()`, `validate_asset()`)
-- Return types and field names explicit
-- Import safety guaranteed ("no import side effects")
-- `urllib.parse` explicitly named as the query-parsing tool (§6)
+### Boundary Testing — Adversarial Matrix ✓
 
-### 3. Exact Error Codes (§3.3)
-- Five codes with deterministic triggers: `missing-flywheel-line`, `malformed-query`, `wrong-medium`, `campaign-mismatch`, `unknown-source`
-- Violations evaluated independently when query parses (multiple violations reported together, ordered)
-- Mutation-resistant: each code is distinct and testable
+The §8 matrix is comprehensive (26 rows) and each row is isolable and testable:
+- **Dominant ratio:** boundary at 3.0 (rows 1–2: 78/26 = 3.0 pass, 77/26 ≈ 2.96 fail); zero/multiple dominants (rows 3–4)
+- **Type floors:** rows 9–13 test body 26/25, source 24/23/20, headline 48/47, wordmark exempt, invalid role → ValueError
+- **Thumbnail comparator:** rows 14–16 test headline/dominant at exact 13.0/21.0 boundaries, invalid role → ValueError
+- **Cover-pattern parser:** rows 18–21 test valid/invalid patterns, missing block → None, validation on None → False
+- **Manifest schema:** rows 22–26 test v1 → still accepted, v2 → accepted, v2 with bogus format → PreconditionError, v1 malformed → PreconditionError (unchanged)
 
-### 4. Deterministic Exit Codes (§3.4, §4)
-- 0 (all valid), 1 (at least one invalid), 2 (usage/precondition error)
-- Empty root → exit 2 (justified: precondition error, not silent pass)
-- Lexicographic ordering specified for stable output
+**Boundary arithmetic verified:** 39.84 × (1/3) = 13.28 (row 17). Comparators pin exact thresholds (13.0, 21.0) with one-line precision (12.99 → fail), preventing hardcoding shortcuts and false positives.
 
-### 5. Verifiable Positive Controls (§4)
-- Both real assets verified on disk:
-  - `2026-07-03-tgrera-enforcement-wave`: primary URL has `utm_source=instagram`, `utm_medium=social`, `utm_campaign=tgrera-enforcement-wave`. All four conditions satisfied. ✓
-  - `2026-07-03-hyd-premium-vs-budget`: primary URL (line 9) has same structure. KILLED status is orthogonal to UTM validity. All four conditions satisfied. ✓
-- Contract's assertion that both pass UTM scan with exit 0 is **factually correct**.
-- KILLED asset is correctly treated as a positive control for verifier; the KILLED gate belongs in Sprint 002 (publish gate), not here.
+### Test Coverage & Baseline Stability ✓
 
-### 6. Concrete Fixture Specification (§9, §10)
-- Eight fixture intents enumerated in attack checklist
-- Definition of done requires "fixtures for every row" shipped under `tools/marketing-loops/fixtures/`
-- Fixtures are asset folders with `meta.md`, not polluting real `content/` (good practice)
+- Render suite baseline: 139 tests, must increase post-sprint (new tests added) and remain OK
+- Loop suite baseline: 254 tests, must stay 254 and OK (loop suite does not import measure/validate — verified as doc-comment-only)
+- Widening invariant explicitly stated: every previously-accepted manifest still validates (rows 22, 25, 26 guard this)
 
-### 7. Verification Commands (§8)
-- Six exact commands provided
-- All are runnable and observable (exit codes, stdout inspection)
-- Import safety test included (`python3 -c "import utm; ..."`)
+### Non-Goals Explicit ✓
 
-### 8. Attack Probes (§9, §10)
-- 7 adversarial probes listed
-- Include determinism check (run twice, compare output)
-- Include network-check (grep for `datetime.now`, `requests`, `urllib` fetch)
-- Include code-quality checks (import safety, no stdout on import)
+Section 9 clearly delineates what is **not** in scope:
+- No rendering, no PNG/PDF
+- No V-check wiring (V13–V19 not added to `run_checks`)
+- No check-routing edits
+- No `font_px → thumbnail pass` predictor (Risk-4 forbidden)
+- No mutation of existing measure.py/validate.py symbols
+- No acceptance.py change, no fixture change
 
-### 9. Explicit Assumptions Documented (§10 A-1 to A-4)
-- Campaign-slug stripping rule: `^\d{4}-\d{2}-\d{2}-` prefix
-- YouTube source string: `youtube` (confirmed in real hyd asset meta.md line 10)
-- Per-channel annotation exclusion: only primary URL validated (hyd asset is the example)
-- All assumptions flagged for Evaluator awareness
+These boundaries prevent scope creep and undefined test failures.
 
----
+### Error States & Invalid Input ✓
 
-## Minor Concerns
+All error paths specified (§4):
+- Empty elements → body_reference returns 26, is_utility_slide returns False, dominant_ratio_ok fails on "no dominant"
+- Missing block → parse_cover_pattern_block returns None
+- Invalid pattern value (e.g., TIMELINE not in VALID_COVER_PATTERNS) → cover_pattern_valid returns False
+- Unknown role (e.g., "banana") → ValueError naming the role
+- Malformed manifest with unknown format tag → PreconditionError naming surface + value
+- v1 manifest with missing field or non-token color → PreconditionError (unchanged rejection)
 
-### HIGH Finding H-001: Message-Quality Requirement Not Explicitly Tested
+### Verification Commands ✓
 
-**Severity:** High  
-**Category:** Specification Completeness
+Section 7 provides four exact shell commands:
+1. Render suite count
+2. Loop suite count
+3. New measurement tests in isolation
+4. No-network import sanity check
 
-### Issue
-Section 5 requires violation messages to be "specific and recoverable — each names the asset, the code, and what the operator must fix (e.g. `utm_medium was 'paid', expected 'social'`), never a bare 'invalid'."
+All are runnable and produce machine-readable pass/fail output.
 
-However, Section 9's attack checklist only asserts on the **exact codes** in output (e.g., "assert each expected code appears on the right slug"), not on message text quality.
+### Spec Alignment ✓
 
-A Generator could technically satisfy the checklist by producing:
-```
-FAIL 2026-07-03-test  wrong-medium, unknown-source  — violation
-```
-This includes the codes (making the test pass) but provides no context for the operator to fix the issue. The requirement is violated but the test would pass.
+- Spec §5.2 V13 (dominant ratio): covered by §1.1.A ✓
+- Spec §5.2 V14 (raised type floors): covered by §1.1.B ✓
+- Spec §5.2 V15 (thumbnail gate): covered by §1.1.C ✓
+- Spec §5.4 meta blocks: covered by §1.1.D ✓
+- Spec §5.3 manifest schema v2: covered by §1.2 ✓
+- Spec §10 Risk 1 (raised floors on v1 surfaces): explicitly resolved — new rules apply **only** to format-slide surfaces, v1 surfaces frozen ✓
+- Spec §10 Risk 3 (body_reference denominator): pinned to max body or fallback 26 ✓
+- Spec §10 Risk 4 (thumbnail measured pixels, not font_px math): contracted as measured-pixel route (PNG downscale + ink measurement in Sprint 005), this sprint ships comparator only ✓
+- Spec §10 Risk 5 (one_dataset presence-only, not semantic): covered by §1.1.D — `one_dataset_present` checks presence, not truth ✓
 
-### Contract Clause
-§5: "Usability: violation messages are specific and recoverable — each names the asset, the code, and what the operator must fix (e.g. `utm_medium was 'paid', expected 'social'`), never a bare 'invalid'."
+### One Documented Observation — No Blocker
 
-§9: Attack checklist line "assert each expected code appears on the right slug (exact-string match, not 'some FAIL')."
+**Spec §11 (Sprint breakdown) mentions "16/24 thresholds" for thumbnail gates, but Spec §5.2 V15 (normative behavior section) specifies "13px / 21px," and the contract implements 13/21.**
 
-### Why It Matters
-The verifier is a user-facing CLI for the marketing operator. Generic error messages ("error", "violation", "failed") prevent the operator from understanding what went wrong. The spec explicitly calls this out as non-negotiable user experience; the contract should enforce it.
+- §5.2 is the authoritative behavior spec; §11 is a summary breakdown
+- The contract shows its work: `K_INTER = 0.83`, headline floor 48 → `0.83 × 48 / 3 ≈ 13.3` → floor 13; dominant floor 78 → `0.83 × 78 / 3 ≈ 21.6` → floor 21
+- The contract explicitly marks these thresholds **provisional** (§1.1.C: "Because **no v2 render exists yet**, these integers are **provisional pending Sprint-006 real-render revalidation**")
+- The binding invariant is the *logic* (threshold boundary test: 13.0 pass, 12.99 fail), not the absolute value — which will be revalidated when real PNGs are rendered
+- This is sound — the contract correctly pins the arithmetic *for this sprint* and makes clear it may shift based on Sprint-006 real rendering
 
-### Recommended Fix
-Add to §9 (attack checklist) or §10 (definition of done) an explicit probe:
+This is **documented, resolved-in-favor-of-13/21, and provisioned for change** — not an ambiguity or error.
 
-> **Probe:** Run `python3 tools/marketing-loops/verify_utm.py tools/marketing-loops/fixtures/wrong-medium` and verify the output message includes the **offending value** (e.g., the actual `utm_medium` string) and the **expected value** (`social`). Bare "wrong-medium" or "violation" fails this probe.
+### Definition of Done ✓
 
-Alternatively, strengthen the contract language in §5:
+Section 10 lists five verifiable criteria:
+1. Named measure.py additions (14 new symbols)
+2. validate.py schema-acceptance changes (specific roles, format values, pdf key)
+3. Test coverage (full §8 matrix)
+4. Test-count validation (N > 139 for render, 254 for loop)
+5. Generator trace (baseline, files changed, new-test count, passing run output, disclosed risks)
 
-> "Each violation message must include the offending value and the expected value (not just the code). For example, for `wrong-medium`: `utm_medium was 'paid', expected 'social'`; for `unknown-source`: `utm_source was 'tiktok', not in {instagram,youtube,linkedin}`."
+All are checkable on disk without ambiguity.
 
----
+### Verdict
 
-## Verification Summary
+This contract is **testable, implementable, and unambiguous**. The scope is tight (pure functions, no rendering), the boundaries are explicit (schema widening only, no check routing), the adversarial matrix is comprehensive (26 rows, each isolable), and the non-goals are clear. The provisional thresholds (13/21) are correctly marked as provisional pending real rendering and will be validated in Sprint 006. The isolation guarantee prevents the "shipped-but-untested" regression risk. No vagueness, no hidden scope, no gameable criteria.
 
-| Aspect | Status | Evidence |
-|---|---|---|
-| Scope clarity | ✓ Clear | §1, §7 (in/out explicit) |
-| Function contracts | ✓ Specific | §3.1 (signatures named) |
-| Error codes | ✓ Deterministic | §3.3 (table with triggers) |
-| Exit codes | ✓ Exact | 0/1/2 with conditions |
-| Positive controls | ✓ Verified | Both real assets satisfy validity conditions |
-| Fixtures | ✓ Enumerated | §9 (8 intents) + §10 (DoD: "fixtures for every row") |
-| Verification commands | ✓ Provided | §8 (6 commands) |
-| Non-goals | ✓ Listed | §7 (no queue/packages/scorecard/skills this sprint) |
-| Import safety | ✓ Testable | §9 probe 6, §8 command |
-| Determinism | ✓ Testable | §4, §9 probe 5 (run twice, compare) |
-| No network | ✓ Testable | §9 probe 7 (grep for network calls) |
-| Runs from any cwd | ✓ Specified | §5 "`__file__` resolution" |
-
----
-
-## Conclusion
-
-This contract is **ready for implementation**. It is specific enough that the Generator cannot reasonably misinterpret it, comprehensive enough that the Evaluator can test every requirement, and realistic enough that it can be completed in one sprint.
-
-The message-quality concern (HIGH) does not block ACCEPT because:
-1. The requirement is clearly stated in the contract prose (§5)
-2. An example is provided (`utm_medium was 'paid', expected 'social'`)
-3. The Evaluator will run the tool during EVALUATE and can visually inspect if messages meet the standard
-4. If messages are generic, the Evaluator will flag it as a finding
-
-The Generator should be aware that vague error messages will be caught in EVALUATE. The requirement is non-negotiable; only the test specificity is being called out for improvement.
-
-**Recommendation:** ACCEPT and proceed to implementation. Evaluator will assess message quality during EVALUATE by running the tool and comparing output against the §5 standard and the H-001 probe suggested above.
+**ACCEPT.**

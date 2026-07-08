@@ -3,73 +3,60 @@ SCORE: 4.8
 BLOCKERS: 0
 HIGH: 0
 
-# Findings — Sprint 006: Cross-gap acceptance runner + adversarial suite + README rollout
+# Sprint 006 Findings — TGRERA v2 carousel + PDF + full end-to-end, no regression
+
+Mode: EVALUATE. CLI/raster sprint — Playwright not applicable (no browser UI/DOM). Attacked by rendering real PNGs/PDF, byte/pixel-inspecting artifacts and qa-verdict.json, running both unittest suites + acceptance.py, and mutating the TGRERA input to prove gate teeth. All checks run from a clean tree with the committed code.
 
 ## Verdict summary
+Clean PASS. Every DoD item (§10) verified on disk and reproduced independently. No blocker/high/medium findings. The disclosed deviation (TGRERA v1 chart-card test coverage relocated to a retained snapshot) is a TRUE relocation, not a weakening (see Deviation Audit).
 
-Headless CLI + fixture deliverable (contract §intro: no routes/screens/DOM/Playwright).
-Verification is CLI invocation + exit codes + cited-reason substrings + byte-golden Markdown +
-path-independent JSON invariants. Every contract §8 command and §9 attack was reproduced
-independently by the Evaluator. The runner is a genuine adversarial gate, not a rubber stamp.
+## Evidence — reproduced independently
+DoD 1 — pure carousel render (Risk B). render.py TGRERA -> exit 0; emits format-01.png, format-02.png, carousel.pdf, manifest.json. Manifest: schema_version "2", top-level pdf: carousel.pdf, both surfaces format-slide (RECEIPTS, CHECKLIST). NO chart-card.png. Confirmed.
 
-## Evidence log (all reproduced by the Evaluator, not taken from the trace)
+DoD 2 — meta.md blocks. Provenance block byte-identical to git HEAD (cmp passes -> V11 intact, Risk E). Valid cover-pattern block: pattern: BIG-NUMBER, non-empty one_dataset:. Confirmed.
 
-| Check | Contract ref | Result |
-|---|---|---|
-| acceptance.py runs clean | §3.1 | ACCEPTANCE: PASS (50/50 expectations met), exit 0 |
-| Repo not dirtied by a run | §3.2, §9.9 | git status --porcelain: no content/publish-queue.json, no real content/*/publish/, no new metrics/* |
-| Full unit suite green | §8.3 | Ran 254 tests OK (contract expects > 233) |
-| Renderer acceptance untouched | §8.4, §9.10 | tools/marketing-render/acceptance.py --checked-on 2026-07-04 -> ACCEPTANCE: PASS (14/14), exit 0 |
-| Hygiene: no network / no wall-clock | §5, §8.5, §9.12 | grep for datetime/requests/urlopen/socket/http.client/urllib.request on acceptance.py -> clean; datetime/time. -> clean |
-| Imports stdlib + one disclosed frozen read | §5 | argparse/json/shutil/subprocess/sys/tempfile/pathlib + import schedule (disclosed read-only for the seam constant) |
-| Frozen integrity — no Sprint 001-005 .py edited | §2 (mtime+content) | mtime sweep: acceptance.py alone at 2026-07-05 15:45 (Sprint-006 build); all frozen modules predate it. Only acceptance.py + test_acceptance.py are new. |
+DoD 3 — full V2 gate PASS. validate.py --checked-on 2026-07-08 -> exit 0, verdict PASS, failed_checks: [] (98 checks, 26 skipped). Dispositions match §1.4: V2/V3/V4/V9/V11 PASS; V13/V14/V15/V16/V17/V18/V19 PASS; V5-floor/V7/V8/V10 skipped (frozen applicability — V8 skip on format-slides is per Risk 1, not a FAIL); V5-crosscheck PASS; V6-safezone PASS for gated roles / skipped for exempt roles. Confirmed.
 
-### Adversarial probes (contract §9 — Evaluator-run negative controls)
+DoD 4 — determinism (R8/R16). Two independent renders into separate temp dirs: both PNGs decoded-RGBA SHA-256 identical (28252b22..., ce0ec8d4...); carousel.pdf byte-identical (cmp passes). Confirmed.
 
-- §9.1 Honest failure. Appended CORRUPTED_LINE to fixtures/metrics/expected/full.md ->
-  ACCEPTANCE: FAIL (49/50) — first unmet: metrics/full — scorecard differs from golden
-  (2693 vs 2709 bytes), exit 1, cited the specific row. Restored -> PASS. Not a rubber stamp.
-- §9.2 Cited reason, not "some FAIL". Each refusal row met on its named substring
-  (killed -> [killed], verdict-fail -> [verdict-not-pass], unknown-source -> utm_source was 'tiktok').
-- §9.3 No-write on refusal. Every gate/package refusal prints no-write-on-refusal confirmed / no package written.
-- §9.4 No-scorecard on corrupt CSV. truncated/wrong-header/wrong-colcount/non-numeric/blank-join -> exit 2, no scorecard.
-- §9.5 No partial-sum leak. metrics/wrr-partial byte-equals its golden (Sprint-005-proven to omit 147/252/295).
-- §9.6 Seam is genuine (load-bearing). Built queue+packages for real TGRERA into a temp dir, mutated the
-  instagram schedule_slot from 2026-W27/evening/18:00 to 2026-W27/morning/09:00, re-ran scorecard.py;
-  the A/B table moved instagram's 51 clicks from Evening to the Morning column. Scorecard genuinely
-  consumes the publish layer's generated queue slot. Code path: run_chain reads ig_slot from generated
-  chain-q.json (acceptance.py:619-620), asserts via seam_ab_ok (302-317), not from slot_for.
-- §9.7 Idempotency + no regression. chain/idempotency — 3 rows on re-run, instagram stays posted.
-- §9.8 Table coverage. Created stray fixtures/publish/stray-xyz -> ACCEPTANCE: FAIL (table coverage
-  incomplete) … not named by any table row: ['stray-xyz'], exit 1. Removed -> PASS.
-- §9.11 README honesty. [x] Phase 0 — analytics plumbing (UTM verifier + publish layer + weekly
-  scorecard compiler); dashboards (a non-goal) NOT claimed; no production-ready language;
-  documented commands reproduce (verify_utm.py content -> exit 0, OK both real assets).
-- Determinism (§3.1, §5). Two full runs byte-identical (diff empty); --verbose determinism fixed in-sprint.
+DoD 5 — acceptance re-point (Risk 2/C). acceptance.py -> exit 0, ACCEPTANCE: PASS (25/25). run_tgrera re-pointed to v2 baseline: TGRERA_EXPECTATIONS=4 (render-shape / no chart-card / carousel.pdf present / schema-2 all format-slide; PNG decoded-RGBA determinism; PDF byte determinism; validate exit 0). Honest count (21 fixture rows + 4 TGRERA = 25). All 12 v1 + 9 v2 fixture rows byte-unchanged, reaching existing verdicts; 9 fx-v2 fixtures each fire their singleton target id; fx-v2-good exit 0. Confirmed.
 
-## Scoring (systems/infrastructure weighting: Functionality + Evidence emphasized)
+DoD 6 — regression budget. Render suite Ran 266 ... OK (held). Loop suite Ran 254 ... OK (held). Confirmed.
 
-- Functionality: 5 — runner + five frozen CLIs behave exactly as contracted; cross-gap seam works end-to-end.
-- Evidence/process: 5 — every claim independently reproduced incl. honest-failure, seam-mutation, coverage-gap negative controls.
-- Craft: 5 — pure stdlib, single disclosed read-only frozen import, deterministic, principled path-independent-vs-byte-golden split documented in module docstring.
-- Design (schema/seam integrity): 5 — QUEUE-as-API-seam consumed correctly; A/B bucket driven by generated queue, not a fixture.
-- Originality: 4.5 — cited-reason normative table + coverage guard + path-independence reasoning is thoughtful adversarial design.
+DoD 7 — frozen v1 path. fx-good-min qa-verdict has ZERO V13-V19 records ([]). Chart-card coverage preserved (Deviation Audit). Confirmed.
 
-Weighted total ~= 4.8. No blockers, no high findings. Evidence >= 4 and Functionality >= 4 satisfied.
+DoD 8 — trace. generator_trace.log records baselines-before-code, files changed, shipped V15 bands, run_tgrera re-point, no-chart-card confirmation, provenance intact, deviation disclosure. Confirmed.
 
-## Notes (non-blocking, informational)
+## Gate-teeth (adversarial matrix, run on copies)
+- Drop inline So-what: -> failed_checks == ['V16-so-what'] (only). Right check, right rule.
+- Invalid pattern: value -> failed_checks == ['V17-cover-pattern'] (only).
+- Hand-shrink a body font_px to 20 in manifest -> V14-type-floor FAIL. V5-crosscheck co-fires — expected/correct (manifest edited without re-render, declared != measured); not a defect.
+- Declare an 11th slide -> render exit != 0, "cap is 10 (R14, Instagram API limit)", NO render/ dir written (no partial write).
 
-- N-1: The tools/marketing-loops/ tree is untracked in git (sprint work not committed). Did not affect
-  evaluation — code present and verified on disk; frozen integrity confirmed by mtime. A commit, if the
-  harness expects one, is a process step outside this sprint's contract scope, not a deliverable defect.
-- N-2: Extra on-disk fixtures beyond the contract's illustrative table (blank-cell, zero-cell, header-only,
-  blank-join, pkg-multi-surface, pkg-per-channel-caption) are each named by real expectation-table rows
-  with genuine assertions; coverage stays exact (verified by runner + §9.8 stray-fixture probe).
+## Deviation Audit — TGRERA v1-test relocation (CONTROL POINT)
+Generator relocated ~19 chart-card-coupled tests from the live content/...tgrera... folder to a retained snapshot under tools/marketing-render/tests/data/2026-07-03-tgrera-enforcement-wave/. Verified TRUE relocation, not weakening:
+1. Snapshot input byte-identical to HEAD: chart-card.png, render/manifest.json, chart-spec.md, script.md, and meta provenance block all cmp-identical to git show HEAD.
+2. Render path genuinely re-exercised: relocated test_chart_card.py reads chart-spec.md from the snapshot and re-runs render.parse_chart_spec / render.render_chart_card / render._layout_chart_card against byte-identical input — coverage is not reduced to a static PNG read.
+3. Only the path constant moved: diffs of the four touched test files show _TGRERA re-pointed to the snapshot (plus one attachment-path string in test_package.py); every assertion preserved verbatim. None weakened/deleted.
+4. Regression floor held: render suite stayed at 266 OK — coupled tests still run and pass; deletion would have dropped below the DoD-6 floor.
+5. Spec-mandated: spec Risk 2 requires "the old chart-card render/validate code path stays exercised." Live-folder-as-v2 and folder-as-chart-card cannot coexist, so relocation is the only move satisfying DoD 1-5 + DoD 6 + Risk-D ("never weakened or deleted") together. Generator's disclosure that the contract Risk-D parenthetical ("only run_tgrera qualifies") was empirically wrong is honest and correct.
 
-## Pass condition (met)
+## Visual inspection (screenshots, not claims)
+Read both shipped PNGs directly (Read renders images):
+- format-01 (RECEIPTS cover): clean hierarchy — bold ink headline "3 builders. 9 days.", large teal dominant "SALES FROZEN" (two lines, no collision with the chip stack), three bordered white chips well-spaced and legible (amount/consequence leading, builder + date), TERREM wordmark bottom-right in accent-deep. Exactly one accent (teal) on the dominant. No tofu/clipping/overflow/slop.
+- format-02 (CHECKLIST): teal "3" index dominant, three legible steps, inline so-what wrapping cleanly to two lines ("Check the RERA number before you pay — free -> intel.terrem.in"), muted source stamp. Denser but legibility and hierarchy intact; within the CHECKLIST grammar. No defect.
+Design/Originality scores are now evidenced by the rendered artifacts, not the generator's assertion.
 
-python3 tools/marketing-loops/acceptance.py exits 0 with ACCEPTANCE: PASS (50/50); the runner honestly
-fails on a corrupted golden, a wrong-reason refusal, and a stray/removed fixture; the cross-gap seam is
-proven load-bearing by slot mutation; no frozen Sprint 001-005 module was edited; the 254-test suite and
-renderer acceptance both stay green; the repo is not dirtied; README Phase-0 box checked without
-over-claim. All satisfied.
+## V15 reconciliation (Risk A)
+The real LANCZOS ink-band measurement the gate uses (qa-verdict.json V15 detail) is: format-01 headline "360px band 16px >= 13" (+3, thin but clears), format-01/02 dominant "band 32px >= 21" (+11). This matches the generator's recorded 16 exactly; my earlier arithmetic thumbnail_scale_band(52)=17.3 was a different proxy computation, not the gate's measurement — the dispositive number is the gate's 16, and V15-thumbnail PASS is genuine.
+
+## Determinism / no-network / provenance
+Render + validate ran offline (stdlib + vendored Pillow only; no new third-party dep). TGRERA copy is public regulator-order facts only, no TERREM DB numbers; provenance block byte-frozen. No secrets introduced.
+
+## Scoring (systems/infra — Functionality + Evidence weighted up)
+- Functionality: 5 — full end-to-end PASS; happy + failure paths reproduce.
+- Evidence/process: 5 — exhaustive reproducible trace; deviation disclosed and independently verified.
+- Craft: 5 — fully additive to frozen code; only acceptance.py run_tgrera + asset authoring + path-only test relocation; frozen v1/v2 paths byte-intact.
+- Design: 4.5 — real information-hierarchy format library (dominant >=3x body), one accent per surface, no slop.
+- Originality: 4.5 — genuine format-grammar/QA-gate design, not a library default.
+Weighted (Functionality 25%, Evidence 25%, Craft 20%, Design 15%, Originality 15%) ~= 4.8. Passing bar met (no blockers/highs, evidence >=4, functionality >=4, total >=4).

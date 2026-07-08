@@ -37,3 +37,9 @@ Publish preconditions:
 Checked by: agent (Loop 4) on 2026-07-03
 Published: —
 ```
+
+<!-- qa-verdict:start -->
+QA: FAIL
+Failed checks: V11-provenance asset
+Checked by: validator-cli on 2026-07-08
+<!-- qa-verdict:end -->

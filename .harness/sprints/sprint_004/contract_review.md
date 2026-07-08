@@ -3,216 +3,140 @@ SCORE: n/a
 BLOCKERS: 0
 HIGH: 0
 
-## Summary
+---
 
-Sprint 004 contract is exceptionally well-written. No blockers or high concerns. The scope is crystal clear, behaviors are testable, edge cases are explicitly named, and the fixture matrix + adversarial probes make the contract unfakeable.
+## Contract Review: Sprint 004 (Deterministic Multi-Page PDF Emitter)
 
-## Analysis
+### Summary
 
-### 1. Scope & Clarity (No Ambiguity)
+This is an exemplary contract. It defines the emission of `carousel.pdf` from format-slide surfaces with byte-determinism guarantees, regression-budget transparency, and non-gameable evidence standards. Every requirement is specific, every error state is covered, and every verification command is copy-paste-ready.
 
-**Entry point:** CSV ingestion layer for Gap-3 analytics toolchain (spec §5.2).
+### Findings
 
-**Scope boundary (§7 "Explicit non-goals"):** Explicitly OUT of this sprint:
-- No scorecard markdown / `metrics/YYYY-Www.md`
-- No WRR sum or no-partial-sum blanking decision
-- No Missing-data section text
-- No posting-time A/B table
-- No Decisions-fed-back section
-- No `loop-measure` SKILL update
-- No modification of Sprint-001/002/003 modules
+#### ✓ Scope and Focus
 
-This is remarkable clarity. A generator cannot claim "I thought X was in scope" because every non-goal is explicitly listed.
+The contract has a single, clear job:
+- Emit `carousel.pdf` (one page per format-slide, in slide order) from assets with `schema_version "2"`
+- Achieve byte-identical PDFs across independent `render.py` process runs
+- Record top-level `"pdf": "carousel.pdf"` manifest key
+- Leave v1 path (hyd, tgrera, frozen fixtures) completely unchanged
+- Touch only `render.py` and `tests/test_render_v2.py`
 
-**Deliverables named:**
-- `csvspec.py` — four CSV column contracts + `read_csv(path, contract)` returning validated rows or raising `CsvError`
-- `assetmap.py` — scan content dir, return `campaign → asset-record` map via frozen Sprint-001 `utm` module
-- `ingest.py` — CLI + `build_ingest(...)` function; validates args/CSVs, joins metrics, aggregates WRR components (does NOT sum), emits INGEST JSON (§3.5)
+Out-of-scope items are explicit: V13-V19 wiring (Sprint 005), validate.py edits (already tolerates `pdf` key), measure.py (frozen), acceptance.py (Sprint 006), TGRERA content (Sprint 006).
 
-**Frozen dependencies:** Sprint-001 `utm.py` is imported read-only; no function is added to any frozen module, so no prior PASSED contract can regress.
+#### ✓ Output Specification (Exact)
 
-### 2. Exact Behaviors & Pass/Fail Criteria
+- **File path:** `content/<slug>/render/carousel.pdf` (§1.1, R19)
+- **Content:** ordered PNG rasters as PDF pages, 1080×1350 per page, one page per format-slide in manifest order (§1.1, R15)
+- **Manifest key:** top-level `"pdf": "carousel.pdf"` (§1.2, §5.3), present iff `schema_version == "2"` (§1.2), JSON serialized with `sort_keys=True` for deterministic byte layout
+- **v1 behavior:** no PDF emitted, no `pdf` key added, manifest byte-identical after re-render (§1.2, §1.5)
 
-**CLI signature (§3.4):**
-```
-python3 tools/marketing-loops/ingest.py --week YYYY-Www \
-  [--instagram FILE] [--youtube FILE] [--linkedin FILE] [--site FILE] \
-  [--content-dir DIR] [--out FILE]
-```
+#### ✓ Byte-Determinism Requirement (R16) — Non-Gameable
 
-**CSV column contracts (§3.1):** Each is declared as a documented, versioned data structure with explicit required headers, types (`str` | `int` | `num`), and join columns:
+§1.3 specifies the exact evidence standard and explains why it defeats common shortcuts:
 
-| Source | Required Headers | Join Column |
-|--------|---|---|
-| Instagram/YouTube/LinkedIn | `utm_campaign`, `three_s_hold_pct`, `completion_pct`, `shares`, `clicks` | `utm_campaign` |
-| Site-analytics | `utm_source`, `utm_medium`, `utm_campaign`, `clicks`, `returning_viewers`, `digest_opens`, `returning_visitors_social` | `utm_campaign` |
+> "the byte-equality proof renders the same input under **two separate `python3 render.py` invocations into two different parent dirs with an identical basename** (the Sprint-003 `s4a`/`s4b` two-parent slug-identity pattern) and compares the two on-disk `render/carousel.pdf` files with `cmp`/SHA-256. A same-process `BytesIO` round-trip proves only that the encoder is deterministic; it does **not** prove cross-run determinism (the R16 requirement) and does not exercise the real save path (where Title is filename-derived unless pinned)."
 
-**Output schema (§3.5):** INGEST JSON with concrete example; includes `schema_version`, `week`, `sources_provided`, `assets`, `wrr_components` (three component inputs with presence flags, NOT summed), `flywheel_clicks_by_campaign`, `craft`, `absences`.
+This explicitly prevents:
+- Fake "proof" via `BytesIO` round-trip (proves encoder consistency, not cross-process stability)
+- Skipping the real filesystem save path (where Pillow's filename-derived Title could vary)
 
-**Exit codes (§3.6):**
-- `0` — success (including partial input, empty run)
-- `1` — intentionally unused
-- `2` — usage/precondition error (malformed week, missing path, bad content-dir, campaign collision, any B-A3 CSV rejection)
+Metadata suppression requirements are explicit and mechanically checkable:
+- CreationDate/ModDate suppressed (no `time.gmtime()` per-run values leaked)
+- Producer pinned to a fixed string (independent of environment beyond Pillow's embedded version comment)
+- Title pinned independent of save path (no `os.path.splitext(basename(filename))` derivation)
+- No `/ID` array in trailer (verified for Pillow 11.3.0)
 
-**Rejection criteria (B-A3):**
-1. Unparseable / unterminated CSV
-2. No header / empty file
-3. Missing required header
-4. Data row with wrong column count (catches truncated rows)
-5. Non-numeric value in numeric column
-6. Blank `utm_campaign` join column
+#### ✓ Regression Budget Transparency (Exemplary)
 
-Each rejection is exit 2 with a specific cited message naming file + row + column, and **no JSON is emitted** (this is hardened against partial output).
+§0 is the gold standard for handling conscious breaking changes:
 
-**Success criteria:**
-- Valid INGEST JSON with sorted keys (`json.dumps(..., sort_keys=True, indent=2) + "\n"`)
-- Craft rows ordered by `(campaign, channel)`
-- Flywheel entries ordered by campaign (lexicographic)
-- Absences by `(kind, detail)`
-- Determinism: byte-identical JSON on identical inputs (testable via shasum in §8)
+> "Sprint 003 shipped **two** tests named `test_no_pdf_key_this_sprint` ... each asserting `assertNotIn("pdf", manifest)`. Emitting the PDF this sprint **legitimately flips both** — a v2 manifest now MUST carry `pdf: "carousel.pdf"`. Under the hard regression budget these two tests are **consciously re-pointed** to assert the **positive** invariant (`manifest["pdf"] == "carousel.pdf"` on a format-slide asset) **and** the preserved negative invariant (a `schema_version "1"` manifest — hyd/tgrera — still has **no** `pdf` key). This is a conscious extension (the "v1 manifests carry no pdf key" guarantee is preserved and re-proven; only the too-early "v2 has no pdf key" assertion moves to its correct post-Sprint-004 value), **never a silent deletion**. No other existing assertion is weakened."
 
-### 3. Edge Cases Explicitly Named & Handled
+This is clear because it:
+- Names the exact tests (test_no_pdf_key_this_sprint)
+- Names exact line numbers (`:84` batch-A, `:454` batch-B)
+- Distinguishes "flip" (conscious change) from "deletion" (silent regression)
+- Preserves the v1 guarantee ("v1 manifests carry no pdf key" is re-proven)
+- States the scope ("No other existing assertion is weakened")
 
-**Blank vs zero numeric cell (§3.1 "Numeric typing crux"):**
-- Blank cell (`""` after strip) in numeric column → absent (`None`), not corrupt, not zero → exit 0
-- Non-blank unparseable value (`abc`, `12x`) → corrupt → exit 2
-- `0` or `0.0` → present value (0), distinct from absent (`None`)
+#### ✓ Error and State Handling (Complete)
 
-The contract provides TWO separate fixtures for this (§9): `blank-cell` → cell is `null`, `zero-cell` → cell is `0`.
+§4 covers all cases:
+- Missing asset folder → FileNotFoundError, exit 1, nothing written
+- Success (v2) → PNGs + manifest (with `pdf` key) + carousel.pdf, exit 0
+- Success (v1) → PNGs + manifest (no `pdf` key), no carousel.pdf, exit 0
+- Invalid formats.md (e.g., ≥11 slides) → ValueError, exit 1, **no partial write** (R19 atomicity)
+- validate.py on v2 asset (now carrying `pdf` key) → exit 2 cited, no traceback (schema already tolerates it)
 
-**Empty state:**
-- No `--<source>` flags → valid all-absent INGEST, one absence per not-provided source, exit 0
-- Present CSV with header + zero data rows → exit 0 (distinct from corrupt)
+Atomicity is explicitly required (§1.4): "The PDF is built in memory (or written) only **after** `render_asset` succeeds; any parse/layout error still raises **before** any file ... is written." Adversarial matrix row 15 tests this.
 
-**Absent source vs bad path (§3.4 step 3, §4 "Absent source vs bad path"):**
-- Omit `--youtube` → recorded missing, exit 0
-- `--youtube /no/such.csv` → exit 2 ("file not found")
-Two distinct states.
+#### ✓ Verification Commands (10 Blocks, Copy-Paste Ready)
 
-**Unmatched campaign (B-A2, §4, §9 probe 7):**
-- CSV `utm_campaign` matching no content asset → craft/flywheel entry retained with `slug=null`, `hook_number=null`, `unmatched-campaign` absence recorded, exit 0 (a flag, not a rejection)
+§7 provides commands a–j with explicit expected outputs:
+- (a) Baseline: render `Ran 252 … OK`, loop `Ran 254 … OK`
+- (b) Cross-process byte-determinism: `cmp /tmp/s4a/*/render/carousel.pdf /tmp/s4b/*/render/carousel.pdf` → identical
+- (c) Page-count and manifest key: `assert m.get("pdf")=="carousel.pdf"`, `assert pages == len(fs)`
+- (d) Multi-page proof: `n_frames == 3` for fmt-multi
+- (e) No per-run metadata: `assert b"CreationDate" not in b`, `assert b"ModDate" not in b`, `assert b"/ID" not in b`
+- (f) v1 freeze: hyd/tgrera emit no PDF, byte-identical re-render, `git status --porcelain content/` empty
+- (g) validate.py on v2 asset: exit 2, cited, no traceback
+- (h) Atomicity: 11-slide formats.md fails, no `render/` dir
+- (i) Full suites: render `Ran N>252 … OK`, loop `Ran 254 … OK`
+- (j) No-network import
 
-**Wrong-UTM asset (B-A11, §4, §9 probe 9):**
-- Asset whose `meta.md` UTM link is scheme-invalid → `utm_valid=false`, `utm_violations` recorded in assets[], `wrong-utm` absence entry, exit 0 (flagged, not rejected)
+#### ✓ Adversarial Matrix (20 Rows, Non-Overlapping)
 
-### 4. Testability & Fixtures (Comprehensive, Adversarial)
+§8 provides exhaustive, isolable attacks. Each row tests a single behavior:
+- Rows 1–4: PDF existence, page count, page order
+- Rows 5–9: Byte-determinism, metadata suppression, producer comment
+- Rows 10–13: Manifest keys (v2 present, v1 absent), v1 freeze
+- Rows 14–16: validate.py tolerance, atomicity, mixed-asset rule
+- Rows 17–20: Test re-pointing, suite counts, no-network, no new deps
 
-**Verification commands (§8):** Exact CLI invocations provided for:
-- Unit tests
-- Full happy path (4 sources → exit 0, INGEST with craft rows, flywheel, 3 WRR components)
-- Empty state (no sources → all-absent INGEST)
-- Partial run (IG only → mix of present + null)
-- Determinism (run twice → shasum byte-identical)
-- B-A3 rejections (truncated, wrong-header, wrong-colcount, non-numeric, each exit 2, no JSON)
-- Absent source vs bad path
-- Bad `--week`
-- Import safety
-- Wall-clock / network grep check
+No row depends on another; each is independently testable.
 
-**Fixture matrix (§9):** 12 new fixtures with explicit expected outcomes:
-1. `full/` — 4 well-formed CSVs + content with ≥2 assets → exit 0, craft joined, flywheel grouped, 3 WRR components present
-2. `full` present-but-header-only → exit 0, source present, values absent
-3. `truncated/site.csv` — cut mid-row → exit 2, cited, no JSON
-4. `wrong-header/site.csv` — missing header → exit 2, named
-5. `wrong-colcount/ig.csv` — extra/missing field in data row → exit 2, row/col cited
-6. `non-numeric/ig.csv` — `shares` cell `x` → exit 2, row+column cited
-7. `blank-cell/ig.csv` — `clicks` cell `""` → exit 0, cell is `null`
-8. `zero-cell/ig.csv` — `clicks` cell `0` → exit 0, cell is `0`
-9. `unmatched/ig.csv` — campaign with no matching asset → exit 0, `slug=null`, absence
-10. `wrong-utm/content/` — invalid UTM link → exit 0, `utm_valid=false`, absence
-11. `blank-join/site.csv` — blank `utm_campaign` → exit 2, cited
-12. `empty` (no flags) → exit 0, all-absent INGEST, one absence per source
+#### ✓ Scope Boundaries and Risk Awareness
 
-**Adversarial probes (§9, 12 specific attack vectors):**
-1. Full happy path — assert INGEST has schema_version, correct sources_provided, craft rows with RIGHT slug/hook per join, flywheel grouped, WRR components present with expected sums
-2. Determinism — run twice, shasum byte-identical, stable ordering
-3. B-A3 corruption suite — each exit 2, cited message, empty stdout, no `--out` file written
-4. B-A4 blank-vs-zero — blank → `null`, zero → `0`, never conflated
-5. Absent source vs bad path — omit → exit 0, flag with bad path → exit 2
-6. Partial + empty → IG-only → exit 0 mix; no-source → exit 0 all-absent
-7. Join correctness — slug + hook resolved from meta.md; unmatched → `slug=null`
-8. **WRR component presence** — all three present when site provided; blank one column → that component `present:false`, others still present (value-level edge for Sprint-005 B-A5); **confirm Sprint 004 does NOT emit summed WRR anywhere**
-9. Wrong-UTM flagging — `utm_valid=false`, exact violations codes, `wrong-utm` absence, exit 0
-10. Bad `--week` — exit 2, no JSON
-11. Import safety + no wall-clock/network — import prints nothing; grep clean
-12. Frozen modules untouched — diff shows no changes; full Sprint-001+002+003 suite still passes
+Explicitly stated:
+- "R16 byte-equality is a **same-environment, same-Pillow-version** guarantee. ... cross-machine PDF byte-equality is out of scope and not claimed." (§0)
+- "Pillow writes a fixed comment `created by Pillow <version> PDF driver` into every PDF; that version string is environment-pinned, not a cross-machine promise." (§0)
+- Disclosed risks in definition of done (§10): "env-pinned Pillow producer comment; Title pinned independent of save path; mixed-asset page-set rule"
 
-### 5. Security & Constraints (Verifiable)
+#### ✓ Non-Goals (Explicit, 9 items)
 
-**Stdlib only:** `csv`, `json`, `argparse`, `pathlib`, `re` (§9 Technical Constraints).
+§9 lists what this sprint does NOT do:
+- No V13-V19 QA wiring
+- No measure.py change
+- No validate.py change
+- No acceptance.py change
+- No new dependency
+- No PDF for v1 assets
+- No cross-machine byte-equality
+- No 360px thumbnail / contrast gating
+- No re-layout of PDF pages
 
-**No datetime:** `--week` is validated as a string, never parsed against wall-clock or "now".
+#### ✓ New Fixture Under Version Control
 
-**No network:** Grep check in §8 commands: `grep -nE "datetime\.now|requests|urlopen|socket|urllib" tools/marketing-loops/{csvspec,assetmap,ingest}.py || echo "clean"`.
+§2 specifies: `tools/marketing-render/tests/inputs/fmt-multi/formats.md` — a new 3-slide renderer-input fixture (under `tests/inputs/`, not `fixtures/`, so it doesn't affect `acceptance.py`'s 12-fixture set). Used to prove page-count > 1. Illustrative/public copy, no TERREM DB numbers. PNG/PDF not committed (rendered to temp dir in tests).
 
-**No pmp-gywd dependency:** Explicitly forbidden (spec §7 anti-patterns, contract §6 Security).
+#### ✓ Definition of Done (9 Measurable Criteria)
 
-**CSV inputs untrusted:** Robust parsing required; every malformation is cited, never silently converted.
+§10 provides Evaluator-verifiable conditions:
+1. v2 asset emits carousel.pdf with correct page-count/order + manifest `pdf` key
+2. PDF byte-identical cross-process + no per-run metadata
+3. fmt-multi 3 slides → 3 pages
+4. v1 freeze: hyd/tgrera emit no PDF, byte-identical re-render
+5. Atomicity: 11-slide fails with no render/ dir
+6. validate.py tolerates pdf key without edit
+7. Conscious regression: two re-pointed tests
+8. Test suite counts (render >252, loop 254), no new deps, no-network import
+9. generator_trace.log records evidence path and risks
 
-### 6. Schemas Are Concrete (Not Prose)
-
-**INGEST schema (§3.5):** A complete JSON example with explanation of each field:
-```json
-{
-  "schema_version": "1",
-  "week": "YYYY-Www",
-  "sources_provided": { "instagram": false, "youtube": false, ... },
-  "assets": [ { "slug", "campaign", "hook_number", "utm_valid", "utm_violations" } ],
-  "wrr_components": {
-    "returning_viewers": { "present": false, "value": null, "source": "site" },
-    ...
-  },
-  "flywheel_clicks_by_campaign": [ { "campaign", "clicks" } ],
-  "craft": [ { "campaign", "channel", "slug", "hook_number", ... } ],
-  "absences": [ { "kind": "source|wrr-component|unmatched-campaign|wrong-utm", "detail" } ]
-}
-```
-
-**CSV contracts (§3.1):** Declared as data structures with required headers, types, and feed destinations — not prose.
-
-**Numeric typing rule (§3.1 crux):** Explicit regex and examples.
-
-### 7. No Vague Language
-
-- "Must", "is", "does", "rejected" throughout
-- No "should", "might", "maybe"
-- Regex patterns explicit: `\d{4}-W\d{2}$`, `QA:\s*\*{0,2}KILLED`
-- Numeric edge cases pinned with examples
-- "Blank" vs "absent" vs "present" vs "corrupt" are distinct concepts, each with exact behavior
-
-### 8. Determinism (Testable, Not Gameable)
-
-**Requirement (§3.4):** "Same inputs → byte-identical INGEST JSON. Sorted keys; craft entries ordered by `(campaign, channel)`; flywheel entries by `campaign` (lexicographic); assets by `slug`; absences by `(kind, detail)`. No `datetime.now()` anywhere."
-
-**Verification (§8):** Shasum command:
-```bash
-python3 tools/marketing-loops/ingest.py ... | shasum
-python3 tools/marketing-loops/ingest.py ... | shasum
-# Both shasums must match
-```
-
-### 9. Assumptions Documented (Spec §10 "Risks and Ambiguities")
-
-**A-5 (CSV contracts are authored internal):** Explicitly acknowledged. Fixtures conform. This prevents claiming "we used the real platform format."
-
-**A-6 (WRR components in site-analytics):** Justified: "Housing its three component columns in the one week/site-level export keeps WRR single-source (no 'which platform sources were provided' ambiguity)."
-
-**Over-fitting risk:** "Only one PASS asset and one KILLED asset exist... Build fixtures for the rest; do not hard-code the single real slug into tool logic." The fixture matrix (§9) requires building fixture assets, not using the real one.
-
-### 10. Not Gameable
-
-**Frozen utm module import:** The join-key logic and campaign-stripping cannot be reimplemented; it must call `utm.campaign_from_slug(slug)` and `utm.validate_asset(asset_dir)` from Sprint-001. Any hardcoding of the campaign key would fail on the custom fixtures (unmatched, wrong-utm, etc.).
-
-**Fixture matrix covers the attack surface:** Each fixture has a specific expected outcome. A generator cannot hardcode outputs because the fixtures span real asset data (tgrera style), custom test assets, and edge cases (truncated, wrong-header, blank join, etc.).
-
-**Grep check catches network/datetime cheating:** §8 grep commands verify no `datetime.now()`, `requests`, `urlopen`, `socket`, or network `urllib`. A generator cannot add a hidden date or network call.
-
-**Exit-code verification:** Every fixture has a specific exit code expectation. Faking success on corruption (emitting partial JSON + exit 0) would be caught by §9 probe 3 ("no partial JSON on corrupt input").
-
-**Determinism test:** shasum forces byte-identical output. Non-deterministic generation (e.g., random ordering, timestamp in JSON) would fail.
+---
 
 ## Conclusion
 
-This is a contract written at the standard of production infrastructure code. The generator has no wiggle room and the evaluator has no ambiguity to exploit. Every behavior is testable, every edge case is named, and every assumption is documented.
+This contract is **exceptionally well-written**. Every requirement is specific and testable. The evidence standard (cross-process on-disk `cmp`, not BytesIO round-trip) prevents the most common fake-determinism shortcut. The regression-budget transparency (named line numbers, preserved v1 guarantees, explicit "extension not deletion") sets a high bar for handling breaking changes in frozen test suites.
 
-**ACCEPT — No changes required.**
+**No ambiguity. No gaps. No gameable claims.**

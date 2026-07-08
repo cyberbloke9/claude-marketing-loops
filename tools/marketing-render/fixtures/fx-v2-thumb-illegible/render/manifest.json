@@ -1,0 +1,90 @@
+{
+  "pdf": "carousel.pdf",
+  "schema_version": "2",
+  "slug": "fx-v2-thumb-illegible",
+  "surfaces": [
+    {
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            90,
+            186,
+            420,
+            34
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 48,
+          "role": "headline",
+          "text": "Three builders, nine days",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            383,
+            334,
+            75
+          ],
+          "bg": "#faf8f3",
+          "color": "#0f766e",
+          "font_px": 100,
+          "role": "dominant",
+          "text": "14.95L",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            627,
+            393,
+            24
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "R Homes ordered to refund",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            907,
+            808,
+            30
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 30,
+          "role": "so-what",
+          "text": "Check the RERA number before you pay - intel.terrem.in",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            840,
+            1257,
+            107,
+            19
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 26,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "format": "BIG-NUMBER",
+      "has_axis": false,
+      "id": "format-01",
+      "png": "format-01.png",
+      "role": "format-slide"
+    }
+  ]
+}

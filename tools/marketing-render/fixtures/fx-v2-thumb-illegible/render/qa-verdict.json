@@ -1,0 +1,531 @@
+{
+  "schema_version": "1",
+  "slug": "fx-v2-thumb-illegible",
+  "verdict": "FAIL",
+  "checked_on": "2026-07-04",
+  "checked_by": "validator-cli",
+  "checks": [
+    {
+      "id": "V2-canvas",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "1080x1350 matches format",
+      "rule": "qa-checklist.md §Layout"
+    },
+    {
+      "id": "V3-ink",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "3656 ink px >= 50",
+      "rule": "spec §5.2 V3",
+      "element_bbox": [
+        90,
+        186,
+        420,
+        34
+      ]
+    },
+    {
+      "id": "V4-contrast",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "ratio 16.48:1 >= 3.0:1 (large)",
+      "rule": "brand-kit.md §3",
+      "element_bbox": [
+        90,
+        186,
+        420,
+        34
+      ]
+    },
+    {
+      "id": "V5-floor",
+      "surface": "format-01",
+      "status": "skipped",
+      "detail": "format-slide floor owned by V14 (v2)",
+      "rule": "qa-checklist.md §Typography",
+      "element_bbox": [
+        90,
+        186,
+        420,
+        34
+      ]
+    },
+    {
+      "id": "V14-type-floor",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "font_px 48 >= 48",
+      "rule": "qa-checklist.md §Typography",
+      "element_bbox": [
+        90,
+        186,
+        420,
+        34
+      ]
+    },
+    {
+      "id": "V5-crosscheck",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "declared 48px vs measured ~39.8px (band 33px) within +/-25%",
+      "rule": "spec §5.2 V5",
+      "element_bbox": [
+        90,
+        186,
+        420,
+        34
+      ]
+    },
+    {
+      "id": "V6-safezone",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "within safe zone",
+      "rule": "qa-checklist.md §Layout",
+      "element_bbox": [
+        90,
+        186,
+        420,
+        34
+      ]
+    },
+    {
+      "id": "V3-ink",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "9612 ink px >= 50",
+      "rule": "spec §5.2 V3",
+      "element_bbox": [
+        90,
+        383,
+        334,
+        75
+      ]
+    },
+    {
+      "id": "V4-contrast",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "ratio 5.16:1 >= 3.0:1 (large)",
+      "rule": "brand-kit.md §3",
+      "element_bbox": [
+        90,
+        383,
+        334,
+        75
+      ]
+    },
+    {
+      "id": "V5-floor",
+      "surface": "format-01",
+      "status": "skipped",
+      "detail": "format-slide floor owned by V14 (v2)",
+      "rule": "qa-checklist.md §Typography",
+      "element_bbox": [
+        90,
+        383,
+        334,
+        75
+      ]
+    },
+    {
+      "id": "V14-type-floor",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "font_px 100 >= 48",
+      "rule": "qa-checklist.md §Typography",
+      "element_bbox": [
+        90,
+        383,
+        334,
+        75
+      ]
+    },
+    {
+      "id": "V5-crosscheck",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "declared 100px vs measured ~89.2px (band 74px) within +/-25%",
+      "rule": "spec §5.2 V5",
+      "element_bbox": [
+        90,
+        383,
+        334,
+        75
+      ]
+    },
+    {
+      "id": "V6-safezone",
+      "surface": "format-01",
+      "status": "skipped",
+      "detail": "role 'dominant' exempt from safe zone",
+      "rule": "qa-checklist.md §Layout",
+      "element_bbox": [
+        90,
+        383,
+        334,
+        75
+      ]
+    },
+    {
+      "id": "V3-ink",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "2144 ink px >= 50",
+      "rule": "spec §5.2 V3",
+      "element_bbox": [
+        90,
+        627,
+        393,
+        24
+      ]
+    },
+    {
+      "id": "V4-contrast",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "ratio 7.19:1 >= 3.0:1 (large)",
+      "rule": "brand-kit.md §3",
+      "element_bbox": [
+        90,
+        627,
+        393,
+        24
+      ]
+    },
+    {
+      "id": "V5-floor",
+      "surface": "format-01",
+      "status": "skipped",
+      "detail": "format-slide floor owned by V14 (v2)",
+      "rule": "qa-checklist.md §Typography",
+      "element_bbox": [
+        90,
+        627,
+        393,
+        24
+      ]
+    },
+    {
+      "id": "V14-type-floor",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "font_px 30 >= 26",
+      "rule": "qa-checklist.md §Typography",
+      "element_bbox": [
+        90,
+        627,
+        393,
+        24
+      ]
+    },
+    {
+      "id": "V5-crosscheck",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "declared 30px vs measured ~27.7px (band 23px) within +/-25%",
+      "rule": "spec §5.2 V5",
+      "element_bbox": [
+        90,
+        627,
+        393,
+        24
+      ]
+    },
+    {
+      "id": "V6-safezone",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "within safe zone",
+      "rule": "qa-checklist.md §Layout",
+      "element_bbox": [
+        90,
+        627,
+        393,
+        24
+      ]
+    },
+    {
+      "id": "V3-ink",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "4182 ink px >= 50",
+      "rule": "spec §5.2 V3",
+      "element_bbox": [
+        90,
+        907,
+        808,
+        30
+      ]
+    },
+    {
+      "id": "V4-contrast",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "ratio 16.48:1 >= 3.0:1 (large)",
+      "rule": "brand-kit.md §3",
+      "element_bbox": [
+        90,
+        907,
+        808,
+        30
+      ]
+    },
+    {
+      "id": "V5-floor",
+      "surface": "format-01",
+      "status": "skipped",
+      "detail": "format-slide floor owned by V14 (v2)",
+      "rule": "qa-checklist.md §Typography",
+      "element_bbox": [
+        90,
+        907,
+        808,
+        30
+      ]
+    },
+    {
+      "id": "V14-type-floor",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "font_px 30 >= 26",
+      "rule": "qa-checklist.md §Typography",
+      "element_bbox": [
+        90,
+        907,
+        808,
+        30
+      ]
+    },
+    {
+      "id": "V5-crosscheck",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "declared 30px vs measured ~33.7px (band 28px) within +/-25%",
+      "rule": "spec §5.2 V5",
+      "element_bbox": [
+        90,
+        907,
+        808,
+        30
+      ]
+    },
+    {
+      "id": "V6-safezone",
+      "surface": "format-01",
+      "status": "skipped",
+      "detail": "role 'so-what' exempt from safe zone",
+      "rule": "qa-checklist.md §Layout",
+      "element_bbox": [
+        90,
+        907,
+        808,
+        30
+      ]
+    },
+    {
+      "id": "V3-ink",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "879 ink px >= 50",
+      "rule": "spec §5.2 V3",
+      "element_bbox": [
+        840,
+        1257,
+        107,
+        19
+      ]
+    },
+    {
+      "id": "V4-contrast",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "ratio 11.36:1 >= 3.0:1 (large)",
+      "rule": "brand-kit.md §3",
+      "element_bbox": [
+        840,
+        1257,
+        107,
+        19
+      ]
+    },
+    {
+      "id": "V5-floor",
+      "surface": "format-01",
+      "status": "skipped",
+      "detail": "format-slide floor owned by V14 (v2)",
+      "rule": "qa-checklist.md §Typography",
+      "element_bbox": [
+        840,
+        1257,
+        107,
+        19
+      ]
+    },
+    {
+      "id": "V14-type-floor",
+      "surface": "format-01",
+      "status": "skipped",
+      "detail": "role 'wordmark' exempt from v2 type floor",
+      "rule": "qa-checklist.md §Typography",
+      "element_bbox": [
+        840,
+        1257,
+        107,
+        19
+      ]
+    },
+    {
+      "id": "V5-crosscheck",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "declared 26px vs measured ~22.9px (band 19px) within +/-25%",
+      "rule": "spec §5.2 V5",
+      "element_bbox": [
+        840,
+        1257,
+        107,
+        19
+      ]
+    },
+    {
+      "id": "V6-safezone",
+      "surface": "format-01",
+      "status": "skipped",
+      "detail": "role 'wordmark' exempt from safe zone",
+      "rule": "qa-checklist.md §Layout",
+      "element_bbox": [
+        840,
+        1257,
+        107,
+        19
+      ]
+    },
+    {
+      "id": "V13-dominant-ratio",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "dominant 100px / body_reference 30px = 3.333 >= 3",
+      "rule": "PIPELINE-V2.md §4"
+    },
+    {
+      "id": "V14-wordmark",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "exactly one wordmark",
+      "rule": "qa-checklist.md §Typography"
+    },
+    {
+      "id": "V15-thumbnail",
+      "surface": "format-01",
+      "status": "FAIL",
+      "detail": "headline 360px band 10px < 13 (thumbnail-illegible)",
+      "rule": "PIPELINE-V2.md §4",
+      "element_bbox": [
+        90,
+        186,
+        420,
+        34
+      ]
+    },
+    {
+      "id": "V15-thumbnail",
+      "surface": "format-01",
+      "status": "PASS",
+      "detail": "dominant 360px band 24px >= 21",
+      "rule": "PIPELINE-V2.md §4",
+      "element_bbox": [
+        90,
+        383,
+        334,
+        75
+      ]
+    },
+    {
+      "id": "V8-source-stamp",
+      "surface": "format-01",
+      "status": "skipped",
+      "detail": "not a chart-card or carousel source slide",
+      "rule": "qa-checklist.md §Chart integrity"
+    },
+    {
+      "id": "V10-chart-integrity",
+      "surface": "format-01",
+      "status": "skipped",
+      "detail": "no plotted axis (has_axis=false) — N/A",
+      "rule": "qa-checklist.md §Chart integrity"
+    },
+    {
+      "id": "V7-hook-words",
+      "surface": "asset",
+      "status": "skipped",
+      "detail": "no hook element (no carousel slide-1) — N/A",
+      "rule": "qa-checklist.md §Carousel"
+    },
+    {
+      "id": "V9-blacklist",
+      "surface": "asset",
+      "status": "PASS",
+      "detail": "no blacklisted stats (5 phrases scanned)",
+      "rule": "brand-kit.md §8"
+    },
+    {
+      "id": "V11-provenance",
+      "surface": "asset",
+      "status": "PASS",
+      "detail": "attestation block present with sources/terrem_db_numbers/as_of",
+      "rule": "qa-checklist.md §Data provenance"
+    },
+    {
+      "id": "V16-so-what",
+      "surface": "asset",
+      "status": "PASS",
+      "detail": "so-what utility element present",
+      "rule": "PIPELINE-V2.md §4"
+    },
+    {
+      "id": "V17-cover-pattern",
+      "surface": "asset",
+      "status": "PASS",
+      "detail": "cover-pattern 'BIG-NUMBER' valid",
+      "rule": "PIPELINE-V2.md §4"
+    },
+    {
+      "id": "V18-slide-count",
+      "surface": "asset",
+      "status": "PASS",
+      "detail": "1 format-slides <= 10",
+      "rule": "PIPELINE-V2.md §4"
+    },
+    {
+      "id": "V19-one-dataset",
+      "surface": "asset",
+      "status": "PASS",
+      "detail": "one_dataset attestation present",
+      "rule": "PIPELINE-V2.md §4"
+    }
+  ],
+  "failed_checks": [
+    {
+      "id": "V15-thumbnail",
+      "surface": "format-01",
+      "detail": "headline 360px band 10px < 13 (thumbnail-illegible)",
+      "rule": "PIPELINE-V2.md §4"
+    }
+  ],
+  "needs_review": [
+    {
+      "prompt": "Every published number traced to REAL source rows (source column checked; synthetic/`calibrated_*` rows excluded)",
+      "rule": "qa-checklist.md §Data provenance"
+    },
+    {
+      "prompt": "Localities/entities cited have `data_coverage='sufficient'` (≥30 real rows) in the Path A sense",
+      "rule": "qa-checklist.md §Data provenance"
+    },
+    {
+      "prompt": "Attribution names the actual source class (registry / listings / index-model) — never call modeled data \"transactions\"",
+      "rule": "qa-checklist.md §Data provenance"
+    }
+  ]
+}

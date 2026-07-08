@@ -23,14 +23,24 @@ NAMED_FIXTURES = {
     "fx-blank-png", "fx-good-min", "fx-size-lie", "fx-small-headline",
     "fx-out-of-safezone", "fx-blacklist", "fx-no-provenance", "fx-canvas-mismatch",
 }
+# Sprint 005 (run 003): the 9 v2 format-slide rows (contract §6.2). CONSCIOUS
+# EXTENSION — the table grew from 12 to 21 rows; no v1 row was removed or edited.
+NAMED_V2_FIXTURES = {
+    "fx-v2-good", "fx-v2-dominant-small", "fx-v2-body-24", "fx-v2-no-wordmark",
+    "fx-v2-thumb-illegible", "fx-v2-no-so-what", "fx-v2-bad-cover",
+    "fx-v2-no-dataset", "fx-v2-11-slides",
+}
+ALL_NAMED_FIXTURES = NAMED_FIXTURES | NAMED_V2_FIXTURES
 
 
 class TestExpectationTable(unittest.TestCase):
-    def test_table_has_exactly_the_twelve_named_rows(self):
+    def test_table_has_exactly_the_named_rows(self):
         names = [r["fixture"] for r in A.EXPECTATIONS]
-        self.assertEqual(len(names), 12)
-        self.assertEqual(set(names), NAMED_FIXTURES)
+        self.assertEqual(len(names), 21)  # 12 v1 + 9 v2 (conscious extension)
+        self.assertEqual(set(names), ALL_NAMED_FIXTURES)
         self.assertEqual(len(names), len(set(names)), "no duplicate fixture rows")
+        # The 12 frozen v1 rows are still all present (nothing weakened/removed).
+        self.assertTrue(NAMED_FIXTURES <= set(names))
 
     def test_good_min_is_the_positive_control(self):
         good = next(r for r in A.EXPECTATIONS if r["fixture"] == "fx-good-min")

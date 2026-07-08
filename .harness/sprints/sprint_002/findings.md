@@ -1,120 +1,102 @@
 VERDICT: PASS
-SCORE: 4.7
+SCORE: 4.9
 BLOCKERS: 0
 HIGH: 0
 
-# Findings — Sprint 002: Publish gate + QUEUE schema + idempotent enqueue
+# Sprint 002 Findings — Format Templates Batch A (BIG-NUMBER, RECEIPTS, CHECKLIST) + manifest v2
 
-Non-UI CLI/library deliverable. Verification is exact CLI invocations, exit codes,
-stderr/stdout substrings, and on-disk JSON assertions (no Playwright). The
-Evaluator independently reproduced every contract behavior against the live CLI.
+Mode: EVALUATE. Sprint 002. Verdict: **PASS**. No blockers, no high findings.
+CLI/raster sprint — Playwright N/A. Attacked by rendering real PNGs, measuring
+pixels/canvas, hashing decoded-RGBA bytes, feeding violating `formats.md` fixtures,
+running both unittest suites, and visually inspecting the rendered slides.
 
-## Result summary
+## Evidence Ledger (reproduced, not claimed)
 
-All ten §9 adversarial probes and all ten §9 fixture-table rows reproduce the
-contract's pinned behavior exactly. 95 unit tests pass (35 Sprint-001 + 60
-Sprint-002; 60 test methods across the four Sprint-002 test files). No Blocker,
-High, Medium, or Low findings affecting the sprint's Definition of Done.
+| Check | Result |
+|---|---|
+| Render fmt-big-number / fmt-receipts / fmt-checklist | PNG 1080x1350; role=format-slide; correct format tag; has_axis:false; schema_version="2" — PASS |
+| V13 dominant ratio (measure.dominant_ratio_ok on emitted manifest) | BIG-NUMBER 132/26=5.08 (no-body fallback), RECEIPTS/CHECKLIST 132/30=4.40; exactly 1 dominant — PASS |
+| V14 raised floors (measure.format_slide_type_min per non-wordmark element) | headline 52, body/so-what 30, source 26 clear floors — PASS |
+| Exactly 1 wordmark per format-slide (R13) | 1 each — PASS |
+| Color/bg tokens in §9 nine-token set + full schema field completeness | all in set, all fields present — PASS |
+| Determinism (R18): re-render same asset folder | decoded-RGBA and raw PNG bytes identical; manifest byte-identical — PASS (see F-001 note) |
+| F-001 exit-2 guard: validate.py <v2-asset> | exit 2, cited "format-slide … V13-V19 … [PIPELINE-V2.md §4]", no traceback, nothing written — PASS |
+| Fail-loud: 0 dominant / 2 dominant / 0 wordmark | ValueError, exit 1, no render/ written — PASS |
+| Fail-loud: RECEIPTS 1-chip / 5-chip; CHECKLIST 1-step | ValueError naming [2,4] / min>=2, no partial write — PASS |
+| Fail-loud: 11-slide carousel (R14) | ValueError "cap is 10 (R14…)", no write — PASS |
+| Fail-loud: unsupported tag TIMELINE / unparseable line | ValueError naming slide+tag / slide+line — PASS |
+| Atomicity: valid slides 1-2 then broken slide 3 | ValueError, nothing written (in-memory build, atomic emit) — PASS |
+| v1 freeze: re-render hyd + tgrera | schema_version "1", git status content/ clean (byte-identical) — PASS |
+| v1 guard-silence: validate.py fixtures/fx-good-min | VERDICT: PASS, exit 0 — guard does not fire — PASS |
+| Render suite | Ran 219 … OK (baseline 182; +37, none weakened) — PASS |
+| Loop suite | Ran 254 … OK (unaffected) — PASS |
+| No-network import of render/validate/measure | import-ok — PASS |
+| Additivity: git diff render.py / validate.py | deletions confined to render_asset docstring/body (explicitly extended per contract §2) + schema-version conditional + widened schema frozensets; no v1 style constant or v1 parse/render function edited — PASS |
 
-## Evidence (independently reproduced by the Evaluator)
+## Visual inspection (raster craft)
 
-- Unit tests: `python3 -m unittest discover -s tools/marketing-loops/tests` ->
-  Ran 95 tests ... OK.
-- Probe 1 (real tgrera): exit 0; exactly 3 rows {instagram, linkedin, youtube},
-  every row state=queued, schedule_slot/package_path/posted_date/permalink all
-  null, schema_version "1", keys sorted, rows sorted by (slug, channel).
-- Probe 2 (idempotency): re-run -> shasum byte-identical (a4b3e09b... twice).
-- Probe 3 (no-regress): pre-seeded posted (tgrera, instagram) row with
-  posted_date/permalink survives re-enqueue unchanged (state=posted, 2026-07-01,
-  https://instagram.com/p/abc); action "kept-posted"; other two channels added as
-  queued; 3 rows total.
-- Probe 4 (real hyd refusal): exit 1; stderr cites [missing-verdict] then [killed]
-  in order; the fresh --queue target file was NOT created (asserted absent).
-- Probe 8 (cross-order determinism): two assets enqueued in opposite order into
-  two queues -> byte-identical files (163668b2... both).
-- Probe 10 (no network / no wall-clock): gate.py, queue.py, channels.py,
-  enqueue.py grep-clean for datetime, requests, urlopen, socket, urllib. The only
-  urllib hit in the package is urllib.parse in read-only Sprint-001 utm.py (pure
-  query-string parsing, no network).
-- Fixture table: missing-verdict->[missing-verdict] exit1; unparseable-verdict->
-  [missing-verdict] exit1; verdict-fail->[verdict-not-pass] exit1;
-  failed-checks-nonempty->[failed-checks-nonempty] exit1 (fixture has
-  verdict "PASS" + one real FAIL entry, proving BOTH halves of FAIL-free PASS are
-  enforced); killed->[killed] exit1; missing-verdict-and-killed->
-  [missing-verdict, killed] in order exit1; unmapped-channel (Twitter)->exit2;
-  no-channel (Channels: only format words)->exit2; pass-one-channel->exit0 (1 row);
-  pass-three-channels->exit0 (3 rows). Every refusal/usage case wrote nothing.
-- Usage errors: nonexistent asset -> exit2; malformed --week 2026-Q3 -> exit2;
-  both stderr-only, no write.
-- Import safety: import gate, queue, channels prints nothing;
-  queue.SCHEMA_VERSION == "1"; channel set is the imported Sprint-001
-  CHANNEL_SOURCE_MAP keys {instagram, linkedin, youtube} -- no forked copy.
-- Default-path hygiene: content/publish-queue.json absent after all probes.
+Read all three rendered PNGs directly:
+- BIG-NUMBER — ink context headline, single accent dominant ₹14.95L doing the hook, muted so-what line, TERREM accent-deep wordmark bottom-right. One accent, clean hierarchy.
+- RECEIPTS — ink eyebrow, accent dominant SALES FROZEN, three bordered white chips, wordmark. Verified RECEIPTS manifest has exactly 6 elements (1 dominant + 1 headline + 3 body-chips + 1 wordmark), zero empty-text rows — chip borders are decorative primitives (--border/--surface), NOT phantom manifest elements (contract row 2 / §1.4). Correct grammar.
+- CHECKLIST — accent dominant index numeral 3, ink context, three muted numbered steps, so-what link, wordmark.
 
-## Non-blocking observations (recorded, not findings -- no fix required)
+No AI slop, no Lorem/placeholder copy, no generic defaults. Copy is domain-specific
+(RERA numbers, TERREM, Hyderabad builders). Brand tokens + Inter faces honored;
+one-accent discipline held on every surface.
 
-1. Check ordering vs §3.3 "Gate first" (Process, informational). enqueue.py
-   validates --week format and asset-existence (both exit-2 preconditions) before
-   running the gate. Consistent with §3.1 (asset precondition is exit 2, distinct
-   from a domain refusal) and §3.6 (malformed --week is an unconditional exit-2
-   usage error). The gate still precedes channel-parsing and any queue write.
-   Consequence: a KILLED asset with a malformed --week returns exit 2 (week), not
-   exit 1 (gate). No §9 probe combines these; the contract does not pin the
-   precondition-vs-gate order. Defensible, disclosed -- not a defect.
+---
 
-2. queue.py shadows stdlib queue (Craft, informational). Module name matches
-   stdlib queue, resolved via sys.path.insert(0, _HERE). It is the name the
-   contract suggested (§2); no code in the package uses stdlib queue, so no real
-   collision. Cosmetic risk only.
+## Contract Note CN-002 (informational, NOT a blocker, NOT a Generator code defect): contract §7(c) determinism command is mis-specified
 
-3. Connector-word strictness (Craft, informational). A hypothetical
-   "Channels: IG and LinkedIn" would surface "and" as unmapped -> exit 2, since
-   §3.5 pins the format-word set and gives no rule for arbitrary non-platform
-   tokens. This is the conservative, spec-aligned choice ("surfaced, not guessed",
-   A-7) and never silently drops a token. Real assets and all fixtures use only
-   aliases/format-words/punctuation, so this path is untriggered by real content.
+Severity: Low
+Category: Process
+Status: Informational — behavior is correct; the contract's own test command has a bug.
 
-None rise to a Low finding; each is contract-sanctioned or has zero effect on real
-assets and the Definition of Done.
+### Observation
+Contract §7(a)/(c) copies each fixture to /tmp/$f-a and /tmp/$f-b (different folder
+basenames) then asserts manifest.json bytes identical. The literal command yields an
+AssertionError — but only on the slug field, derived from folder basename
+(slug = folder.name, frozen v1 behavior). PNGs are raw-byte-identical; manifests differ
+solely by "slug": "fmt-big-number-a" vs "…-b". Confirmed across ALL THREE fixtures
+(big-number, receipts, checklist): the diff's only differing line is the slug in each.
 
-## Trace review
+### Why this is NOT a defect
+The real R18 guarantee — same asset folder rendered twice -> byte-identical output —
+holds (verified: rendered /tmp/det-test twice -> cmp identical manifest + PNG). The
+Generator's shipped test_written_outputs_byte_identical_across_runs correctly renders
+same-basename folders in different temp parents (slug identical) and passes. The manifest
+is a deterministic function of (folder basename + formats.md); copying to differently-named
+dirs changes an input, so a different slug is correct, not a determinism break. Mirrors
+frozen v1 renderer behavior.
 
-generator_trace.log is thorough and honest: it logs the exact verification
-commands, before/after shasum for idempotency, the [missing-verdict, killed]
-ordering for real hyd, the no-write-on-refusal confirmation (including the
-"not created" half against a non-existent --queue path), and pre-discloses the
-three observations above as resolved ambiguities. No skipped failures, no claims
-without artifacts, no broad rewrites after small findings.
+### Required Fix (contract hygiene only — no code change)
+A future contract asserting manifest byte-equality must render the same-basename folder
+twice (as the Generator's own test does), or exclude slug from the comparison. Do not copy
+to -a/-b basenames and expect identical slugs.
 
-## Scoring (infrastructure weighting -- Functionality + Evidence emphasized)
+### Pass Condition
+Already met: R18 same-input determinism proven by cmp-identical re-render and the
+Generator's passing byte-equality test.
 
-- Functionality: 5 -- every gate condition, exit code, idempotency, and no-regress
-  behavior works exactly as pinned.
-- Evidence/process: 5 -- every claim independently reproduced via the live CLI,
-  not just the test suite; byte-identical shasums verified.
-- Craft: 5 -- pure functions, deterministic serialization (sort_keys, indent=2,
-  single trailing newline), single-source-of-truth channel map, no import side
-  effects, untrusted-input hardening (corrupt verdict -> refusal, never a crash).
-- Design (schema/seam): 5 -- versioned QUEUE with a documented {queued, posted}
-  API seam and nullable lifecycle fields whose deferral is explicitly justified.
-- Originality: 4 -- infra sprint; the state-machine seam design is thoughtful.
+---
 
-Weighted total ~= 4.7. No blockers, no high findings, evidence >= 4,
-functionality >= 4, weighted >= 4 -> PASS.
+## Scoring
 
-## Definition of Done -- verified
+Weights (raster/infra, additive freeze-sensitive): Functionality 25%, Craft 25%,
+Design 20%, Evidence/Process 20%, Originality 10%.
 
-- gate_asset() importable, pure, four exact reason codes, terminal/independent
-  structure, no import side effects -- VERIFIED.
-- queue.py versioned schema, deterministic ordering + serialization,
-  SCHEMA_VERSION declared once -- VERIFIED.
-- channels.py alias table, dedup, format-word tolerance, unmapped-token surfacing,
-  empty->exit-2 -- VERIFIED.
-- enqueue.py gate->refuse(1)/usage(2)/enqueue(0), idempotent + no-regress,
-  deterministic JSON -- VERIFIED.
-- Fixtures for every §9 row shipped under fixtures/publish/ -- VERIFIED.
-- Unit tests prove each reason code, multi-reason order, channel parsing
-  (tgrera->3), idempotency, no-regress, three exit codes; all 95 pass -- VERIFIED.
-- Real tgrera enqueues exit 0 with 3 correct rows; real hyd refused exit 1 with
-  [missing-verdict, killed] and no write -- VERIFIED.
-- Evidence logged in generator_trace.log -- VERIFIED.
+- Functionality: 5 — every §10 DoD item and §8 matrix row reproduced; all 8 fail-loud states raise with no partial write; atomic emission holds; F-001 guard clean exit-2.
+- Craft: 5 — purely additive; v1 code byte-frozen (hyd/tgrera clean diff, fx-good-min PASS, 182->219 tests none weakened); 37 new tests.
+- Design: 5 — brand-locked formats, one accent per surface, strong dominant hierarchy, no slop.
+- Evidence/Process: 5 — trace records 182/254 baseline confirmed before code, files changed, new-test count, freeze evidence, disclosed risks. Independently reproduced.
+- Originality: 4 — domain-specific, non-generic; faithful spec execution (not a novelty sprint).
+
+Weighted total ~= 4.9. Passing bar met: 0 blockers, 0 high, evidence >=4, functionality >=4, weighted >=4.
+
+## Verdict
+PASS. Sprint 002 delivers the three batch-A format templates at 1080x1350 with a provable
+>=3x dominant, raised floors, on-card wordmark, schema-v2 manifest emission, atomic
+fail-loud invalid states, the F-001 exit-2 guard, and a byte-for-byte v1 freeze — all
+reproduced on real renders and both green test suites. The single non-passing item
+(contract §7c literal command) is a contract-test artifact, not a code defect, and does
+not gate the sprint.

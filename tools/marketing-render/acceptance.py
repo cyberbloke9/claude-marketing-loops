@@ -3,11 +3,19 @@
 
 Proves the whole gate in one deterministic, no-network run:
 
-  1. TGRERA positive end-to-end + R8 determinism proof:
-     - hash the committed chart-card.png,
-     - delete render/ and re-render via render.py,
-     - assert the re-rendered PNG is byte-identical (R8),
+  1. TGRERA positive end-to-end + determinism proof (v2 carousel baseline,
+     Sprint-006 conscious re-point — Risk 2/C). TGRERA moved from a frozen
+     1080x1920 chart-card to a 1080x1350 format-slide carousel + carousel.pdf:
+     - render the asset via render.py; assert it emits format-*.png +
+       carousel.pdf + a schema-"2" manifest whose surfaces are all
+       format-slide, and NO chart-card.png,
+     - hash each format PNG by DECODED-RGBA (R8) and carousel.pdf by raw
+       BYTES (R16),
+     - delete render/ and re-render; assert decoded-RGBA PNGs pixel-identical
+       (R8) AND carousel.pdf byte-identical (R16),
      - validate.py the asset -> exit 0, verdict PASS, no failed checks.
+     Reactive-single (chart-card) render+validate coverage is retained via the
+     frozen fx-good-min fixture, so it is not lost by this re-point.
 
   2. Every committed fixture reaches its expected verdict on the RIGHT check
      with the RIGHT rule cited (not merely "some FAIL"). The expectation table
@@ -55,6 +63,18 @@ EXPECTATIONS = [
     {"fixture": "fx-blacklist",      "expected_exit": 1, "expected_check_id": "V9-blacklist",        "expected_rule_substring": "brand-kit.md §8"},
     {"fixture": "fx-no-provenance",  "expected_exit": 1, "expected_check_id": "V11-provenance",      "expected_rule_substring": "qa-checklist.md §Data provenance"},
     {"fixture": "fx-canvas-mismatch","expected_exit": 1, "expected_check_id": "V2-canvas",           "expected_rule_substring": "qa-checklist.md §Layout"},
+    # --- Sprint 005 (run 003) v2 format-slide rows (contract s6.2). v1 rows above
+    # are byte-identical; these 9 add the QA Gate V2 coverage. Each adversarial
+    # fixture fires EXACTLY its one named check (one-fixture-one-check). ---
+    {"fixture": "fx-v2-good",          "expected_exit": 0, "expected_check_id": None,                 "expected_rule_substring": None},
+    {"fixture": "fx-v2-dominant-small","expected_exit": 1, "expected_check_id": "V13-dominant-ratio", "expected_rule_substring": "PIPELINE-V2.md §4"},
+    {"fixture": "fx-v2-body-24",       "expected_exit": 1, "expected_check_id": "V14-type-floor",     "expected_rule_substring": "qa-checklist.md §Typography"},
+    {"fixture": "fx-v2-no-wordmark",   "expected_exit": 1, "expected_check_id": "V14-wordmark",       "expected_rule_substring": "qa-checklist.md §Typography"},
+    {"fixture": "fx-v2-thumb-illegible","expected_exit": 1, "expected_check_id": "V15-thumbnail",     "expected_rule_substring": "PIPELINE-V2.md §4"},
+    {"fixture": "fx-v2-no-so-what",    "expected_exit": 1, "expected_check_id": "V16-so-what",        "expected_rule_substring": "PIPELINE-V2.md §4"},
+    {"fixture": "fx-v2-bad-cover",     "expected_exit": 1, "expected_check_id": "V17-cover-pattern",  "expected_rule_substring": "PIPELINE-V2.md §4"},
+    {"fixture": "fx-v2-no-dataset",    "expected_exit": 1, "expected_check_id": "V19-one-dataset",    "expected_rule_substring": "PIPELINE-V2.md §4"},
+    {"fixture": "fx-v2-11-slides",     "expected_exit": 1, "expected_check_id": "V18-slide-count",    "expected_rule_substring": "PIPELINE-V2.md §4"},
 ]
 
 
@@ -172,28 +192,98 @@ def _emit_validate_stdout(out, lines):
         lines.append("    | {}".format(raw))
 
 
+TGRERA_EXPECTATIONS = 4  # render-shape, PNG determinism, PDF determinism, validate
+
+
+def _decoded_rgba_sha(png_path):
+    """SHA-256 of a PNG's decoded RGBA pixels (R8 pixel-identity, not file bytes)."""
+    import hashlib
+    from PIL import Image
+    with Image.open(png_path) as img:
+        return hashlib.sha256(img.convert("RGBA").tobytes()).hexdigest()
+
+
+def _render_dir():
+    return TGRERA_DIR / "render"
+
+
+def _tgrera_baseline():
+    """Render TGRERA and return (ok, err, png_shas, pdf_sha) for the v2 carousel.
+
+    ok is False (with err set) if the render shape is wrong: a chart-card.png
+    present, a manifest not schema "2", any non-format-slide surface, or a
+    missing carousel.pdf. png_shas maps each format PNG name -> decoded-RGBA SHA
+    (derived from the manifest surfaces, never hardcoded to a slide count)."""
+    render_dir = _render_dir()
+    if run_render(str(TGRERA_DIR)) != 0:
+        return False, "render.py exited non-zero", {}, None
+    manifest_path = render_dir / "manifest.json"
+    if not manifest_path.exists():
+        return False, "no manifest.json emitted", {}, None
+    manifest = json.loads(manifest_path.read_text())
+    if manifest.get("schema_version") != "2":
+        return False, "manifest schema_version != '2' (got {!r})".format(
+            manifest.get("schema_version")), {}, None
+    if (render_dir / "chart-card.png").exists():
+        return False, "chart-card.png present — TGRERA must render a pure carousel (Risk B)", {}, None
+    roles = [s.get("role") for s in manifest.get("surfaces", [])]
+    if not roles or any(r != "format-slide" for r in roles):
+        return False, "surfaces not all format-slide (got {})".format(roles), {}, None
+    pdf_name = manifest.get("pdf")
+    if not pdf_name or not (render_dir / pdf_name).exists():
+        return False, "carousel.pdf missing (manifest pdf={!r})".format(pdf_name), {}, None
+    png_shas = {}
+    for s in manifest["surfaces"]:
+        png = render_dir / s["png"]
+        if not png.exists():
+            return False, "declared PNG not emitted: {}".format(s["png"]), {}, None
+        png_shas[s["png"]] = _decoded_rgba_sha(png)
+    pdf_sha = _sha256(render_dir / pdf_name)
+    return True, None, png_shas, pdf_sha
+
+
 def run_tgrera(checked_on, lines, verbose=False):
-    """Positive end-to-end + R8 determinism. Return True iff it all holds."""
-    png = TGRERA_DIR / "render" / "chart-card.png"
-    if not png.exists():
-        # Not yet rendered -> render once so we have a baseline to compare.
-        if run_render(str(TGRERA_DIR)) != 0 or not png.exists():
-            lines.append("FAIL tgrera-determinism — could not produce baseline render")
-            return False
-    baseline_hash = _sha256(png)
+    """Positive end-to-end + determinism on the v2 carousel baseline (Risk 2/C).
 
+    Four expectations, each an explicit PASS/FAIL line (kept in sync with
+    TGRERA_EXPECTATIONS): render-shape, PNG decoded-RGBA determinism (R8),
+    carousel.pdf byte determinism (R16), full-gate validate PASS (exit 0).
+    Returns True iff all four hold."""
     import shutil
-    shutil.rmtree(TGRERA_DIR / "render")
-    if run_render(str(TGRERA_DIR)) != 0 or not png.exists():
-        lines.append("FAIL tgrera-render — render.py did not emit chart-card.png")
-        return False
-    rerender_hash = _sha256(png)
-    if rerender_hash != baseline_hash:
-        lines.append("FAIL tgrera-determinism — re-render hash {} != baseline {} (R8)".format(
-            rerender_hash[:12], baseline_hash[:12]))
-        return False
-    lines.append("PASS tgrera-determinism — chart-card.png pixel-identical on re-render (R8)")
 
+    # Expectation 1 — render shape: format-*.png + carousel.pdf + schema "2",
+    # all surfaces format-slide, NO chart-card.png.
+    if _render_dir().exists():
+        shutil.rmtree(_render_dir())
+    ok, err, base_pngs, base_pdf = _tgrera_baseline()
+    if not ok:
+        lines.append("FAIL tgrera-render — {}".format(err))
+        return False
+    lines.append(
+        "PASS tgrera-render — {} format-slide PNG(s) + carousel.pdf, schema \"2\", "
+        "no chart-card.png".format(len(base_pngs)))
+
+    # Expectations 2 & 3 — determinism: re-render and compare.
+    shutil.rmtree(_render_dir())
+    ok, err, re_pngs, re_pdf = _tgrera_baseline()
+    if not ok:
+        lines.append("FAIL tgrera-render — re-render shape changed: {}".format(err))
+        return False
+    if re_pngs != base_pngs:
+        diff = [n for n in base_pngs if re_pngs.get(n) != base_pngs[n]]
+        lines.append("FAIL tgrera-determinism-png — decoded-RGBA SHA changed on "
+                     "re-render for {} (R8)".format(diff or "png set mismatch"))
+        return False
+    lines.append("PASS tgrera-determinism-png — {} format PNG(s) decoded-RGBA "
+                 "pixel-identical on re-render (R8)".format(len(base_pngs)))
+    if re_pdf != base_pdf:
+        lines.append("FAIL tgrera-determinism-pdf — carousel.pdf bytes changed "
+                     "on re-render {} != {} (R16)".format(re_pdf[:12], base_pdf[:12]))
+        return False
+    lines.append("PASS tgrera-determinism-pdf — carousel.pdf byte-identical on "
+                 "re-render (R16)")
+
+    # Expectation 4 — full V2 gate PASS.
     exit_code, verdict, out = run_validate(str(TGRERA_DIR), checked_on)
     ok, detail = evaluate_row(
         {"expected_exit": 0, "expected_check_id": None, "expected_rule_substring": None},
@@ -247,8 +337,9 @@ def run_gate(checked_on, verbose=False):
     tgrera_ok = run_tgrera(checked_on, lines, verbose)
     fixtures_ok, met, total = run_fixtures(checked_on, lines, verbose)
 
-    # met/total counts fixtures; TGRERA determinism + validate are 2 more.
-    tgrera_expectations = 2
+    # met/total counts fixtures; TGRERA's v2 baseline adds TGRERA_EXPECTATIONS
+    # (render-shape, PNG determinism, PDF determinism, validate) — Risk 2/C.
+    tgrera_expectations = TGRERA_EXPECTATIONS
     tgrera_met = tgrera_expectations if tgrera_ok else 0
     # If tgrera partially failed, run_tgrera returns False on first failure; be honest:
     if not tgrera_ok:

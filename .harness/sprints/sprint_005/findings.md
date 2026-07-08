@@ -3,95 +3,99 @@ SCORE: 4.8
 BLOCKERS: 0
 HIGH: 0
 
-# Findings — Sprint 005: Scorecard compiler → `metrics/YYYY-Www.md`
+# Sprint 005 Findings — QA Gate V2 checks (V13–V19) + adversarial fixtures
 
-Mode: EVALUATE. Verification is CLI + exit-code + byte-for-byte golden-Markdown
-(no UI/Playwright — this is a headless CLI + pure library, per contract §5). Every
-claim below was reproduced by the Evaluator independently of the Generator's trace.
+Mode: EVALUATE · Sprint 005 · Renderer V2 Format Library + QA Gate V2
+Evaluated on disk against sprint_005/contract.md §§1–10, spec §5.2 (V13–V19), §5.3 (schema seam), §5.4 (meta blocks), §6 (states), §9 (tokens/no-network), §10 Risks 1–6.
+CLI/raster sprint — no DOM/UI. Playwright is not applicable (contract §0, §13). Attacked with `python3 -m unittest`, the `acceptance.py` runner, direct `validate.py` invocations, and — critically — **independent hand-crafted attacks** that do not reuse the Generator's pre-baked fixtures. All checks executed; evidence complete.
 
-## Verdict rationale
+## Verdict
 
-All 16 rows of the contract §9 attack checklist and all 8 adversarial probes were
-re-run from a clean shell and passed. No blocker, no high, no medium finding. The
-implementation is disciplined, deterministic, and honest about what a single-week
-scorecard cannot contain (structural blanks are enumerated, never faked).
+PASS. Every Definition-of-Done item (§10.1–§10.7) and every §6.4 adversarial matrix row (1–15) reproduced by direct observation against shipped code. 0 blockers, 0 high. One Low process note (F-001: v2 fixtures + `make_v2_fixtures.py` are git-untracked while the 12 v1 fixtures are tracked) — non-gating; fixtures are on disk and deterministically regenerable, which is what the file-only harness judges.
 
-## Evidence (independently reproduced)
+## Evidence (commands run from repo root)
 
-**Unit suite.** `python3 -m unittest discover -s tools/marketing-loops/tests -q`
-→ `Ran 233 tests ... OK` (205 frozen Sprint 001–004 + 28 new). Frozen suite green,
-no regression.
+### Suites + acceptance (DoD 4, 5)
+- Render suite `Ran 266 tests … OK` (baseline 263 at Sprint-004 end; +3 net, none weakened).
+- Loop suite `Ran 254 tests … OK` (unchanged — does not import validate/measure).
+- `acceptance.py` → exit 0, **`ACCEPTANCE: PASS (23/23)`**. TGRERA chart-card pixel-identical on re-render (R8) + validate exit 0 UNCHANGED; all 12 v1 fixtures reach their existing verdicts with correct id+rule; 9 v2 rows met with exact-id + rule-substring match.
 
-**Full happy path — golden byte-match.** Full run `diff`s byte-equal to
-`fixtures/metrics/expected/full.md`. Hand-verified against the fixture CSVs:
-WRR This-week = 347 = 200+95+52; flywheel `rera-refund-timeline: 18<br>tgrera-
-enforcement-wave: 42`; 6 craft rows in `(campaign, channel)` order with decimals
-correct (`29.5` kept, `24.0`→`24`); A/B instagram evening 51 (18+33), youtube
-morning 30 (9+21), linkedin evening 67 (27+40), buckets read from queue slot;
-Loop 2 `top hook #11 (94 clicks); retire-candidate hook #7 (54 clicks)`; 15 sorted
-de-duplicated structural Missing-data bullets.
+### One-fixture-one-check discipline (DoD 3; matrix rows 1–9) — SINGLETONS CONFIRMED
+Each fixture's `failed_checks` is a singleton of exactly its target id (validate.py invoked per fixture, `qa-verdict.json` parsed):
+```
+good             PASS  []
+dominant-small   FAIL  [V13-dominant-ratio]
+body-24          FAIL  [V14-type-floor]
+no-wordmark      FAIL  [V14-wordmark]
+thumb-illegible  FAIL  [V15-thumbnail]
+no-so-what       FAIL  [V16-so-what]
+bad-cover        FAIL  [V17-cover-pattern]      (NOT also V19 — isolated)
+no-dataset       FAIL  [V19-one-dataset]        (NOT also V17 — isolated)
+11-slides        FAIL  [V18-slide-count]
+```
 
-**WRR critical edge (B-A5) — no partial sum.** `wrr-partial/site.csv` → This-week
-blank; `WRR component 'returning_viewers' absent` listed once; grep for forbidden
-partial sums (147/252/295) across the file → none. Byte-equal `expected/wrr-partial.md`.
+### Independent attacks (NOT the Generator's fixtures) — checks have real teeth
+- **V13:** copied `fx-v2-good`, injected a 2nd `dominant` element → `failed_checks == [V13-dominant-ratio]`. Fires on multiplicity, not just the baked ratio<3.
+- **V16:** stripped all `so-what` elements from a good manifest → `[V16-so-what]` alone.
+- **V17:** corrupted the `pattern:` value in a good `meta.md` → V17 fires (my crude regex co-tripped V19; the shipped `fx-v2-bad-cover` uses a clean valid-token wrong-value `pattern: TIMELINE` and isolates V17 alone, verified above — so isolation is a fixture-craft property, present and correct).
+- **V15 is a genuine PIXEL measurement, not manifest math:** bumped `fx-v2-thumb-illegible` manifest `headline.font_px` 48→96 (PNG untouched). V15 STILL fires (plus V5-crosscheck now, since declared 96 ≠ rendered band). A manifest lie cannot buy past V15 — the check reads the downscaled raster. This is the property Risk 4 demanded.
 
-**Corruption never becomes a blank cell (B-A3).** `truncated / wrong-header /
-wrong-colcount / non-numeric / blank-join` → each exit 2, cited stderr, no
-scorecard file created even with `--out`.
+### V15 margin probe (Risk A) — reproduced with validate's real `_crop_rows_ink`/`_median_band_height`
+- `fx-v2-good`: headline decl 56 → 360px band **18** (floor 13, +5) PASS; dominant decl 100 → band **24** (floor 21, +3) PASS.
+- `fx-v2-thumb-illegible`: headline decl 48 → band **10** (< 13) **FAIL**; dominant band 24 PASS.
+- Invariant "positive clears, illegible fails" confirmed empirically; matches the Generator's trace probe. Margins are thin (headline +5, dominant +3) — the Generator disclosed this and flagged Sprint-006 revalidation against the real TGRERA render.
 
-**Bad queue.** nonexistent path / malformed JSON / no-`rows` object → exit 2 each,
-cited, no scorecard.
+### Routing invariant / no-regression (DoD 1, 2; matrix rows 11, 14)
+- `fx-v2-good` full roster: V2/V3/V4/V5-crosscheck/V6/V7/V8/V9/V10/V11 **plus** V13/V14-type-floor/V14-wordmark/V15/V16/V17/V18/V19. **V5-floor = `skipped`** on all format-slides (V14 owns the v2 floor); V14-type-floor present. All V13–V19 emitted.
+- The `type_min_ok("format-slide", …)` ValueError landmine is correctly avoided: **zero tracebacks** across all 9 v2 fixtures (stderr scanned).
+- v1 asset `fx-good-min` re-validate → exit 0, `checks[]` carries **zero** V13–V19 ids. Asset-scope gate holds.
 
-**Usage.** `--out`+`--stdout` → exit 2; `--week 2026-27` / `26-W27` → exit 2. Empty
-run → exit 0, full blank skeleton + full Missing data (byte-equal `expected/empty.md`).
+### R14 render fail-loud twin (DoD 6; matrix row 10)
+- 11-slide `formats.md` (correct `**F<n> BIG-NUMBER**` grammar) → `render.py` exit 1, cited `"the cap is 10 (R14, Instagram API limit)"`, **no `render/` dir written** (no partial write).
 
-**Blank ≠ 0 (B-A7).** zero-cell Clicks renders `0`; blank-cell renders blank +
-`craft Clicks absent for … (instagram)`. Never conflated.
+### Determinism (matrix row 15)
+- Re-ran `make_v2_fixtures.py`; hashed all 28 v2 PNG+manifest files before/after → **zero drift** (byte-identical).
 
-**Unmatched + wrong-UTM (B-A11).** unmatched craft row `… (unmatched)` + bullet
-(byte-equal); wrong-UTM `wrong-UTM asset 2026-07-03-bad-utm-asset: wrong-medium`
-(byte-equal). Both exit 0.
+## Finding F-001: v2 fixtures + generator are git-untracked
 
-**No `--queue`.** A/B table entirely blank + single `publish queue not provided` line.
+Severity: Low
+Category: Process
+Status: Fail (non-blocking; verdict remains PASS)
 
-**Determinism.** Two runs + flag-reordered run → identical shasum (`106555ae…`);
-exactly one trailing newline; `partial.md` golden byte-match.
+### Contract Clause
+Contract §2 / §6.1: v2 fixture dirs "live on disk (mirrors the 12 v1 fixture dirs that live on disk)."
 
-**Never-invent sweep.** grep full+empty for `N/A`/`TODO`/`Lorem`/fabricated em-dash
-→ clean; every number traces to an input cell.
+### Reproduction Steps
+1. `git ls-files tools/marketing-render/fixtures/` → lists the 12 v1 `fx-*` dirs + `make_fixtures.py`.
+2. `git status --porcelain tools/marketing-render/fixtures/` → the 9 `fx-v2-*` dirs and `make_v2_fixtures.py` appear as `??` (untracked).
 
-**Hygiene.** grep `datetime.now|requests|urlopen|socket|urllib` in scorecard.py →
-clean; `import scorecard` side-effect-free; real `content/` + `metrics/` untouched.
+### Expected
+For "mirrors the v1 fixture dirs" to be literal, the v2 fixtures + generator would be tracked alongside the v1 set.
 
-**Frozen modules untouched (§2 / §9 probe 7) — verified by mtime + symbol presence,
-not test-green.** `stat` on `tools/marketing-loops/*.py`: every Sprint 001–004
-module (`utm/verify_utm/gate/queue/channels/enqueue/captions/schedule/package/
-mark_posted/csvspec/assetmap/ingest`) carries a 2026-07-04 mtime; only
-`scorecard.py` is 2026-07-05. No frozen source was rewritten. The four symbols
-`scorecard.py` imports from frozen modules —
-`schedule.CANONICAL_CHANNELS/BUCKET_MORNING/BUCKET_EVENING` and `queue.load_queue`
-— are all defined in the unchanged 07-04 files (grep-confirmed), so no function was
-added to a frozen module to expose them. `.harness/archive/` holds only the
-unrelated `run-001-renderer` snapshot.
+### Actual
+The 12 v1 fixtures are tracked; the 9 v2 fixtures and `make_v2_fixtures.py` are untracked. This is a pre-existing repo pattern (Sprint-001–004 also left measure.py/validate.py edits and tests/inputs uncommitted, disclosed in prior traces). It does **not** affect any behavior: `acceptance.py` reads dirs from disk (23/23 passed), the fixtures are byte-deterministically regenerable, and the file-only harness judges disk state, which is fully correct.
 
-**B-A12 SKILL.** `.claude/skills/loop-measure/SKILL.md` invokes `scorecard.py`,
-states malformed-CSV(exit 2) vs missing-input(blank) distinction, never-invent rule,
-WRR no-partial-sum edge, and exit taxonomy.
+### Evidence
+`git ls-files` vs `git status --porcelain` output above; determinism proof (28 files, zero drift).
+
+### Required Fix
+Commit the `fx-v2-*` dirs + `make_v2_fixtures.py` (and the prior-sprint uncommitted validate.py/measure.py/tests) so the tracked tree matches the on-disk tree before the Sprint-006 handoff. No code change required.
+
+### Pass Condition
+`git status --porcelain tools/marketing-render/` is clean (or the untracked set is a conscious, documented choice), with acceptance still 23/23.
 
 ## Trace review
 
-`generator_trace.log` is consistent with observed behavior — exit codes, golden
-matches, WRR math, determinism shasums, frozen-suite green all reproduce. The two
-disclosed known risks (flywheel `<br>` separator; Loop-2 clause appended to label)
-are deterministic and template-faithful, not defects. No skipped failures, no
-claim-without-artifact, no premature-completion language.
+`generator_trace.log` (Sprint 005 entry) records: baselines re-confirmed BEFORE code (render 263 / loop 254); exact files changed (validate.py wiring + `_FORMAT_BY_ROLE` addition; new `make_v2_fixtures.py` + 9 dirs; acceptance +9 rows; conscious `TestFormatSlideGuard`→`TestV2GateWiring` rewrite + batch-B guard-test re-point + acceptance table-count 12→21, all with the frozen assertions preserved); the empirical V15 measured-band probe for BOTH the positive control and the illegible fixture (Risk A); the singleton evidence; and a disclosed deviation from the contract's fixture table — the `fx-v2-dominant-small` values were changed from the contract's "body 30 / dominant 80" to "body 40 / dominant 100" because dominant-80 measured a 360px band of 19 (<21) and would co-fire V15, breaking the singleton. That is a correct, disclosed one-fixture-one-check fix (ratio 100/40 = 2.5 < 3 keeps it a clean V13-only trip), not a weakening. No skipped failures, no claim without artifact, no broad rewrite after a small finding. Trace is honest and complete.
 
 ## Scoring
 
-Functionality 5, Evidence 5, Craft 5, Design 4, Originality 4. Weighted (20% each):
-(5+5+5+4+4)/5 = 4.8. Passes every gate: 0 blockers, 0 high, evidence ≥4,
-functionality ≥4, weighted ≥4.
+Infrastructure/QA-gate sprint — weights: Functionality 35%, Evidence 35%, Craft 20%, Design/Originality 10% (no user-facing surface; mechanical gate, matching the Sprint-004 rationale).
 
-## No findings
+- Functionality: 5 — all V13–V19 wired, correctly surface-role-scoped, one-fixture-one-check discipline holds under independent attack, V15 proven genuinely pixel-based, zero v1 regression, R14 fail-loud intact.
+- Evidence/process: 5 — baseline-before-code, empirical V15 probe reproduced, singletons + independent injections reproduced, determinism (28 files zero drift), acceptance 23/23, honest trace with a disclosed contract-table deviation.
+- Craft: 4.5 — clean additive routing that dodges the `type_min_ok` ValueError landmine (V5-floor skip → V14), no `measure.py` edit, justified test re-points; docked for the git-untracked fixtures (F-001, Low) and the thin V15 margins (+5/+3) flagged for Sprint-006 revalidation.
+- Design/Originality: 4 — appropriate mechanical gate; not the axis this sprint exercises.
+- Weighted total: 0.35·5 + 0.35·5 + 0.20·4.5 + 0.10·4 = 4.8.
 
-Nothing to fix. Sprint 005 is proven.
+Passing bar met: 0 blockers, 0 high, evidence 5 ≥ 4, functionality 5 ≥ 4, weighted 4.8 ≥ 4. F-001 is Low/process and does not gate PASS.

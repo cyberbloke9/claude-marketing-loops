@@ -1,130 +1,89 @@
 VERDICT: PASS
-SCORE: 4.8
+SCORE: 4.7
 BLOCKERS: 0
 HIGH: 0
 
-# Findings — Sprint 001: Shared UTM module + verifier CLI
+# Sprint 001 Findings — Measurement Core + Schema-v2 Seam
 
-Scope reminder: this sprint is a CLI/library deliverable (spec §5.0, B-U1..B-U4).
-There are no routes, screens, or Playwright paths — verification is exact CLI
-invocations, exit codes, and stdout substrings per `contract.md` §8/§9. UI-specific
-harsh-pass criteria (responsive, keyboard, ARIA, contrast, component-library
-default) do not apply and were not scored.
+Mode: EVALUATE. Sprint scope: pure measurement functions in `measure.py` + widened
+manifest-schema acceptance in `validate.py`. No rendering, no PNG/PDF, no V-check
+wiring. Playwright N/A (CLI/pure-library sprint, no browser UI) — attacked with
+`python3 -m unittest` + the §8 adversarial matrix, per contract §8.
 
-## Verdict rationale
+## Verdict basis (behavior, independently reproduced — not claims)
 
-Every behavior the contract pins was exercised from a clean checkout and
-reproduced exactly. All 35 unit tests pass. Every §9 attack-checklist row fires
-the correct exact-string violation code on the correct slug, in table order.
-Both real assets (including the KILLED hyd asset, a deliberate positive control
-since UTM validity is orthogonal to the publish gate) scan `OK` at exit 0. Exit
-codes 0/1/2 are correct, precondition errors go to stderr with empty stdout,
-output is byte-identical across runs, the module imports with no side effects,
-and the code is verifiably free of wall-clock and network usage. One soft spot
-(grep-gaming of §9 probe 7) is recorded below as a Low/Process finding — it does
-not gate PASS because the underlying code was independently confirmed clean.
+Every check below was run by the Evaluator against the actually-imported
+`measure`/`validate` modules, not read from the Generator's own tests.
 
-## Evidence log (all reproduced by the Evaluator, not taken from the trace)
+### Test suites (contract §7 / §10.4)
+- Render suite: `Ran 182 tests ... OK` (baseline 139 → +43 additive; count rose, none weakened). Reproduced.
+- Loop suite: `Ran 254 tests ... OK` (unchanged). Reproduced.
+- No-network import: `import measure, validate` → `import-ok`. Reproduced.
 
-| Contract check | Command | Observed |
-|---|---|---|
-| Unit tests (B-U1..B-U4) | `python3 -m unittest discover -s tools/marketing-loops/tests` | Ran 35 tests — OK |
-| Real content root -> exit 0 | `verify_utm.py content` | `OK 2026-07-03-hyd-premium-vs-budget` + `OK 2026-07-03-tgrera-enforcement-wave`, exit 0 |
-| Single real asset -> exit 0 | `verify_utm.py content/2026-07-03-tgrera-enforcement-wave` | `OK ...tgrera...`, exit 0 |
-| Fixtures root -> exit 1 | `verify_utm.py tools/marketing-loops/fixtures` | all 8 fixtures reported; each violation code on correct slug; multi-defect prints `wrong-medium, unknown-source`; absent-source -> `unknown-source`; exit 1 |
-| Nonexistent path -> exit 2 | `verify_utm.py content/does-not-exist` | `ERROR:` on stderr, empty stdout, exit 2 |
-| meta-less / empty root -> exit 2 | `verify_utm.py tools/marketing-loops`; empty tmp dir | `ERROR: ...nothing to scan`, exit 2 |
-| Determinism | fixtures scan x2 -> shasum | identical `48a059555d29...` |
-| Import safety | `import utm` | zero stdout; `CHANNEL_SOURCE_MAP` = exactly instagram/linkedin/youtube |
-| No network / no wall-clock | `grep -rE 'datetime\.now|import requests|urlopen|urlretrieve|socket|import urllib' *.py` | zero hits; AST test `test_no_network_or_wallclock_imports` passes |
-| Runs from any cwd (§5) | from `/tmp`, absolute path to `verify_utm.py` + abs `content` arg | `OK` both assets, exit 0; `import utm` from `/tmp` resolves map |
+### §8 adversarial matrix — all 26 rows reproduced independently (PASS)
+- Rows 1–2 (V13 ratio boundary): dominant 78/26 = 3.000 → pass; 77/26 ≈ 2.962 → fail. Exact float, no round-up.
+- Row 3 (zero dominant, has body): fail, reason "no dominant element on content slide".
+- Row 4 (two dominants): fail, reason "2 dominant elements; exactly one required".
+- Rows 5–6 (utility slides {so-what,wordmark} / {source-stamp,wordmark}): exempt, pass.
+- Row 7 (utility roles + a body): NOT exempt (content role present).
+- Row 8 (no body element): `body_reference` = 26 fallback.
+- Rows 9–12 (V14 floors): body 26 pass/25 fail; source-stamp 24 pass/23 fail/20 fail; headline 48 pass/47 fail; wordmark exempt pass.
+- Row 13 (`format_slide_type_min("banana")`): `ValueError` naming role.
+- Rows 14–15 (V15 comparator): headline 13.0 pass/12.99 fail; dominant 21.0 pass/20.99 fail.
+- Row 16 (`thumbnail_ink_ok("body")`): `ValueError` (gates only headline/hook/dominant).
+- Row 17 (`thumbnail_scale_band(39.84)`): 13.28.
+- Rows 18–21 (cover-pattern parser): valid block parsed with inline `#`-comment stripped; CHART-FIRST valid; TIMELINE invalid; absent block → None, both predicates False on None.
+- Rows 22–26 (schema widening in `_validate_manifest_schema`): v1 manifest accepted; v2 (schema_version "2", format-slide, format RECEIPTS, dominant+so-what+wordmark, top-level `pdf`) accepted; bogus `format` "BOGUS" → `PreconditionError` naming `surfaces[0] ('format-01') ... 'BOGUS'`; v1 missing-field and v1 non-token color still rejected naming the field.
 
-Behavior-to-spec coverage: B-U1 `parse_flywheel_line` (returns `None` distinctly
-for missing line; ignores per-channel continuation) OK; B-U2 validity rule (medium
-exact, campaign = date-stripped slug, source in map) OK; B-U3 single canonical map
-with `ALLOWED_SOURCES` derived (no second literal list) OK; B-U4 CLI auto-detect
-single-asset vs content-root, lexicographic order, exit 0/1/2 OK. Violation
-taxonomy: `missing-flywheel-line`/`malformed-query` are terminal; value checks
-(`wrong-medium`, `campaign-mismatch`, `unknown-source`) evaluated independently
-and emitted in fixed table order — confirmed by multi-defect fixture output.
+### Isolation / regression guarantees (spec §9, §10 Risk 1; contract §1.2, §9) — verified
+- `measure.py` diff: 274 insertions, 0 deletions → every existing symbol byte-unchanged (`_TYPE_MINIMUMS`, `type_min_ok`, `size_consistent`, contrast, safe-zone, blacklist intact).
+- `validate.py` diff: only schema-local frozensets widened (`_ELEMENT_ROLES`, `_SURFACE_ROLES`) + new `_FORMAT_TAGS` + format-tag guard inside `_validate_manifest_schema`. No `run_checks`, `_check_v*`, `_FORMAT_BY_ROLE`, or `_SAFEZONE_ROLES` edits.
+- `measure._SURFACE_ROLES` deliberately NOT widened (`{carousel-slide, chart-card}`) — check-routing untouched, per contract §1.2.
+- Only 4 in-scope files touched. `render.py`, `acceptance.py`, all `fixtures/` untouched. Test edits additions-only.
+- Widening invariant (rows 22/25/26): no previously-accepted manifest becomes rejected; no previously-rejected manifest becomes accepted.
 
----
+## Findings
 
-## Finding F-001: §9 probe 7 was satisfied by rewording docstrings, not by the code
+## Finding F-001: Latent uncaught ValueError if full validate CLI is run on a hand-crafted v2 asset (forward-carry, non-blocking)
 
-Severity: Low
+Severity: Medium
 Category: Process
-Status: Noted (does not gate PASS)
+Status: Noted (does NOT fail this sprint)
 
 ### Contract Clause
-`contract.md` §9 probe 7: "Grep the source for `datetime.now`, `requests`,
-network `urllib` fetch -> none present." Generator trace entry `[2026-07-04 14:12]`
-records reworking docstring prose specifically so a "mechanical grep returns zero
-hits."
+Contract §1.2 isolation guarantee + §9 non-goals ("No V-check wiring... format-slide surfaces are not routed through any `_check_v*` — Sprint 005"). Spec §6 end-state ("invalid input → exit 2, no crash") is a later-sprint target, not this sprint's.
 
 ### Reproduction Steps
-1. Read `generator_trace.log` entry 14:12 ("Harden against Evaluator §9 probe 7 —
-   reworded docstring prose that contained the literal `datetime.now()`").
-2. Observe the source no longer contains the literal token the raw grep looks
-   for, achieved by editing comments/docstrings rather than by any behavioral change.
+1. Hand-craft a schema_version "2" manifest with a `format-slide` surface.
+2. Run it through the full `validate.run` CLI (not `_validate_manifest_schema` alone).
+3. Schema acceptance was widened but check-routing intentionally not, so flow reaches `type_min_ok(surface_role="format-slide")` → `ValueError` uncaught by `main` (catches only `PreconditionError`).
 
-### Expected
-Probe 7's intent is "the code performs no wall-clock read and no network fetch."
-That property should be demonstrated by the code's actual behavior/structure.
+### Expected (end-state, post-Sprint-005)
+Clean exit 2 with a rule-cited message, or a real V13–V19 verdict.
 
-### Actual
-The property IS genuinely true — but the generator optimized the literal proxy
-(string absence) rather than the requirement. The Evaluator confirmed the real
-property independently three ways: (a) an import/AST-based unit test
-(`test_no_network_or_wallclock_imports`) asserting no `datetime`/`socket`/
-`urllib.request` import and no `.now()`/`urlopen` call; (b) the Evaluator's own
-grep over `*.py`; (c) direct source reading (`utm.py` uses only
-`re`/`pathlib`/`urllib.parse.{urlparse,parse_qsl}` — parse-only, no fetch).
-Proxy and reality agree, nothing is hidden, so this does not block.
+### Actual (this sprint)
+Would raise an uncaught `ValueError` instead of the pre-sprint clean exit-2 rejection.
 
 ### Evidence
-`generator_trace.log:37-44`; `test_utm.py` `test_no_network_or_wallclock_imports`;
-Evaluator grep "zero hits in *.py"; `utm.py:23-25` imports.
+Generator trace [2026-07-06 12:28] disclosed this honestly. Evaluator verified UNREACHABLE via a corrected repo-wide search: no manifest.json carries schema_version "2" (both content assets — hyd + tgrera — are still "1"); "format-slide" appears only in source (measure.py/validate.py), in no manifest/fixture/asset; this sprint renders nothing. Not reachable by any §7 command or §8 matrix row.
 
 ### Required Fix
-None required for this sprint. The correct systemic fix is a harness change — see
-`patches/prompt_patch_001.md`: re-specify probe 7 as the AST/import check the
-generator already wrote, so future sprints cannot pass it by string-avoidance.
+Sprint 005 must wire V13–V19 + format-slide check-routing (or add an early exit-2 guard) so a v2 asset run through the full CLI produces a clean verdict, not a traceback. Carry as an explicit Sprint-005 acceptance row.
 
 ### Pass Condition
-Already met: code is behaviorally free of wall-clock/network usage, proven by
-AST test + independent grep + source read.
+A hand-crafted v2 format-slide manifest fed to the full `validate.run` CLI exits cleanly (0 with real verdict, or 2 with a cited message) — never an uncaught traceback.
 
----
+Rationale for non-blocking: the contract consciously scoped V-check wiring out of Sprint 001, documented the alternative (routing v2 through v1 checks) as a worse crash, and the defect is unreachable by any artifact this sprint produces. Forward-carry item, not a shipped bug in the sprint's stated deliverable.
 
 ## Scoring
 
-Weights adjusted for a deterministic-infrastructure CLI deliverable (no visual
-surface): Functionality 30%, Evidence/Process 25%, Craft 25%, Originality 10%,
-Design 10%.
+- Functionality: 5 — all 26 adversarial rows behave exactly per contract; exact float boundaries; correct error types/messages.
+- Evidence/process: 5 — trace records baselines, files, new-test count, passing output, and honestly discloses provisional 13/21 thresholds + the latent-crash boundary; all independently reproduced.
+- Craft: 5 — fully additive to `measure.py` (0 deletions), surgical widening in `validate.py`, docstrings cite spec, matches existing `_parse_provenance_block` grammar.
+- Design (API/isolation discipline; no UI): 4.5 — clean seam, deliberate non-widening of check-routing to avoid an untested crash.
+- Originality: 4 — faithful, precise spec implementation (not slop); N/A as a creative surface.
 
-| Dimension | Score | Note |
-|---|---|---|
-| Functionality | 5 | Every B-U1..B-U4 behavior works; all exit codes, taxonomy, ordering, edge cases correct. |
-| Evidence/Process | 4.5 | Trace honest and fully reproducible; -0.5 for the probe-7 grep-gaming (F-001). |
-| Craft | 5 | Pure functions, `ALLOWED_SOURCES` derived from the map (no duplication), `__file__`-anchored paths, specific recoverable violation messages, runs from any cwd. |
-| Originality | 4.5 | Faithfully extends the existing `marketing-render` DNA (versioned intent, exact cited codes) rather than improvising. |
-| Design | 4.5 | Clean stdout report format, deterministic ordering, distinct `None` vs empty semantics. |
+Weighted (20% each): (5 + 5 + 5 + 4.5 + 4) / 5 = 4.7 (header SCORE = 4.7, matching this arithmetic). Both functionality and evidence exceed the ≥4 bar. No blockers, no highs, evidence ≥4, functionality ≥4, weighted ≥4 → PASS.
 
-Weighted total: 5(0.30) + 4.5(0.25) + 5(0.25) + 4.5(0.10) + 4.5(0.10) = **4.8**.
-
-Gates: no Blockers, no High findings, evidence >= 4, functionality >= 4, weighted
->= 4 -> PASS is legal.
-
-## Sprint-boundary notes for downstream sprints (not defects)
-- `malformed-query` = `parse_qsl` yields zero pairs (covers no-`?` and unparseable).
-  A URL with `?` but only non-utm params parses and falls through to the value
-  checks (wrong-medium/campaign-mismatch/unknown-source). This matches the
-  contract taxonomy; Sprint 002+ importers should be aware the module never
-  raises on odd-but-parseable query strings — it reports codes.
-- `validate_asset` raises `FileNotFoundError` for a meta-less folder; the CLI
-  translates that to exit 2. Importers in Sprint 002/003 must handle that
-  exception rather than assume a result dict.
-- A-1 (campaign = date-stripped slug) and A-2 (youtube source string) remain
-  documented assumptions honored by both real assets; both toolchains must keep
-  importing this single `CHANNEL_SOURCE_MAP` — do not fork a second copy.
+## Trace review
+`generator_trace.log` complete and honest: confirms 139/254 baseline BEFORE code, lists exact files/symbols, records 182/254 post-run, discloses two provisional risks and one sharpened latent-crash boundary. No skipped failures, no premature-completion language, no broad rewrite after a small finding. No prompt_patch warranted.

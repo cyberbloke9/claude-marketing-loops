@@ -1,150 +1,188 @@
-# Product Spec — TERREM Marketing Loops: Publish Layer (Gap 2) + Analytics Plumbing (Gap 3)
-
-> Scope note for downstream agents: this spec closes two roadmap gaps in an existing repo.
-> It is written to the same "explicit named schema + deterministic CLI + adversarial fixtures"
-> DNA already established by `tools/marketing-render/` (renderer → `manifest.json` →
-> `validate.py` → `qa-verdict.json`). Read §9 for the non-negotiable house style before coding.
+# Product Spec — Renderer V2 Format Library + QA Gate V2
 
 ## 1. Original Request
 
-Verbatim:
-
-> Close Gap 2 (the publish layer) and Gap 3 (analytics plumbing) of the TERREM marketing-loop system, in the existing repo at /Users/prithviputta/Downloads/terrem-marketing-loops, in sprint format with adversarial evaluation.
+> Build Renderer V2 + QA Gate V2 for the TERREM marketing-loop system in the existing repo at `/Users/prithviputta/Downloads/terrem-marketing-loops`, per the finalized PIPELINE-V2.md (§4 format library and hard rules, §5 TGRERA redesign) and the evidence in RESEARCH.md Round 4. In scope:
 >
-> **Gap 3 — analytics plumbing** (the last unchecked Phase 0 box): build ingestion tooling that turns platform analytics exports (Instagram/YouTube/LinkedIn CSV exports plus site analytics with UTM filtering) into the weekly scorecard `metrics/YYYY-Www.md` following `metrics/TEMPLATE.md` exactly — the retention-first KPI stack (WRR north star computed from provided inputs), flywheel clicks by UTM campaign, per-asset craft diagnostics (3s-hold, swipe-through, shares, clicks) tied to hook-bank numbers, the posting-time A/B table for weeks 1-8, and the decisions-fed-back section. Hard rule from the existing template: if an input is missing, leave the cell blank and list it under "Missing data" — never estimate or invent numbers. The tooling must verify UTM links in asset `meta.md` files follow the documented scheme (`utm_source=<channel>&utm_medium=social&utm_campaign=<slug>`).
+> **(1) FORMAT LIBRARY** in the renderer (extend `tools/marketing-render/`, reusing its deterministic Pillow + vendored-Inter machinery and brand tokens): seven format templates — BIG NUMBER, TIMELINE, RECEIPTS, VS/CONTRAST, LEADERBOARD, CHART (existing, upgraded hierarchy), CHECKLIST — each with fixed visual grammar and a dominant element. Default asset shape is a 4:5 carousel (1080×1350) of up to 10 slides where each slide is one of these formats; single 1080×1920 card remains for reactive takes.
 >
-> **Gap 2 — publish layer up to the API boundary** (no live posting APIs; no platform credentials exist): from a content asset folder that has `qa-verdict.json` verdict=PASS, generate per-channel publish packages — final caption text per channel (Instagram/LinkedIn/YouTube community) with the correct per-channel UTM link, the rendered PNG paths to attach, and a schedule slot — plus a machine-readable publish queue (single file tracking asset → channel → state: queued/posted, with posted date and permalink recorded when a human posts). A `/loop-publish` skill consumes the queue. The gate must be respected: refuse to queue any asset whose `qa-verdict.json` is missing or verdict!=FAIL-free PASS, or whose `meta.md` contains a KILLED marker. Design the seam (queue schema) so real posting APIs can plug in later without reworking the format.
+> **(2) NEW HARD RULES** enforced at render and/or QA time (all from PIPELINE-V2 §4): one dominant element ≥3× body size per surface; body/chart-label type floor raised to ≥26px and footnote/source floor ≥24px (1080-wide canvas); so-what line + source stamp + wordmark on-card always; one dataset per post; 360px feed-thumbnail gate (QA renders or simulates a 360px preview and checks the headline + dominant element clear minimum effective sizes); cover-slide pattern logged in meta.md (BIG-NUMBER vs CHART-FIRST) for A/B measurement.
 >
-> Constraints: Python matching the existing `tools/marketing-render/` toolchain (stdlib + already-present deps only), tested, deterministic where applicable, everything in-repo, no network calls, no fabricated metrics anywhere. Verification standard: evaluator attacks with fixtures — malformed/truncated CSV exports, a metrics run with missing inputs must produce blanks + Missing-data listing (never invented numbers), a non-PASS asset and a KILLED asset must be refused by the publish queue, wrong-UTM assets flagged. npm package `pmp-gywd@5.0.0` is installed globally on this machine if any sprint finds it useful, but nothing may depend on network access.
+> **(3) PDF VARIANT:** for every carousel, also emit a multi-page PDF of the slides (LinkedIn's organic carousel-equivalent — organic carousels are API-impossible, verified). Deterministic PDF bytes.
+>
+> **(4) TGRERA RE-RENDER** as the reference asset: rebuild `content/2026-07-03-tgrera-enforcement-wave/` as a carousel per PIPELINE-V2 §5 (RECEIPTS format cover "3 builders. 9 days.", order chips with amounts dominant, so-what slide with checkable action, source slide) + the PDF variant, passing the full V2 QA gate end-to-end.
+>
+> **(5) QA GATE V2:** extend `validate.py` (or add checks) for the new rules — dominant-element ratio, raised type floors, thumbnail gate, so-what presence, cover-pattern recorded. All checks mechanical, pixel/manifest-based, adversarially attackable. Existing V2–V12 checks and all run-1/run-2 frozen behavior must not regress (139 render tests + 254 loop tests must stay green, or be consciously extended — never silently weakened).
+>
+> **Constraints:** Python + Pillow + vendored fonts only, no network at render time, deterministic (decoded-RGBA SHA equality; PDF byte equality), everything in-repo, no changes to TERREM product repo. **Verification standard:** evaluator renders real PNGs/PDFs, measures pixels, attacks with violating fixtures (dominant element too small, body text at 24px, thumbnail-illegible slide, missing so-what line, 11-slide carousel), and confirms the TGRERA carousel + PDF pass end-to-end while the old fixtures still behave.
 
 ## 2. Product Goal
 
-Give the TERREM marketing operator two deterministic, no-network CLI toolchains: one that assembles a QA-passed content asset into per-channel publish packages and tracks them in a machine-readable queue up to (but not across) the live-posting-API boundary; and one that ingests channel + site analytics CSV exports into the exact weekly scorecard the template mandates, blanking-and-listing any missing input rather than inventing it.
+Extend the existing deterministic renderer + QA gate so a content operator (or agent) can turn an authored asset into a brand-locked **4:5 format-library carousel** (1080×1350 PNG slides, each one of seven named formats) plus a **byte-deterministic multi-page PDF**, and mechanically gate it against the PIPELINE-V2 §4 hard rules. Every new rule is binary, pixel/manifest-derived, and adversarially attackable. The existing single-card (1080×1920) path, all V1 checks, and all run-1/run-2 behavior stay frozen.
 
 ## 3. Target User
 
-The 2-person TERREM marketing team, operating from Claude Code in this repo. They already know: the five-loop system (`PLAN.md`), the asset folder format (`content/TEMPLATE.md`), the QA gate (`tools/marketing-render/`, `qa-verdict.json`), the scorecard template (`metrics/TEMPLATE.md`), and the UTM scheme. They should NOT need to: hand-write scorecard tables, hand-compute WRR, hand-check UTM strings, remember which assets are KILLED, or touch any social-platform API (none exists; no credentials exist). They post manually on each platform and record the permalink back into the queue.
+- **Primary:** a content/marketing operator (or an agent running `/loop-create` → `/loop-qa`) who has authored an asset folder under `content/<slug>/` and needs scroll-stopping carousel graphics + a PDF + a defensible pass/fail gate before publish.
+- **They already know:** the `content/<slug>/` folder structure, the brand kit tokens, PIPELINE-V2 §4 format names, and how to run one shell command.
+- **They should NOT need to know:** the rendering-library internals, WCAG luminance math, how effective mobile sizes are computed, or how PDF bytes are made deterministic. They run render + validate and read a verdict.
 
 ## 4. Core User Stories
 
-1. **Verify UTM hygiene.** As the operator, I run one command to scan every `content/*/meta.md` and get a pass/fail report of which assets have UTM links that violate the documented scheme, so a wrong-UTM asset never ships.
-2. **Enqueue a publishable asset.** As the operator, given an asset whose `qa-verdict.json` is a FAIL-free PASS and whose `meta.md` is not KILLED, I run one command that generates per-channel publish packages and appends the asset's channels to the publish queue in state `queued`.
-3. **Be refused when the gate says no.** As the operator, when I try to enqueue an asset that is missing its verdict, has a non-PASS verdict, has any failed check, or is KILLED, the tool refuses with a nonzero exit and a cited reason, and writes nothing to the queue.
-4. **Read a publish package.** As the operator, I open a generated per-channel package and see the final caption text (with the correct per-channel UTM link), the exact rendered PNG paths to attach, and the assigned schedule slot — everything I need to post by hand.
-5. **Record a manual post.** As the operator, after I post on a platform, I run one command (or the `/loop-publish` skill) that transitions that asset→channel row from `queued` to `posted` and records the posted date and the permalink.
-6. **Ingest analytics into the scorecard.** As the operator, at week's end I point the tool at the platform CSV exports + the site-analytics CSV for a given ISO week, and it produces `metrics/YYYY-Www.md` filled to the template, with WRR computed from the provided inputs and every absent input blanked + listed under "Missing data".
-7. **Be protected from corrupt exports.** As the operator, when a CSV export is malformed or truncated, the tool rejects it with a nonzero exit and produces no scorecard — corruption never silently becomes a blank cell.
+1. **Render a format carousel** — As an operator, I run one command against `content/<slug>/` and get up to 10 PNG slides (each an authored format: BIG NUMBER / TIMELINE / RECEIPTS / VS-CONTRAST / LEADERBOARD / CHART / CHECKLIST), a `manifest.json`, and a multi-page `carousel.pdf`, all under `content/<slug>/render/`.
+2. **Validate against V2 rules** — As an operator, I run one command and get `qa-verdict.json` + a verdict block in `meta.md` telling me PASS/FAIL and exactly which V2 rule each failed check violated (dominant ratio, raised floors, thumbnail, so-what, cover-pattern, ≤10 slides).
+3. **Trust the V2 gate** — As a QA agent, I feed a violating asset (dominant element too small, body at 24px, thumbnail-illegible slide, missing so-what line, 11-slide carousel) and the validator FAILs it naming the exact V-check and rule.
+4. **Ship the reference asset** — As an operator, I render + validate the TGRERA carousel (RECEIPTS cover, order chips, so-what, source) and it PASSes end-to-end, PNGs + PDF included.
+5. **Re-render deterministically** — As an operator, I render the same input twice and get pixel-identical PNGs (decoded-RGBA SHA-256) and a byte-identical PDF.
+6. **Keep the old path working** — As an operator, I still render a reactive single 1080×1920 card from `chart-spec.md`, and all existing V1 checks still pass unchanged.
 
 ## 5. Required Behaviors
 
-Atomic, testable behaviors. Grouped by the two gaps plus the shared foundation.
+Each behavior is atomic and testable. Numbering continues the run-001 renderer (R1–R9) and validator (V2–V12) conventions; all new work is **additive**.
 
-### 5.0 Shared — UTM scheme (foundation)
+### 5.1 Renderer — Format Library (new)
 
-- B-U1. A UTM module parses the `Flywheel target:` line of a `content/<slug>/meta.md` and extracts `utm_source`, `utm_medium`, `utm_campaign`.
-- B-U2. The documented scheme is `utm_source=<channel>&utm_medium=social&utm_campaign=<slug>`. A link is **valid** iff: `utm_medium == "social"` exactly; `utm_campaign` equals the asset's folder slug with the leading `YYYY-MM-DD-` date prefix removed (e.g. folder `2026-07-03-hyd-premium-vs-budget` → campaign `hyd-premium-vs-budget`); and `utm_source` is one of the allowed per-channel values in B-U3. (Assumption A-1: campaign = date-stripped slug. See §10; it matches the one real asset, `meta.md` line 9 vs folder name.)
-- B-U3. Allowed `utm_source` values, and the canonical channel↔source map used by BOTH toolchains (they MUST agree):
-  | Channel | utm_source string |
-  |---|---|
-  | Instagram | `instagram` |
-  | YouTube (community) | `youtube` |
-  | LinkedIn | `linkedin` |
-  (Assumption A-2: "YouTube community" uses `utm_source=youtube`, matching `meta.md` line 10 "utm_source=youtube". See §10.)
-- B-U4. A verifier CLI scans one asset folder OR all of `content/*/`, and reports per asset: `OK` or the specific violation (missing flywheel line, wrong medium, campaign≠slug, unknown source, malformed query string). Exit `0` iff all scanned assets are valid; exit `1` if any asset is flagged; exit `2` on usage error (path not found).
+- **R10. Format-slide surface.** A new surface type renders at **1080×1350** and carries a `format` tag ∈ {`BIG-NUMBER`, `TIMELINE`, `RECEIPTS`, `VS-CONTRAST`, `LEADERBOARD`, `CHART`, `CHECKLIST`}. Each format has a fixed visual grammar (below) and reuses the vendored Inter faces + the nine locked brand tokens (§9). No new colors, gradients, textures, or fonts.
+- **R11. One dominant element per content slide.** Every content format-slide declares **exactly one** element with role `dominant` — the number or figure doing the hook's work — at `font_px ≥ 3 × body_reference` (see V13 for `body_reference`). The renderer emits this element and marks it `dominant` in the manifest.
+- **R12. Raised type floors on v2 surfaces.** On format-slide surfaces, `body` and `chart-label` roles render at **≥26px**, and `source-stamp`/footnote roles render at **≥24px** (previously 20px and exempt). Headline/hook floor unchanged (≥48px). This is a real renderer change: the v2 body/source style constants move up from the v1 25px/20px values. **V1 surfaces (`carousel-slide`, `chart-card`) keep their existing style constants unchanged** (see §10 Risk 1).
+- **R13. On-card essentials, always.** Every format-slide carries the `TERREM` wordmark (`--accent-deep #0d3d38`, bottom-right). Every carousel asset carries at least one `so-what` element (a stand-alone utility line, typically with a checkable action + TERREM link) and at least one `source-stamp` element. The visual must stand alone without its caption.
+- **R14. ≤10 slides.** A carousel asset renders **at most 10** format-slide surfaces (Instagram API cap, R4-B2). An 11th declared slide is a fail-loud render error (no partial write).
+- **R15. Multi-page PDF variant.** For every carousel, the renderer also emits `content/<slug>/render/carousel.pdf` — the ordered format-slide PNGs as PDF pages, in slide order. This is the LinkedIn organic-carousel equivalent (R4-B4).
+- **R16. PDF byte-determinism.** `carousel.pdf` is **byte-identical** across runs of the same input: no embedded creation/modification timestamps, a fixed producer string, no run-varying document ID. (Distinct from R8 PNG determinism — Pillow's default PDF save embeds a per-run date/ID that MUST be suppressed or fixed.)
+- **R17. Cover-pattern record.** The asset's `meta.md` carries a delimited cover-pattern block recording the cover slide's pattern ∈ {`BIG-NUMBER`, `CHART-FIRST`} for Loop-5 A/B measurement (block format in §5.4). The renderer or authoring step writes it; the validator checks presence + valid value (V17).
+- **R18. Determinism + no network (inherited).** Same input twice → pixel-identical PNGs (decoded-RGBA SHA-256) and byte-identical PDF. Fonts loaded only from the vendored `fonts/` dir. Zero network at render time.
+- **R19. Output location.** All outputs land under `content/<slug>/render/`: `format-01.png … format-NN.png` (or equivalently named per surface `id`), `carousel.pdf`, and `manifest.json`. The renderer writes nowhere else and does partial-write-free atomic emission.
 
-### 5.1 Gap 2 — Publish layer
+**Format grammars (express as required-roles + which-role-is-dominant + canvas; exact pixel coordinates are the Generator's to choose deterministically):**
 
-- B-P1. **The gate — four refusal conditions.** An asset is refused from queuing if ANY of: (a) `content/<slug>/render/qa-verdict.json` is absent; (b) its `verdict` field is not exactly `"PASS"`; (c) its `failed_checks` array is non-empty (the "FAIL-free" half — both fields are checked); (d) the asset's `meta.md` contains the KILLED marker. Refusal = nonzero exit + cited reason + **no write** to the queue or packages.
-- B-P2. **KILLED marker match.** The marker is a `meta.md` line whose `QA:` field begins with `KILLED` (real form observed: `QA: **KILLED 2026-07-03** — ...`, `meta.md` line 14). Match: a line matching `QA:\s*\*{0,2}KILLED` (case-sensitive `KILLED`). Presence anywhere in `meta.md` triggers refusal.
-- B-P3. **Enqueue.** On a passing asset, for each channel declared for the asset, append (or idempotently update) a row in the single publish-queue file (schema §5.4 QUEUE) with state `queued`. Re-running on an already-queued asset must not duplicate rows and must not regress a `posted` row back to `queued`.
-- B-P4. **Publish package generation.** For each channel, write a per-channel publish package (schema §5.4 PACKAGE) containing: the final caption text for that channel with the correct per-channel UTM link appended/substituted; the ordered list of rendered PNG paths to attach (read from `content/<slug>/render/manifest.json` `surfaces[].png`, resolved to repo-relative paths); and an assigned schedule slot.
-- B-P5. **Caption source is deterministic assembly, not generation.** Caption body text comes from an authored source field (Assumption A-3, §10: a `Caption:` block added to the asset — the generator defines and documents the field; if absent, the tool errors and lists it, it does NOT invent copy). The tool appends the per-channel UTM link; it never writes marketing prose itself. Same authored body + same channel → byte-identical caption every run.
-- B-P6. **Schedule slot origin.** The slot is deterministic: derived from a required `--week` (ISO `YYYY-Www`) argument + a fixed, documented per-channel default time (posting-time A/B is still open per `PLAN.md` §Loop 5, so the tool assigns a morning/evening A/B bucket deterministically, not wall-clock). No `datetime.now()` in any output. (Assumption A-4, §10.)
-- B-P7. **Mark posted (human-in-the-loop transition).** A command transitions one asset→channel row from `queued` to `posted`, recording `posted_date` (`--posted-on YYYY-MM-DD`, required) and `permalink` (`--permalink URL`, required). Refuse to mark `posted` a row that is not currently `queued`, or a permalink that is empty.
-- B-P8. **API seam.** The QUEUE schema carries `state` from a fixed enum `{queued, posted}` and per-row nullable `posted_date`/`permalink`, plus a top-level `schema_version`, so a future live-posting adapter can flip state and fill fields without reshaping the file. No posting-API field names are invented now; the seam is the state machine, documented in the schema.
-- B-P9. **`/loop-publish` skill.** A `.claude/skills/loop-publish/SKILL.md` documents the operator flow: run the gate+enqueue on a `content/<slug>`, read the generated packages, post manually, then mark-posted. The skill invokes the CLIs; it adds no taste judgement and never bypasses the gate (mirrors `/loop-qa`).
+| Format | Dominant element | Supporting roles | Notes |
+|---|---|---|---|
+| **BIG-NUMBER** | the single number (role `dominant`) | one-line context (`headline`/`body`) above, `so-what` below, `wordmark` | one striking stat; number at ≥3× body |
+| **TIMELINE** | span/count headline or anchor figure (role `dominant`) | dated event chips (`body`), `wordmark` | enforcement waves, delay histories |
+| **RECEIPTS** | the lead amount/consequence (role `dominant`) | 2–4 bordered chips: amount dominant per chip, builder/date at `body`; `wordmark` | multi-item evidence (TGRERA) |
+| **VS-CONTRAST** | one of the two opposing numbers (role `dominant`) | the second number (`body`/`headline`), split labels, `wordmark` | ANAROCK vs PropEquity; premium vs budget |
+| **LEADERBOARD** | top row's value (role `dominant`) | ranked rows (`body`), accent on one row, `wordmark` | city/locality rankings |
+| **CHART** | headline figure or peak label (role `dominant`) | chart marks + `chart-label`s (≥26px), `source-stamp`, `wordmark` | v1 chart upgraded hierarchy; axis rules (V10) still apply if `has_axis` |
+| **CHECKLIST** | big index numeral (role `dominant`) | numbered utility steps (`body`), `so-what`, `wordmark` | "check before you pay" utility posts |
 
-### 5.2 Gap 3 — Analytics plumbing
+### 5.2 QA Gate V2 — new checks (scoped to v2 format-slide surfaces)
 
-- B-A1. **CSV ingestion, per source.** The tool accepts four input CSV kinds, each with an authored, documented column contract (schema §5.4 CSV-INPUTS): Instagram export, YouTube export, LinkedIn export, and site-analytics export. Since no real platform export format is verifiable from here, these column schemas are an authored internal contract (Assumption A-5, §10); fixtures conform to them. Do NOT attempt to reproduce a specific real platform's export layout.
-- B-A2. **Join key.** A CSV metrics row ties to an asset by `utm_campaign == <date-stripped slug>` (the same key as B-U2). Through the asset's `meta.md` this also resolves the asset's hook number for the craft-diagnostics table.
-- B-A3. **Malformed/truncated CSV → reject, no scorecard.** If any provided CSV is unparseable, has a missing required header, has a row with the wrong column count, or is truncated mid-row, the tool exits nonzero with the offending file + reason and writes NO scorecard. (This is distinct from B-A4.)
-- B-A4. **Absent input → blank + Missing data.** If a whole input source is not provided, or a required value for a cell is absent from otherwise-valid CSVs, the corresponding scorecard cell is left blank and the input is enumerated under a "Missing data" section. The tool never estimates, interpolates, or defaults a metric value.
-- B-A5. **WRR (north star) formula, pinned.** WRR = (returning viewers) + (digest/email open-streak count) + (returning site visitors from social), read from named input columns (defined in §5.4 CSV-INPUTS). **Critical edge:** if ANY of the three component inputs is absent, WRR is left **blank** and each missing component is listed under "Missing data". A partial sum is forbidden — it is an invented number. WRR is filled only when all three components are present.
-- B-A6. **Flywheel clicks by UTM campaign.** From the site-analytics CSV filtered to `utm_medium=social`, aggregate clicks to `intel.terrem.in` grouped by `utm_campaign`, and fill the Flywheel table. Rows with no data → blank + Missing data.
-- B-A7. **Per-asset craft diagnostics.** For each asset published in the target week, emit a row: Asset, Channel, 3s-hold %, completion/swipe-through %, Shares, Clicks, Hook #. Each metric drawn from the matching per-channel CSV by join key; the Hook # read from the asset's `meta.md`. Absent metric → blank cell (not zero).
-- B-A8. **Posting-time A/B table (weeks 1–8).** Populate the morning-vs-evening A/B table per channel from the schedule slot recorded (Gap-2 queue / packages) crossed with the week's performance. Weeks beyond 8, or with no data, produce blanks + Missing data; the tool never fabricates a verdict.
-- B-A9. **Decisions fed back.** Reproduce the template's "Decisions fed back" section structure. The tool fills only what the data supports (e.g. top/bottom hook by measured performance) and blanks the rest; it does not invent qualitative decisions.
-- B-A10. **Output fidelity.** The produced `metrics/YYYY-Www.md` matches `metrics/TEMPLATE.md` section-for-section, heading-for-heading (North star, Flywheel, Craft diagnostics, Posting-time A/B, Vanity, Decisions fed back), plus an appended "Missing data" section listing every blanked input. Filename week comes from a required `--week YYYY-Www` argument (deterministic, never wall-clock).
-- B-A11. **UTM verification is invoked here too.** The scorecard run verifies (via the §5.0 module) that each published asset's `meta.md` UTM link is scheme-valid, and flags violators in the Missing-data/notes section (a wrong-UTM asset cannot be silently attributed).
-- B-A12. **`loop-measure` skill wiring.** The existing `.claude/skills/loop-measure/SKILL.md` is updated to invoke the new analytics CLI (it currently describes the process narratively). The skill states the malformed-CSV vs missing-input distinction and the "never invent" rule.
+All new checks apply **only** to surfaces of role `format-slide` (routed by **surface role**, not by `schema_version` — a v2 manifest may legitimately also contain a frozen `chart-card` reactive single). `carousel-slide` and `chart-card` surfaces skip the new checks and keep their frozen V2–V12 behavior (§10 Risk 1). New checks continue the V-numbering:
+
+- **V13. Dominant-element ratio.** Each **content** format-slide must declare exactly one `dominant` element with `dominant.font_px ≥ 3 × body_reference`, where `body_reference =` the **max** `font_px` among that surface's `body`-role elements, falling back to the raised body floor **26** if the surface has no body element. Zero or ≥2 dominant elements → FAIL. Ratio < 3 → FAIL. **A utility slide is exempt** (no dominant required), defined as a slide whose elements are a subset of the utility roles `{so-what, source-stamp, wordmark}` — i.e. a standalone so-what slide, a source slide, or a combination, carries no content roles (`headline`/`hook`/`body`/`chart-label`/`dominant`) and is skipped by V13. Any slide carrying a content role is NOT a utility slide and MUST carry exactly one dominant. Rule cite: `PIPELINE-V2.md §4`.
+- **V14. Raised type floors (v2) + wordmark presence.** On format-slides: `body` and `chart-label` `font_px ≥ 26`; `source-stamp`/footnote `font_px ≥ 24`; `headline`/`hook` `font_px ≥ 48`. `wordmark` exempt from the floor. Any element below its floor → FAIL. Also asserts each format-slide carries **exactly one** `wordmark` element (R13 "wordmark on-card always", making it adversarially attackable) — zero wordmarks → FAIL. Rule cite: `qa-checklist.md §Typography`.
+- **V15. Thumbnail gate (360px, measured — independent teeth).** For each content format-slide, downscale the real PNG to **360px wide** with a **locked resample filter** (`Image.LANCZOS`, stated so the measurement is deterministic; the preview is a transient measurement, never a committed artifact, so it does not affect the PNG/PDF byte-equality guarantees) and measure the **rendered ink-band effective height** (reusing the existing V5-crosscheck `K_INTER` ink-band machinery) of the slide's `headline`/`hook` and its `dominant` element. FAIL if the measured headline ink is below the headline thumbnail floor **or** the measured dominant ink is below the dominant thumbnail floor (concrete px thresholds pinned by the Sprint-001 contract from the `K_INTER` calibration; suggested starting point: headline ≥ 13px, dominant ≥ 21px effective). **This is deliberately a pixel measurement, not manifest `font_px` math** — so a slide that passes V13 (ratio) and V14 (declared floors) but is *rendered* thumbnail-illegible (e.g. an honest-looking manifest whose glyphs shrink at 360px, or a thin/degraded render) FAILs V15 in isolation. A pure `font_px/3` inequality would be arithmetically dominated by V13/V14 and could never fire alone; the measured route is what makes the "thumbnail-illegible" adversarial fixture a distinct, isolable attack (one-fixture-one-check). Rule cite: `PIPELINE-V2.md §4`.
+- **V16. So-what presence.** The carousel asset must carry at least one element with role `so-what` (across its format-slides). Absent → FAIL. Rule cite: `PIPELINE-V2.md §4`.
+- **V17. Cover-pattern recorded.** `meta.md` must contain the delimited cover-pattern block (§5.4) with a value ∈ {`BIG-NUMBER`, `CHART-FIRST`}. Missing block or invalid value → FAIL. Rule cite: `PIPELINE-V2.md §4`.
+- **V18. Slide-count cap.** A carousel asset (surfaces of role `format-slide`) must have **≤10** such surfaces. 11+ → FAIL. Rule cite: `PIPELINE-V2.md §4`.
+- **V19. One dataset per post (presence attestation, NOT semantic).** `meta.md` must carry a `one_dataset:` attestation line (in the cover-pattern block or a sibling block, §5.4) naming the single dataset the post uses. This is a **presence** check (like V11 provenance), not a truth check — the semantic "is it really one dataset" judgment is a design-direction rule surfaced as `needs_review`, not a mechanical gate (§10 Risk 5). Missing attestation → FAIL. Rule cite: `PIPELINE-V2.md §4`.
+
+Existing checks V2 (canvas), V4 (contrast), V3 (ink), V5 (floor + cross-check), V6 (safe zone), V7 (hook ≤10 words), V8 (source stamp), V9 (blacklist), V10 (axis), V11 (provenance), V12 (verdict) continue to run on all surfaces per their existing applicability, with V5's floor table extended for format-slide roles (V14 covers the raised numbers; V5 stays as the v1 floor for v1 surfaces).
+
+### 5.3 `manifest.json` schema v2 (additive — the renderer↔validator seam)
+
+The validator MUST accept both `schema_version` `"1"` (frozen old assets/fixtures) and `"2"` (new format carousels). v2 additions:
+
+```json
+{
+  "schema_version": "2",
+  "slug": "2026-07-03-tgrera-enforcement-wave",
+  "surfaces": [
+    {
+      "id": "format-01",
+      "role": "format-slide",            // NEW surface role; v1 roles unchanged
+      "format": "RECEIPTS",              // NEW: one of the 7 format tags
+      "png": "format-01.png",
+      "canvas": { "w": 1080, "h": 1350 },
+      "has_axis": false,
+      "elements": [
+        { "text": "₹14.95L", "role": "dominant", "font_px": 96, "weight": 700,
+          "color": "#0f766e", "bg": "#faf8f3", "bbox": [90, 300, 600, 130] },
+        { "text": "R Homes · Jun 22", "role": "body", "font_px": 28, "weight": 500,
+          "color": "#57534e", "bg": "#faf8f3", "bbox": [90, 460, 700, 40] },
+        { "text": "TERREM", "role": "wordmark", "font_px": 26, "weight": 700,
+          "color": "#0d3d38", "bg": "#faf8f3", "bbox": [820, 1250, 170, 40] }
+      ]
+    }
+  ],
+  "pdf": "carousel.pdf"                   // NEW: present when a carousel PDF was emitted
+}
+```
+
+New element roles: **`dominant`** (the ≥3× hook element), **`so-what`** (the stand-alone utility line). Existing roles (`headline`, `hook`, `body`, `source-stamp`, `wordmark`, `chart-label`) unchanged. Every `color`/`bg` must be one of the §9 tokens. The validator's schema check must **tolerate** the new top-level `pdf` key and per-surface `format` key without erroring on old manifests that lack them.
+
+### 5.4 `meta.md` structured blocks (validator-consumed)
+
+Model on the existing `<!-- provenance:start -->` block. Cover-pattern + one-dataset attestation:
+
+```md
+<!-- cover-pattern:start -->
+pattern: BIG-NUMBER            # or CHART-FIRST  (V17)
+one_dataset: TGRERA enforcement orders, Jun 2026   # (V19)
+<!-- cover-pattern:end -->
+```
+
+The `qa-verdict.json` schema (§5.4 of run-001) is unchanged; new checks appear as additional entries in `checks`/`failed_checks` with their V13–V19 ids and rule cites.
 
 ## 6. States That Must Exist
 
-- **Empty:** no assets queued yet → queue file is a valid, empty-rows document (not a missing file); scorecard run with zero published assets → template with all-blank tables + full Missing-data listing.
-- **Success (publish):** gate passes → packages written + queue rows in `queued`; mark-posted → rows in `posted` with date + permalink.
-- **Success (analytics):** all inputs present → fully-filled scorecard, empty (or minimal) Missing-data section.
-- **Partial input (analytics):** some inputs present → mix of filled + blank cells, every blank enumerated under Missing data; exit `0` (valid partial scorecard is a success, not an error).
-- **Invalid input:** malformed/truncated CSV → nonzero exit, no scorecard (B-A3); wrong-UTM asset → flagged (B-U4 / B-A11).
-- **Gate refusal (publish):** missing verdict / non-PASS / failed_checks non-empty / KILLED → nonzero exit, cited reason, no write (B-P1).
-- **Idempotency:** re-running enqueue or scorecard on the same inputs → identical output, no duplicate queue rows, no regressed states (B-P3).
-- **Offline/network:** every command runs with no network; there is no online state. Any attempted network call is a defect.
+- **Empty / missing input:** asset folder or required spec missing → renderer errors, writes nothing partial; validator exits 2 with a clear message.
+- **No render yet:** validator before renderer → "manifest/PNG not found; run render first" (exit 2), no crash.
+- **Success (PASS):** all applicable checks pass → `verdict=PASS`, exit 0, verdict block in `meta.md`, PNGs + `carousel.pdf` + `manifest.json` present.
+- **V2-rule failures (each a distinct FAIL, right check cited):** dominant ratio < 3 (V13), zero/multiple dominants (V13), body at 24px (V14), thumbnail-illegible headline/dominant (V15), missing so-what (V16), missing/invalid cover-pattern (V17), 11-slide carousel (V18 at QA and R14 fail-loud at render), missing one-dataset attestation (V19).
+- **Invalid input:** malformed manifest / unknown format tag / color outside token set → explicit validation error naming the offending field (exit 2).
+- **Blank/stub PNG:** manifest present but PNG blank under declared text → V3 FAIL (inherited).
+- **Deterministic re-render:** second render → pixel-identical PNGs AND byte-identical `carousel.pdf`.
+- **Frozen old path:** a `chart-spec.md`-only reactive single (1080×1920) still renders + validates exactly as before; the hyd carousel and all 12 existing fixtures reach their existing verdicts unchanged.
 
 ## 7. Design Direction
 
-- Match `tools/marketing-render/` exactly: module-level docstring naming the sprint + the seam it consumes/produces; `argparse` CLI; exit codes `0` success / `1` domain failure / `2` usage-or-precondition error; paths resolved from `__file__` so tools run from any cwd; stdlib + Pillow only (Pillow not needed here — prefer pure stdlib: `csv`, `json`, `pathlib`, `argparse`, `re`).
-- **Explicit named schemas, not prose.** Every machine artifact (publish queue, publish package, CSV input contracts, any intermediate metrics blob) is a documented schema with a `schema_version` field, exactly like `manifest.json`/`qa-verdict.json`. This is the codebase's DNA and is what lets the Evaluator's fixtures meet the Generator's output.
-- **Anti-patterns (forbidden):** `datetime.now()` or any wall-clock in output; estimating/defaulting/zero-filling a missing metric; generating marketing copy; any network import (`requests`, `urllib` fetch, etc.); depending on the globally-installed `pmp-gywd@5.0.0` npm package or any npm/network resource; silently overwriting an existing render or an existing `posted` queue row.
-- **Tone in generated docs:** the scorecard's prose obeys `RESEARCH.md` refuted-stats blacklist and the Candid-Analyst register only insofar as it reproduces the template; the tool adds no editorial numbers.
-- **Determinism:** same inputs → byte-identical outputs (JSON with sorted keys / stable ordering; Markdown with stable row ordering, e.g. assets by slug, campaigns lexicographic).
+- **Data becomes the picture.** The v2 renderer renders *formats*, not documents: one dominant element per surface at ≥3× body, information hierarchy matching the story (PIPELINE-V2 §1 root cause). No inert text-only cards.
+- **Fidelity to locked tokens, not novelty.** Nine tokens (§9), Inter faces, Major-Third scale. One accent use per surface, applied to the single most important element. No new brand colors, gradients, textures under type, decorative faces, or chartjunk.
+- **Tufte-clean CHART format:** maximize data-ink; direct labels over legends; zero-based axis unless a disclosed break (V10).
+- **Anti-patterns (must not appear):** all-lowercase overlay headlines; condensed/thin faces; photo/texture behind text; >1 accent per surface; truncated axis without disclosure; body/source below the raised floors on a v2 surface; a cover with no dominant element.
+- **Accessibility (mechanically gated):** WCAG contrast ≥4.5:1 normal / ≥3:1 large on every element (V4); raised legibility floors (V14) and 360px thumbnail floors (V15); safe zones (V6). Every asset text element carries an explicit `text`, `role`, and `bbox` in the manifest (labeled, measurable).
+- **Tone of tooling output:** terse, mechanical, cite-the-rule. No praise, no hedging in verdicts.
 
 ## 8. Non-Goals
 
-- No live posting to Instagram/YouTube/LinkedIn; no API clients; no credential handling; no OAuth. The publish layer stops at the API boundary.
-- No scraping or fetching of analytics from any platform; inputs are operator-provided CSV files only.
-- No new rendering, no changes to `render.py`/`validate.py`/`measure.py`/`acceptance.py` behavior (they may be imported read-only; do not modify their contracts).
-- No revival of DB-derived price-trend content (still BLOCKED per `PLAN.md` §2 / provenance gate) — out of scope.
-- No dashboards, web UI, or charts of the metrics; the deliverable is the Markdown scorecard + machine artifacts.
-- No dependency on `pmp-gywd@5.0.0` (it is mentioned as available but must not be used, since nothing may require network access).
+- No video/reel/animation/audio rendering.
+- No publisher / direct posting to Instagram/LinkedIn/Facebook — that is PIPELINE-V2 §6, gated on the round-5 checklist (harness run 4). This run stops at PNG + PDF + gate.
+- No public asset hosting / URL plumbing (the `image_url` architecture constraint, R4-B2) — deferred with the publisher.
+- No auto-fixing of failing assets — the validator reports, it never edits copy or re-layouts.
+- No content generation — the renderer renders authored specs; it does not write hooks or copy.
+- No change to any other repo, or to the live TERREM product.
+- No semantic "is this really one dataset / is the so-what genuinely useful" judgment — presence-checked only; quality stays in `needs_review`.
+- No rewrite of the v1 renderer/validator/measure internals; v2 is additive alongside frozen v1 code paths.
 
 ## 9. Technical Constraints
 
-- **Language/runtime:** Python 3.9.6 (confirmed on machine). Stdlib only (`csv`, `json`, `argparse`, `pathlib`, `re`, `datetime` for parsing supplied dates only — never for "now"). Pillow 11.3.0 is available but not expected to be needed.
-- **Location:** everything in-repo. New CLIs live under `tools/` following the `tools/marketing-render/` pattern (suggested: `tools/marketing-publish/` for Gap 2, `tools/marketing-metrics/` for Gap 3, or a shared `tools/marketing-loops/` with `utm.py` shared — Generator chooses, but the shared UTM module must be importable by both). Tests under each tool's `tests/`, fixtures under each tool's `fixtures/`, mirroring the existing layout.
-- **Persistence:** flat files only. Single publish-queue file at a fixed documented path (suggested `content/publish-queue.json`). Per-channel packages written under the asset folder (suggested `content/<slug>/publish/<channel>.json` or `.md`). Scorecards at `metrics/YYYY-Www.md`.
-- **Security/privacy:** no network. No secrets. No personal data written (aligns with `PLAN.md` DPDP posture). CSV inputs are treated as untrusted (robust parsing per B-A3).
-- **Existing seams consumed (read-only, do not change):** `content/<slug>/render/qa-verdict.json` (`verdict`, `failed_checks`); `content/<slug>/render/manifest.json` (`surfaces[].png`); `content/<slug>/meta.md` (`Flywheel target:`, `Hook:`, `Channels:`, `QA:` lines); `metrics/TEMPLATE.md`; `content/TEMPLATE.md`.
-- **Testing:** `python3 -m unittest discover` per tool (existing convention); an `acceptance.py`-style end-to-end runner that exercises the CLIs as subprocesses and exits `0` iff the whole contract holds — mirroring `tools/marketing-render/acceptance.py`.
+- **Location:** all new code under `tools/marketing-render/` (extend `render.py`, `validate.py`, `measure.py`, `acceptance.py`; add fixtures). No writes outside this repo.
+- **Language/stack:** Python + Pillow + vendored Inter only (matching existing code). No new third-party dependency. **Determinism (R18) and no-network-at-render (R18) are hard requirements.**
+- **Locked color tokens** (from `brand-kit.md §3`, source of truth): `--bg #faf8f3 · --surface #ffffff · --ink #1c1917 · --ink-muted #57534e · --accent #0f766e · --accent-deep #0d3d38 · --chart-up #0d9488 · --chart-down #dc2626 · --border #e0dbd3`.
+- **Fonts vendored** under `tools/marketing-render/fonts/` (Inter, SIL OFL — license file present). No system fonts.
+- **PDF determinism:** suppress Pillow's per-run PDF metadata (creation/mod date, document ID); fix the producer string. Assert byte-equality in a test.
+- **Regression budget (hard):** the existing **139 render tests + 254 loop tests must stay green**, or be **consciously extended** (new assertions/fixtures added, existing assertions never weakened or deleted). Any change to a frozen assertion must be justified in the sprint contract as a conscious extension, not a silent relaxation.
+- **`measure.py` discipline:** **add** new pure functions (dominant-ratio, parameterized/raised floors, thumbnail effective-px math) — do **not** mutate existing `_TYPE_MINIMUMS`, `type_min_ok`, or other functions the v1 checks depend on. Route v2 floors through new code keyed on the format-slide surface role.
+- **Provenance-safety:** the TGRERA reference asset uses only public news-reported regulator orders (already in its `meta.md`/`script.md`); no TERREM DB numbers.
 
 ## 10. Risks and Ambiguities
 
-- **A-1 (campaign=slug):** UTM `utm_campaign` equals the folder slug with the `YYYY-MM-DD-` prefix stripped. Evidence: real asset folder `2026-07-03-hyd-premium-vs-budget` vs its `meta.md` campaign `hyd-premium-vs-budget`. Safest default: strip the leading `\d{4}-\d{2}-\d{2}-`. If an asset's campaign legitimately differs, the verifier flags it — acceptable, since the scheme is documented.
-- **A-2 (YouTube source string):** "YouTube community" maps to `utm_source=youtube`. Evidence: `meta.md` line 10 (`utm_source=youtube`). Both toolchains must use the identical string (§5.0 B-U3).
-- **A-3 (caption source):** No existing field is unambiguously "the caption." Default: the Generator introduces and documents a `Caption:` authored block in the asset (or per-channel captions in `meta.md`/a `captions.md`), and the tool errors if it is absent rather than inventing copy. Downstream authors then supply it; fixtures include it.
-- **A-4 (schedule slot):** Posting times are an open A/B hypothesis (`PLAN.md`). Default: assign a deterministic morning/evening A/B bucket from `--week` + channel, documented, never wall-clock. Real times are filled by the human when posting (recorded via mark-posted).
-- **A-5 (CSV column contracts):** Real platform export formats are unverifiable and variable. Default: author an internal column contract per source, document it in the schema, and have fixtures conform. This is the manifest.json approach applied to inputs.
-- **A-6 (WRR components):** Template defines WRR as returning viewers + digest opens + returning site visitors. If a component has no obvious single input column, the Generator names the column explicitly in the CSV contract; absence of any component → blank WRR + Missing-data entries (B-A5). No partial sums.
-- **A-7 (Channels list per asset):** `meta.md` `Channels:` line is free text (e.g. "IG carousel + reel, YT short, LinkedIn PDF"). The tool maps free-text channel mentions to the canonical `{instagram, youtube, linkedin}` set; ambiguous/unmapped tokens are surfaced, not guessed. Document the mapping rules.
-- **Risk — over-fitting to the one real asset.** Only one PASS asset (`2026-07-03-tgrera-enforcement-wave`) and one KILLED asset (`2026-07-03-hyd-premium-vs-budget`) exist. Build fixtures for the rest; do not hard-code the single real slug into tool logic.
+1. **[RESOLVED — normative] Raised floors must not retroactively fail frozen assets.** The existing `fx-good-min` positive control is a **chart-card** with `body font_px = 27` and `source-stamp = 20` (currently exempt); the hyd carousel body is **25px**. Raising floors globally (body ≥26, source ≥24 for all surfaces) would FAIL `fx-good-min` (source 20 < 24), the hyd carousel (body 25 < 26), and flip acceptance — a silent regression. **Resolution the request forces: the V2 hard rules (V13 dominant, V14 raised floors, V15 thumbnail, V16 so-what, V17 cover-pattern, V18 ≤10, V19 dataset) apply ONLY to `format-slide` surfaces (schema_version "2"). `carousel-slide` and `chart-card` surfaces keep their exact frozen V2–V12 behavior and v1 style constants.** TGRERA passes the raised floors because it is re-rendered from scratch as format-slides; the 12 existing fixtures pass because the new checks never reach them. The sprint MUST verify `fx-good-min` stays exit 0 and the hyd carousel unchanged.
+2. **[RESOLVED — normative] TGRERA changes surface type; acceptance.py must be consciously updated.** `acceptance.py` hard-codes `chart-card.png`, its SHA, and TGRERA's exit-0 expectation. TGRERA moves from a 1080×1920 chart-card to a 1080×1350 format-slide carousel + PDF. **The acceptance runner's TGRERA path must be updated (new baseline: carousel PNGs pixel-identical on re-render + `carousel.pdf` byte-identical + validate exit 0).** This is a conscious extension, not a weakening. The old `chart-card` render/validate code path stays exercised via the frozen `fx-good-min` fixture, so reactive-single coverage is not lost.
+3. **[RESOLVED — normative] Dominant-ratio denominator.** `body_reference = max(font_px of body-role elements on the surface)`, fallback **26** if no body element. Dominant must be exactly one element; ratio `dominant.font_px / body_reference ≥ 3`. This makes all 7 formats uniformly checkable and gives "dominant too small" a clean failure mode (V13).
+4. **[RESOLVED — normative] Thumbnail gate must measure rendered pixels, not manifest `font_px`.** A pure `effective_px = font_px/3` inequality is arithmetically dominated by V13 (dominant ≥ 3×body ≥ 78 > any font_px thumbnail floor) and V14 (headline ≥ 48), so it could never be the failing check in isolation — breaking the repo's one-fixture-one-check discipline (`acceptance.py`: the RIGHT check with the RIGHT rule, not merely "some FAIL"). V15 therefore **downscales the real PNG to 360px with a locked `Image.LANCZOS` filter and measures rendered ink-band height** (reusing V5-crosscheck `K_INTER` machinery). The transient preview is never committed, so PNG/PDF byte-determinism is untouched; only the locked filter must be stated. Concrete thresholds are pinned as fixed integers by the Sprint-001 contract from the `K_INTER` calibration.
+5. **[RESOLVED — normative] "One dataset per post" is presence-attested, not semantic.** V19 checks for a `one_dataset:` attestation line in `meta.md`; the semantic judgment is `needs_review` only. The request's own adversarial fixture list omits a two-dataset fixture — confirming this is not a mechanical pixel/manifest check.
+6. **[ASSUMPTION] TGRERA carousel slide plan (PIPELINE-V2 §5) — every slide is V13-valid.** Each slide is either a content slide with exactly one `dominant ≥ 3×body_ref`, or a V13-exempt **utility slide** (elements ⊆ `{so-what, source-stamp, wordmark}`). Plan: (1) **cover** — RECEIPTS, dominant = "9 days" / "3 builders. 9 days." figure; (2–4) **order-chip** content slides, each dominant = the amount/consequence (₹14.95L +10.7% · SALES FROZEN · 45 DAYS), builder/date at body; (5) **so-what** — a utility slide `{so-what, wordmark}` ("check the RERA number before you pay — free → intel.terrem.in"), V13-exempt (satisfies V16); (6) **source** — a utility slide `{source-stamp, wordmark}` (NewsMeter · Siasat · Deccan Chronicle · orders 2026-06-22/27/30), V13-exempt (satisfies V8). ≤10 slides, **wordmark on every slide** (V14), cover-pattern + one_dataset recorded in `meta.md`. Exact count/layout is the Generator's within these required elements; every slide MUST be either dominant-bearing or utility-exempt — no content slide without a dominant. Every fact identical to v1; only the hierarchy changes.
+7. **[ASSUMPTION] v2 input grammar.** The Generator chooses a deterministic, human-authorable input grammar for format-slides (extended `carousel.md` or a new `formats.md`), so long as it produces the §5.3 manifest. The **manifest is the normative seam**; the input grammar is the Generator's to design and document in README. TGRERA's existing `chart-spec.md` may remain for reference or be superseded — the carousel is the shipped asset.
+8. **PDF page order + determinism.** Pages MUST follow slide order; Pillow PDF metadata MUST be stripped/fixed (R16). A byte-equality test guards this independently of PNG determinism.
 
 ## 11. Suggested Sprint Breakdown
 
-Small, contract-testable slices. Shared UTM foundation first; the two gaps are otherwise independent; final acceptance sprint mirrors the existing `run-001` shape (5 build + 1 acceptance).
+Small slices, each contract-testable. `measure.py` changes are **additive** throughout.
 
-- **Sprint 001 — Shared UTM module + verifier CLI.** Parse `meta.md` flywheel line; validate against the scheme (B-U1..B-U4); per-channel source map (B-U3). Deliver an importable `utm` module + a scan CLI over `content/*/`. Tests: valid asset passes; wrong-medium, campaign≠slug, unknown-source, malformed-query, missing-line each flagged. Fixtures: at least one wrong-UTM asset.
-- **Sprint 002 — Publish gate + queue schema + enqueue.** Define QUEUE schema (§5.4, `schema_version`, state enum, nullable posted fields — the API seam, B-P8). Implement the four-condition gate (B-P1/B-P2) and idempotent enqueue (B-P3). Tests/fixtures: PASS asset enqueued; missing-verdict, non-PASS, failed_checks-non-empty, and KILLED assets each refused with cited reason and no write.
-- **Sprint 003 — Publish package generation + mark-posted + `/loop-publish` skill.** Per-channel packages (caption assembly B-P5, PNG paths from manifest B-P4, schedule slot B-P6); mark-posted transition (B-P7). Write `.claude/skills/loop-publish/SKILL.md` (B-P9). Tests: package bytes stable; UTM link correct per channel; mark-posted refuses non-queued rows and empty permalinks.
-- **Sprint 004 — Analytics CSV ingestion (robust).** CSV input contracts (B-A1), join key (B-A2), and the malformed/truncated rejection path (B-A3) vs absent-input handling (B-A4). Deliver an ingestion module producing a validated intermediate metrics structure. Fixtures: valid exports; truncated CSV; wrong-header CSV; wrong-column-count row — each rejected with nonzero exit and no downstream output.
-- **Sprint 005 — Scorecard compiler → `metrics/YYYY-Www.md`.** Consume the ingestion output; fill the template exactly (B-A5 WRR incl. no-partial-sum edge, B-A6 flywheel, B-A7 craft diagnostics + hook #, B-A8 A/B, B-A9 decisions, B-A10 fidelity, B-A11 UTM flagging). Update `loop-measure` SKILL (B-A12). Tests: full-input scorecard; missing-input scorecard produces blanks + Missing-data listing and NEVER a fabricated or partial number; determinism.
-- **Sprint 006 — Acceptance runner + adversarial fixture suite.** An `acceptance.py`-style end-to-end runner over both gaps: malformed CSV rejected; missing-input run blanks + lists (no invented numbers); non-PASS and KILLED assets refused by the queue; wrong-UTM asset flagged. Exit `0` iff the entire contract holds. Update `README.md` rollout status (check the Phase-0 analytics-plumbing box) and document both toolchains.
-
----
-
-### §5.4 Named schemas (author these as concrete artifacts, not prose)
-
-The Generator must materialize each of the following as a documented, versioned schema (JSON for machine artifacts) with example fixtures. These are contracts the Evaluator's fixtures will target.
-
-- **QUEUE** — `content/publish-queue.json`: `{ schema_version, rows: [ { slug, channel ∈ {instagram,youtube,linkedin}, state ∈ {queued,posted}, week (YYYY-Www), schedule_slot, package_path, posted_date|null, permalink|null } ] }`. Stable row ordering (slug, then channel). Single source of truth for `/loop-publish`.
-- **PACKAGE** — per asset×channel: `{ schema_version, slug, channel, utm_source, utm_link, caption, attachments: [png paths], schedule_slot, week }`. `caption` = authored body + per-channel UTM link; deterministic.
-- **CSV-INPUTS** — four documented column contracts (Instagram, YouTube, LinkedIn, site-analytics). Each names its required headers, the join column (`utm_campaign` for site-analytics; asset/campaign identifier for platform exports), and which columns feed which scorecard cell — explicitly the three WRR components (B-A5), 3s-hold, swipe-through/completion, shares, clicks, and flywheel clicks. Fixtures conform to these contracts.
-- **Missing-data listing** — the appended scorecard section: an enumerated list of every input/cell left blank and why (source not provided / value absent / WRR component missing / wrong-UTM excluded).
+- **Sprint 001 — Measurement + schema v2 core (pure, unit-tested, no rendering).** Add pure functions: dominant-ratio (`body_reference` + ≥3× rule), raised-floor table for format-slide roles (new, leaving `_TYPE_MINIMUMS` untouched), thumbnail effective-px math (`font_px/3` + 16/24 thresholds), cover-pattern/one-dataset block parser. Extend the validator's manifest schema to accept `schema_version "2"`, the `format-slide` surface role, `format` tag, `dominant`/`so-what` roles, and the top-level `pdf` key — while still accepting v1 manifests. Contract test: known ratios pass/fail at the 3× boundary; body 26 passes / 25 fails on v2, source 24 passes / 20 fails on v2; thumbnail 48/72 boundary; v1 manifest still validates.
+- **Sprint 002 — Format templates batch A (BIG-NUMBER, RECEIPTS, CHECKLIST) + manifest v2.** Render these three format-slide types to 1080×1350 PNGs with one `dominant` element each, raised floors, wordmark; emit schema-v2 manifest. Contract test: dims 1080×1350, dominant present at ≥3× body, raised floors met, deterministic re-render (decoded-RGBA SHA).
+- **Sprint 003 — Format templates batch B (TIMELINE, VS-CONTRAST, LEADERBOARD, CHART upgraded).** Same rigor; CHART reuses/upgrades v1 chart hierarchy and keeps V10 axis rules when `has_axis`. Contract test: each format renders, dominant + floors satisfied, deterministic.
+- **Sprint 004 — Deterministic multi-page PDF emitter.** Emit `carousel.pdf` from ordered format-slide PNGs; suppress/fix PDF metadata for byte-determinism; add top-level `pdf` manifest key. Contract test: PDF page count = slide count, pages in order, **byte-identical** across two runs.
+- **Sprint 005 — QA Gate V2 checks + adversarial fixtures.** Wire V13–V19 into `validate.py`, scoped to `format-slide` surfaces; emit them in `qa-verdict.json`. Add adversarial fixtures, each caught on the RIGHT check with the RIGHT rule: dominant-too-small → **V13**; body at 24px → **V14**; thumbnail-illegible slide → **V15**; missing so-what → **V16**; missing/invalid cover-pattern → **V17**; 11-slide carousel → **V18** (and R14 fail-loud at render); missing one-dataset attestation → **V19**; plus a v2 positive control → exit 0. Contract test: extend `acceptance.py`'s expectation table with these rows; confirm the 12 existing fixtures still reach their existing verdicts unchanged.
+- **Sprint 006 — TGRERA carousel + PDF + full end-to-end, no regression.** Author the TGRERA v2 carousel (Risk 6 plan) with cover-pattern + one-dataset blocks in `meta.md`; render PNGs + `carousel.pdf`; validate full V2 gate → PASS end-to-end. Update `acceptance.py` TGRERA path (Risk 2) to the new baseline (carousel PNGs pixel-identical, PDF byte-identical, validate exit 0). Acceptance: TGRERA PASSes; every adversarial fixture FAILs on its named check; **139 render tests + 254 loop tests green (or consciously extended)**; README documents the v2 render + validate + PDF commands and the format library.

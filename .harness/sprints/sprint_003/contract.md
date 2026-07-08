@@ -1,540 +1,313 @@
-# Contract — Sprint 003: Publish packages + schedule slot + mark-posted + `/loop-publish`
+# Sprint 003 Contract — Format Templates Batch B (TIMELINE, VS-CONTRAST, LEADERBOARD, CHART) + manifest v2
 
-> Closes the second half of Gap 2 (spec §5.1): per-channel publish **package**
-> generation (B-P4 attachments + B-P5 caption assembly), the deterministic
-> **schedule slot** (B-P6), the human-in-the-loop **mark-posted** transition
-> (B-P7), and the **`/loop-publish` skill** (B-P9). Builds directly on the
-> Sprint-002 gate/queue/channels modules and the Sprint-001 UTM module — all
-> imported, none forked, none modified.
->
-> This is a **CLI / library + one skill doc** deliverable, not a web app — there
-> are no routes, screens, or Playwright paths. Verification is exact CLI
-> invocations + exit codes + stdout/stderr substrings + on-disk JSON byte
-> assertions, mirroring the DNA of `tools/marketing-render/` and the
-> already-PASSED Sprints 001/002.
+Run 003 · Renderer V2 Format Library + QA Gate V2
+Spec refs: §5.1 (R10, R11, R12, R13, R14, R18, R19 + the CHART/TIMELINE/VS-CONTRAST/LEADERBOARD grammar rows), §5.3 (manifest v2), §7 (Tufte-clean CHART / one-accent), §9 (tokens/fonts/no-network), §10 Risk 1/3/6/7, §11 Sprint-003 row.
+Builds on: Sprint 001 (measure.py v2 pure fns + widened schema) and Sprint 002 (batch-A renderer + `formats.md` grammar + F-001 exit-2 guard), both evaluated PASS.
 
-## 1. Scope (this sprint only)
+---
 
-Deliver the package + posting-transition layer of the publish toolchain:
+## 0. One-paragraph scope
 
-- A **caption source** (`captions.md`) authored per asset, plus an importable
-  parser that resolves a per-channel caption **body** from it — and errors (never
-  invents) when the body is absent (B-P5 / A-3).
-- A pure, importable **schedule-slot** function: `(week, channel)` → a
-  deterministic morning/evening A/B-bucket slot string, no wall-clock (B-P6 / A-4).
-- A **package** CLI that, on a gate-passing asset, writes one per-channel
-  **PACKAGE** JSON file (§5.4 PACKAGE) — final caption (authored body + correct
-  **per-channel** UTM link), ordered attachment PNG paths (from `manifest.json`),
-  and the schedule slot — and updates the Sprint-002 **QUEUE** rows in place with
-  `schedule_slot` + `package_path`. It **re-runs the Sprint-002 gate** and never
-  bypasses it (B-P4 / B-P9).
-- A **mark-posted** CLI that transitions one `(slug, channel)` QUEUE row from
-  `queued` → `posted`, recording `--posted-on` and `--permalink`, refusing any
-  row that is not currently `queued` and any empty/non-URL permalink (B-P7).
-- A **`.claude/skills/loop-publish/SKILL.md`** documenting the operator flow
-  (gate+package → read packages → post by hand → mark-posted), invoking the CLIs
-  and adding no taste judgement (B-P9), mirroring `loop-qa`.
-- Unit tests + fixtures covering every path below.
+This sprint makes the renderer **draw the remaining four v2 format-slide templates** — `TIMELINE`, `VS-CONTRAST`, `LEADERBOARD`, `CHART` — each at **1080×1350**, each with exactly one `dominant` element rendered at ≥3× the body reference, the raised v2 type floors, and an on-card `TERREM` wordmark, and emits them into the existing **schema_version "2"** `manifest.json` alongside the batch-A formats. It extends the `formats.md` grammar (Sprint-002 design, Risk 7) with three directives (`Event:`, `Row:`, `Bar:`) and one new element role (`chart-label`, already schema- and floor-accepted from Sprint 001). The **CHART** format draws genuine, zero-based, direct-labeled data bars (decorative primitives, like RECEIPTS chips — NOT manifest elements) so it is a real chart, not an inert text card (spec §7 "data becomes the picture / no inert text-only cards"). It renders **no PDF** (Sprint 004), wires **no** V13–V19 QA check (Sprint 005), and does **not** touch `acceptance.py`, `measure.py`, `fixtures/*`, or the TGRERA/hyd assets (Sprint 006). The v1 path stays **byte-frozen**.
 
-**Explicitly OUT of this sprint** (Sprints 004–006): any analytics / CSV /
-scorecard work; any change to the four gate conditions; live posting APIs. See §7.
+**One conscious regression-budget change, stated up front (spec §9 regression budget; §10 Risk-1-style discipline):** Sprint 002 shipped `test_render_v2.py::test_unknown_format_tag_fail_loud`, which asserts `**F1 TIMELINE**` is rejected as an unknown tag. Enabling batch-B tags **legitimately flips that assertion** — TIMELINE now renders. Under the hard regression budget this test is **consciously re-pointed** at a genuinely bogus tag (e.g. `PIE-CHART`) that still fails loud, and a new positive assertion is added that TIMELINE/VS-CONTRAST/LEADERBOARD/CHART now render. This is a conscious extension (the "unknown tag fails loud" behavior is preserved and re-proven; only the example tag moves), **never a silent deletion**. No other existing assertion is weakened. `test_measure.py` / `test_validate.py` references to the batch-B tag names are unaffected (they test the meta-block parser and schema-tag acceptance, which already treated all 7 tags as valid).
 
-## 2. Files created / affected
+**`has_axis:true` is an explicit non-goal this sprint (§9).** CHART renders **zero-based, direct-labeled proportional bars with `has_axis:false`**. The disclosed-axis-break / truncated-axis V10 path is attacked in Sprint 005 via **hand-authored static manifests** (exactly as the v1 `fx-truncated-axis` fixture is — the v1 renderer itself rejects `has_axis:true` fail-loud at render.py:343, yet the fixture exists as a committed manifest). So a plotted numeric axis is not needed here and is not built.
 
-New, under `tools/marketing-loops/` (Generator may adjust private helper names but
-MUST honor the behaviors, the importable-pure-function requirement, and the
-fixtures-live-under-`tools/` rule):
+Playwright is **not applicable** — no browser UI. This is a CLI/raster sprint. The Evaluator attacks it by **rendering real PNGs, measuring pixels/canvas, hashing decoded-RGBA bytes, feeding violating `formats.md` fixtures, visually inspecting the rendered slides, and running both unittest suites** — not click paths.
 
-- `captions.py` — **importable pure module**: parse `captions.md`; resolve a
-  per-channel caption body (§3.1). No CLI side effects on import.
-- `schedule.py` — **importable pure module**: `slot_for(week, channel)` → slot
-  string (§3.2). No wall-clock, no import side effects.
-- `package.py` — the package CLI + its pure builder functions (§3.3). Imports
-  `gate`, `channels`, `queue`, `utm`, `captions`, `schedule`. Runs the gate,
-  refuses/usage-errors or writes packages + updates the queue.
-- `mark_posted.py` — the mark-posted CLI + pure transition function (§3.4).
-  Imports `queue`.
-- `tests/test_captions.py`, `tests/test_schedule.py`, `tests/test_package.py`,
-  `tests/test_mark_posted.py` — unit tests.
-- `fixtures/publish/<fx-name>/` — new packaging fixtures (each a full asset
-  folder: `meta.md` + `render/qa-verdict.json` + `render/manifest.json` +
-  `captions.md` as applicable), listed in §9. Fixtures live **under `tools/`,
-  never under `content/`**.
+---
 
-New, in the repo:
+## 1. Exact user-visible behaviors
 
-- `.claude/skills/loop-publish/SKILL.md` — the skill doc (§3.5), frontmatter +
-  steps mirroring `.claude/skills/loop-qa/SKILL.md`.
-- `content/2026-07-03-tgrera-enforcement-wave/captions.md` — the real asset's
-  authored caption source (§3.1 "Real-asset caption provenance"). **Its body is
-  transcribed verbatim from copy already authored in the asset** (the `Hook:`
-  line, `meta.md` line 6) — no new marketing claim is introduced; the tool never
-  writes prose (B-P5). This is the *only* touch to `content/` this sprint, and it
-  is the spec-sanctioned A-3 caption-field introduction, not a content rewrite.
+The "user" is a content operator (or `/loop-create` agent) who authors `content/<slug>/formats.md` and runs one command to get 1080×1350 format PNGs + a v2 manifest. Batch B adds four new `<FORMAT>` values to the header grammar and three new directives.
 
-**Read-only — imported, NOT modified** (their Sprint-001/002 contracts are frozen
-and already PASSED): `utm.py`, `gate.py`, `queue.py`, `channels.py`, and all of
-`content/*` except the one new `captions.md` above and any `content/<slug>/publish/`
-or `content/publish-queue.json` artifacts the tool itself writes. New shared logic
-this sprint needs (per-channel link building, package-row merging) is authored in
-the **new** modules and only *imports* the frozen ones — no function is added to
-`utm.py`/`queue.py`, so no PASSED contract can regress.
+### 1.1 `formats.md` grammar extensions (additive to Sprint 002 §1.1)
 
-Default production paths (created on first real run; tracked, non-secret
-artifacts): QUEUE `content/publish-queue.json`; PACKAGE files
-`content/<slug>/publish/<channel>.json`. Neither is written during tests — tests
-pass `--queue <tmp>` and `--publish-dir <tmp>` (§3.6, §8).
+Header grammar unchanged: `**F<n> <FORMAT>**`. `<FORMAT>` now additionally accepts `{TIMELINE, VS-CONTRAST, LEADERBOARD, CHART}` (batch A `{BIG-NUMBER, RECEIPTS, CHECKLIST}` still render). A `<FORMAT>` outside the full seven-tag set → **fail-loud `ValueError`** naming slide + tag (unchanged behavior, new example).
 
-## 3. Exact behaviors
+**New directives (added to the directive map + directive regex; existing directives unchanged):**
 
-### 3.1 Caption source + resolver (`captions.py`) — B-P5 / A-3
+| Directive | element `role` | style | rendered as | used by |
+|---|---|---|---|---|
+| `Event:` | `body` | chip (weight-700 in bordered chip) | a dated event chip (reuses the RECEIPTS chip primitive) | TIMELINE |
+| `Row:` | `body` | body (30px, weight-500) | a ranked leaderboard row line | LEADERBOARD |
+| `Bar:` | `chart-label` | chart-label (30px, weight-500, `ink`) | a direct data label **plus** a decorative proportional bar primitive | CHART |
 
-**The `captions.md` format** (mirrors the existing `meta.md`
-`<!-- provenance:start -->` marker convention — codebase DNA). An asset's caption
-source is `content/<slug>/captions.md` containing one or more delimited blocks:
+All Sprint-002 directives (`Dominant:`, `Context:`, `Headline:`, `Body:`, `Chip:`, `Step:`, `So-what:`, `Source:`, bare `Wordmark`) keep their exact mapping. An unrecognized non-empty line → **fail-loud `ValueError`** naming slide + line (unchanged).
 
-```
-<!-- caption:all:start -->
-<shared caption body — arbitrary text, preserved verbatim>
-<!-- caption:all:end -->
+**`Bar:` value grammar (CHART only).** A `Bar:` line's full authored text is the `chart-label` element text (direct data-ink labeling — Tufte, no plotted axis). The bar's **length is driven by the last numeric run** in the line (regex `\d+(?:\.\d+)?`), parsed as a non-negative float. A `Bar:` line with **no numeric run** → **fail-loud `ValueError`** naming slide + line. Bars are **zero-based**: `bar_len = round(value / max_value * track_w)` (deterministic integer math); `max_value` = the largest bar value on the slide (its bar fills the track). Example: `Bar: Gachibowli · 72%` → label text "Gachibowli · 72%", value 72.
 
-<!-- caption:instagram:start -->
-<optional Instagram-specific override body>
-<!-- caption:instagram:end -->
-```
+### 1.2 Per-format required-role rules (enforced at parse, fail-loud, no partial write)
 
-- Block key is `all` or one of the canonical channels
-  `{instagram, youtube, linkedin}` (imported from `utm.CHANNEL_SOURCE_MAP`).
-- **Body extraction** is deterministic: the text strictly between a block's
-  `:start`/`:end` markers, with leading/trailing blank lines stripped and interior
-  text preserved byte-for-byte (no reflow, no trimming of interior whitespace).
-- **Per-channel resolution:** for a channel `c`, use the `caption:<c>` block if
-  present; else fall back to the `caption:all` block; if **neither** exists →
-  the body is **absent** for `c`.
+Mirrors Sprint 002 §1.2. Every content format-slide MUST declare **exactly one** `dominant` and **exactly one** `wordmark`. Per-format minima:
 
-Importable pure API (no writes, no wall-clock, no network):
+- **TIMELINE:** exactly 1 `dominant` (anchor figure/span); **≥2** `Event:` chips; `headline` (`Context:`/`Headline:`) optional; exactly 1 `wordmark`. Fewer than 2 events → `ValueError` naming the minimum.
+- **VS-CONTRAST:** exactly 1 `dominant` (side-A number, the single accent); **exactly 1** `headline` (the opposing side-B number — see §1.4 asymmetry note; authored via `Context:`/`Headline:`); **≥2** `body` labels (the two side names, via `Body:`); exactly 1 `wordmark`. 0 or ≥2 headlines, or <2 body labels → `ValueError`.
+- **LEADERBOARD:** exactly 1 `dominant` (top value, the single accent); **≥2** `Row:` rows (`body`); `headline` optional; exactly 1 `wordmark`. Fewer than 2 rows → `ValueError`.
+- **CHART:** exactly 1 `dominant` (peak/headline figure, the single accent); **≥2** `Bar:` chart-labels; **≥1** `source-stamp` (`Source:`); `headline` optional; exactly 1 `wordmark`. Fewer than 2 bars or 0 source → `ValueError`.
 
-- `parse_captions(text) -> {block_key: body_str, ...}` — parses all blocks. A
-  malformed block (a `:start` with no matching `:end`) → raise `ValueError`
-  (the CLI turns this into exit 2). Duplicate block keys → `ValueError`.
-- `body_for(blocks, channel) -> str | None` — applies the resolution order
-  above; returns `None` when the body is absent for that channel.
+Violations (wrong dominant/wordmark count, per-format count out of range, `Bar:` with no numeric) are **fail-loud render errors with no partial write** (spec §6, R19 atomic emission).
 
-**Absent caption is an error, never an invention (B-P5):** if `captions.md` is
-missing, unparseable, or has no resolvable body for a channel that is about to be
-packaged, `package.py` exits 2, names the asset + the specific channel(s) lacking
-a body, and writes **no** package file and **no** queue change (§3.3 step 8). The
-tool NEVER substitutes, defaults, or generates caption text.
+### 1.3 v2 style constants (one new constant; all Sprint-002 v2 + all v1 constants untouched)
 
-**Real-asset caption provenance:** `content/2026-07-03-tgrera-enforcement-wave/captions.md`
-carries a single `caption:all` block whose body is the asset's own authored `Hook:`
-line (`meta.md` line 6), transcribed verbatim. No claim absent from the asset is
-added. (The primary *tested* happy-path anchor is a **fixture** with a
-Generator-authored caption — normal test data; the real asset merely proves the
-end-to-end flow runs on real content.)
+One new module-level constant in `render.py`; the batch-A `_FMT_*` constants and every v1 `_HOOK/_HEADLINE/_BODY/_SOURCE/_WORDMARK` / `_CC_*` constant stay **byte-unchanged** (spec §10 Risk 1):
 
-### 3.2 Schedule slot (`schedule.py`) — B-P6 / A-4
+| role | font_px | weight | color token | floor (V14) | check |
+|---|---|---|---|---|---|
+| `chart-label` (NEW `_FMT_CHART_LABEL`) | **30** | 500 | `ink` `#1c1917` | ≥26 | 30 ≥ 26 ✓ |
 
-Pure `slot_for(week, channel) -> str`. **No `datetime.now()`; derived only from
-the operator-supplied `--week` and fixed documented constants.**
+Reused Sprint-002 constants: `dominant` 132/700/`accent`, `headline` 52/700/`ink`, `body` 30/500/`ink-muted`, `chip` 30/700/`ink-muted`, `source-stamp` 26/400/`ink-muted`, `wordmark` 26/700/`accent-deep`.
 
-- `week` is validated `^\d{4}-W\d{2}$`; the 2-digit `WW` is parsed as an int.
-- Channel **ordinal** (canonical order): `instagram=0, youtube=1, linkedin=2`.
-- **A/B bucket** (deterministic, alternates by week to yield the weeks-1–8 A/B
-  data B-A8 later reads): `bucket = "morning" if (WW + ordinal) % 2 == 0 else
-  "evening"`.
-- **Per-channel default times** — *arbitrary A/B-hypothesis defaults, NOT real
-  posting times* (A-4: real times are filled by the human via mark-posted). Fixed,
-  documented constants:
+**Ratio invariant (provable by inspection, per format):** all `body`-role elements render at exactly **30px** (`Event:`/`Row:`/`Body:` chips and rows), so `body_reference = max(body font_px) = 30` on TIMELINE / VS-CONTRAST / LEADERBOARD. CHART carries **no** `body` element (its data labels are `chart-label`, not `body`), so `body_reference` falls back to **26** (the raised body floor, per V13 / measure `dominant_ratio_ok`). In every case `dominant = 132`:
 
-  | Channel | morning | evening |
-  |---|---|---|
-  | instagram | `09:00` | `18:00` |
-  | youtube | `11:00` | `20:00` |
-  | linkedin | `08:30` | `17:30` |
-
-- **Slot string format:** `<week>/<bucket>/<HH:MM>`.
-
-**Worked ground truth for `--week 2026-W27` (WW=27):**
-
-| Channel | (WW+ord) | bucket | slot string |
+| format | body_reference | ratio | ≥3? |
 |---|---|---|---|
-| instagram | 27 (odd) | evening | `2026-W27/evening/18:00` |
-| youtube | 28 (even) | morning | `2026-W27/morning/11:00` |
-| linkedin | 29 (odd) | evening | `2026-W27/evening/17:30` |
+| TIMELINE | 30 (Event chips) | 132/30 = 4.40 | ✓ |
+| VS-CONTRAST | 30 (side labels) | 132/30 = 4.40 | ✓ |
+| LEADERBOARD | 30 (rows) | 132/30 = 4.40 | ✓ |
+| CHART | 26 (fallback, no body) | 132/26 = 5.08 | ✓ |
 
-The **identical** slot string is written to BOTH the PACKAGE `schedule_slot` field
-and the QUEUE row `schedule_slot` field (computed once, written twice).
+`chart-label` is **not** a `body` role, so it never enters `body_reference`; the CHART fallback-to-26 is intentional and gives CHART the strongest ratio.
 
-### 3.3 Package generation (`package.py` CLI) — B-P4 / B-P5 / B-P6 / B-P9
+### 1.4 Visual grammar per format (exact pixel coords are the Generator's, deterministic)
 
-`python3 tools/marketing-loops/package.py <asset_dir> --week YYYY-Www [--queue PATH] [--publish-dir DIR]`
+One-accent discipline (spec §7): the single `#0f766e` **accent** use per surface is the `dominant`. All supporting `headline` are `ink`, `body`/`chart-label`/`so-what`/`source-stamp` are `ink-muted`/`ink`, `wordmark` is `accent-deep`. Below, one clarification per format prevents mis-reading a supporting element as a second dominant/accent:
 
-Ordered steps (all validation happens **before any write** — the operation is
-**atomic**: on any error, zero package files are written and the queue is
-untouched):
+- **TIMELINE:** optional `headline` eyebrow at top; the `dominant` anchor figure (accent, dominant mass); **≥2 dated event chips** below — each chip **reuses the RECEIPTS bordered-chip primitive** (`--border #e0dbd3` 1px stroke on `--surface #ffffff` fill, chip text weight-700). **Chip borders/fills are decorative primitives — NOT manifest elements**; only the text inside each chip is a `body` element. `wordmark` bottom-right.
+- **VS-CONTRAST — asymmetric-by-construction (V13 forces exactly one dominant).** Two opposing numbers **cannot both be dominant**: one is the `dominant` (132px accent), the other is a smaller `headline` (52px `ink`). The composition is a two-side split (side-A `body` label + `dominant` number; side-B `body` label + `headline` number), with the single accent on the dominant. The visible asymmetry (132 vs 52) IS the design; the Evaluator must not read the 52px headline as a second dominant. Deterministic split coords are the Generator's.
+- **LEADERBOARD:** optional `headline` title; the `dominant` top value (accent) — **"accent on one row" = the dominant top value IS the single accent**; every other `Row:` renders `ink-muted` (no second accent). **≥2** ranked `Row:` body lines stacked below/around the dominant. `wordmark` bottom-right. Rank numbers are part of the authored `Row:` text (no separate numeral element).
+- **CHART (Tufte-clean, real marks):** optional `headline` title; the `dominant` peak/headline figure (accent); **≥2 horizontal bars** — each bar is a **decorative `--chart-up #0d9488` filled rectangle**, **zero-based**, length ∝ authored value (`§1.1` integer math), drawn as a data-mark primitive (like RECEIPTS chips). **Bars are decorative primitives — NOT manifest elements.** Each bar carries a **direct `chart-label`** text element (≥26px, `ink`, drawn on the `bg #faf8f3` beside/above its bar — **not** on the colored bar, so contrast stays high for forward-compat V4). `source-stamp` and `wordmark` present. `has_axis:false` (zero-based, direct-labeled — no plotted numeric axis; §0). Direct labels over legends (spec §7). `--chart-up` is the token system's designated **chart-mark** color (§9), used here for data marks — it is not the branding "accent" (`#0f766e`), which remains the single dominant; this is the honest reading of the nine-token kit where `--chart-up`/`--chart-down` exist for chart marks.
 
-1. **`--week` format** (`^\d{4}-W\d{2}$`) → else exit 2.
-2. **Asset precondition:** `<asset_dir>` exists, is a dir, has `meta.md` → else
-   exit 2.
-3. **Gate first (never bypass — B-P9).** Run `gate.gate_asset(<asset_dir>)`. If
-   `ok=False` → print each cited reason to **stderr**, write nothing, exit **1**.
-   (This re-uses the *exact* Sprint-002 function; the four conditions are frozen.)
-4. **Channels** via `channels.channels_for_asset` (§3.5 of Sprint 002 — imported):
-   no `Channels:` line, an unmapped platform token, or zero channels → exit 2.
-5. **UTM precondition (why it lives here, not in the gate).** Validate the asset's
-   Flywheel link via `utm.validate_asset(<asset_dir>)`. The gate's four conditions
-   are frozen and do **not** include UTM (Sprint-002 pinned that); but package
-   generation *must parse the `Flywheel target:` line anyway* — it is the only
-   source of the destination base URL (`https://intel.terrem.in/markets`), and a
-   `meta.md` campaign that disagrees with the folder slug is a real authoring bug
-   that must not ship (story #1: "a wrong-UTM asset never ships"). So: if
-   `validate_asset` returns violations (missing line, malformed query, wrong
-   medium, campaign mismatch, unknown source) → exit **2**, cite the exact
-   Sprint-001 violation code(s), write nothing.
-6. **Manifest / attachments.** Read `<asset_dir>/render/manifest.json`. Absent,
-   unparseable, or with an empty/absent `surfaces` list → exit 2 (a package with
-   nothing to attach is not a valid package), write nothing. Otherwise
-   `attachments` = the ordered list, in `surfaces[]` order, of
-   `<asset_repo_relative>/render/<surface.png>` — POSIX-style forward-slash paths
-   **relative to the repo root** (repo root resolved from `__file__`). The real
-   assets and all fixtures resolve under the repo root, so these are stable and
-   cwd-independent.
-7. **Per-channel link.** For each channel `c`, build the per-channel UTM link by
-   **canonically rebuilding** the query on the flywheel destination:
-   `<scheme>://<host><path>?utm_source=<CHANNEL_SOURCE_MAP[c]>&utm_medium=social&utm_campaign=<campaign>`
-   where `<scheme>://<host><path>` is taken from the validated flywheel URL and
-   `<campaign>` = `utm.campaign_from_slug(<slug>)` (date-stripped slug). Canonical
-   rebuild (not string-splice) makes the link byte-identical regardless of the
-   base link's param order. Instagram → `utm_source=instagram`, YouTube →
-   `youtube`, LinkedIn → `linkedin` (the frozen Sprint-001 map).
-8. **Caption body per channel** via `captions.body_for` (§3.1). If any
-   **to-be-packaged** channel (see step 9 for posted-skip) has body `None` →
-   exit 2, name the asset + channel(s), write nothing. Final **caption** for a
-   channel = `<body> + "\n\n" + <per-channel utm_link>` (exactly two newlines
-   between body and link). Same authored body + same channel → byte-identical
-   caption (B-P5).
-9. **Queue merge + package files (the only writes; happen together, last).** Load
-   the queue (`queue.load_queue`, default `content/publish-queue.json`). For each
-   declared channel:
-   - If an existing QUEUE row for `(slug, channel)` is **`posted`** → **skip**: do
-     not overwrite its package file, do not alter its row; emit stdout
-     `kept-posted <slug> <channel>` (no-regress / no-overwrite-of-posted, spec §7).
-   - Otherwise (new pair, or existing `queued` row): build the row via
-     `queue.new_row(slug, channel, week)` (so it uses the frozen `queue.ROW_KEYS`
-     exactly), then set `schedule_slot` (§3.2) and `package_path` on it; **write**
-     the PACKAGE file `<publish-dir>/<channel>.json` (default publish-dir
-     `<asset_dir>/publish`); record `package_path` = that file's path,
-     repo-relative (POSIX) when under the repo root, else its absolute resolved
-     path. Emit stdout `packaged <slug> <channel>`.
-   Merge the built rows into the queue with **package semantics** (a pure helper
-   authored in `package.py`): new pair → append; existing `queued` → replace its
-   `schedule_slot`/`package_path`/`week` with the freshly-computed values, keep
-   `state="queued"`; existing `posted` → keep wholesale (the skip above). Write the
-   queue deterministically via `queue.dumps`/`queue.write_queue` (sorted keys,
-   `(slug, channel)` row order, single trailing newline). Exit **0**.
+All text uses vendored Inter only; the anti-tofu glyph guard (`_assert_glyphs`) runs on every element every render (R18); overflow beyond the safe band is a **fail-loud `ValueError`** (no silent clipping), reusing the batch-A band-overflow pattern.
 
-**PACKAGE file schema (§5.4 PACKAGE), serialized `json.dumps(..., sort_keys=True,
-indent=2) + "\n"`:**
+### 1.5 R14 — ≤10 slides (inherited, unchanged)
 
-```json
-{
-  "schema_version": "1",
-  "slug": "<content folder slug>",
-  "channel": "instagram|youtube|linkedin",
-  "utm_source": "instagram|youtube|linkedin",
-  "utm_link": "https://intel.terrem.in/markets?utm_source=<src>&utm_medium=social&utm_campaign=<campaign>",
-  "caption": "<authored body>\n\n<utm_link>",
-  "attachments": ["content/<slug>/render/<png>", "..."],
-  "schedule_slot": "<week>/<bucket>/<HH:MM>",
-  "week": "YYYY-Www"
-}
-```
+The Sprint-002 R14 fail-loud (≥11 declared format-slides → `ValueError` naming the count, no partial write) already covers batch-B slides (they share `parse_formats`). No change; re-proven by a mixed batch-A/B fixture in tests.
 
-**Idempotency (B-P3 spirit).** Re-running the exact same `package.py` command
-(same asset, `--week`, `--queue`, `--publish-dir`) → **byte-identical** PACKAGE
-files, **byte-identical** queue file, identical stdout. Everything is derived from
-the inputs; nothing is wall-clock.
+### 1.6 manifest.json — schema v2 emission (unchanged seam; new format tags/role appear)
 
-**Real-asset ground truth (`--week 2026-W27`, using temp `--queue`/`--publish-dir`):**
+`render_asset` continues to emit `schema_version "2"` when ≥1 format-slide surface exists. Batch-B surfaces carry `role:"format-slide"`, their `format` tag ∈ {`TIMELINE`,`VS-CONTRAST`,`LEADERBOARD`,`CHART`}, `has_axis:false`, and elements each with all seven required fields (`text`, `role`, `font_px`, `weight`, `color`, `bg`, `bbox`). New in the emitted element stream: the `chart-label` role (CHART). Every `color`/`bg` is one of the nine §9 tokens; CHART chart-label `bg` is `#faf8f3` (drawn on background, not on the bar). Output PNGs named `format-01.png … format-NN.png` in slide order (R19), under `content/<slug>/render/` only, atomic. **No top-level `pdf` key** (Sprint 004). `_validate_manifest_schema` already accepts all seven tags and the `chart-label`/`format-slide` roles (Sprint 001) — **no validator change this sprint**.
 
-- `content/2026-07-03-tgrera-enforcement-wave` → exit **0**; three PACKAGE files
-  (`instagram.json`, `youtube.json`, `linkedin.json`); each with `schema_version
-  "1"`, correct `utm_source`, per-channel `utm_link` (campaign
-  `tgrera-enforcement-wave`), `attachments`
-  `["content/2026-07-03-tgrera-enforcement-wave/render/chart-card.png"]`,
-  `schedule_slot` per the §3.2 W27 table, `week "2026-W27"`; three QUEUE rows
-  `state=queued` with `schedule_slot` + `package_path` now **non-null**.
-- `content/2026-07-03-hyd-premium-vs-budget` → gate refuses → exit **1**, stderr
-  cites `[missing-verdict, killed]`, **no** package files, **no** queue write.
-  (The clean real-content refusal anchor — proves the gate is never bypassed
-  without depending on any caption.)
+### 1.7 validate.py — F-001 exit-2 guard (inherited, unchanged; now also covers batch-B)
 
-### 3.4 Mark-posted (`mark_posted.py` CLI) — B-P7
+The Sprint-002 exit-2 guard (any `format-slide` surface → clean exit 2 with cited "V13–V19 not yet wired" message, nothing written, no traceback) already fires on batch-B v2 assets identically. **No validate.py change this sprint.** Re-proven by running `validate.py` against a batch-B fixture (exit 2, cited, no traceback).
 
-`python3 tools/marketing-loops/mark_posted.py <slug> <channel> --posted-on YYYY-MM-DD --permalink URL [--queue PATH]`
+---
 
-- **`<channel>`** must be one of `{instagram, youtube, linkedin}` → else exit 2.
-- **`--posted-on`** must match `^\d{4}-\d{2}-\d{2}$` **and** be a real calendar
-  date (validated via `datetime.strptime` — parsing a supplied date, **never**
-  `datetime.now()`) → else exit 2.
-- **`--permalink`** must be non-empty after strip **and** match `^https?://` (a
-  permalink is a URL) → else exit 2.
-- **`--queue`** (default `content/publish-queue.json`) must exist and load as a
-  valid QUEUE doc → else exit 2.
-- **Row lookup:** find the row for `(slug, channel)`.
-  - Not found → exit **2** (precondition: nothing to mark; message names the pair).
-  - Found but `state != "queued"` (i.e. already `posted`) → exit **1** (domain
-    refusal: "row is already posted; refusing to re-post"). No write.
-  - Found and `state == "queued"` → set `state="posted"`, `posted_date=<--posted-on>`,
-    `permalink=<--permalink>`; write the queue deterministically; stdout
-    `posted <slug> <channel> <posted_on>`; exit **0**.
-- **Intentionally NON-idempotent (contrast with enqueue/package).** A *second*
-  mark-posted on the same row is refused at exit 1 by design — this is the
-  no-double-post guard (B-P7 "refuse to mark posted a row that is not currently
-  queued"), not a bug. Enqueue/package are idempotent; mark-posted is a one-way
-  state transition.
+## 2. Routes / screens / components affected
 
-### 3.5 `/loop-publish` skill (`.claude/skills/loop-publish/SKILL.md`) — B-P9
+No routes/screens (no UI). Files:
 
-A skill doc mirroring `.claude/skills/loop-qa/SKILL.md` (YAML frontmatter with
-`name` + `description`; numbered steps; an operator "verdict" section). It:
+- `tools/marketing-render/render.py` — **add** the three directives (`Event:`/`Row:`/`Bar:`) to `_FMT_DIRECTIVE_RE` + `_FMT_DIRECTIVE_MAP`; **add** the `_FMT_CHART_LABEL` constant; **extend** the accepted-format set so `parse_formats` accepts all seven tags (batch-A frozenset extended/unioned — a genuinely unknown tag still fails loud); **add** per-format required-role rules for the four batch-B formats to `_validate_format_roles`; **add** the batch-B layout/draw logic (TIMELINE event chips reuse the chip machinery; LEADERBOARD/VS-CONTRAST use the stacked layout; CHART draws zero-based `--chart-up` bar primitives + direct chart-labels). **v1 code paths and all Sprint-002 batch-A behavior for the three existing formats stay unedited** except where the format set is widened; the batch-A `_FMT_*` constants are byte-unchanged.
+- `tools/marketing-render/tests/test_render_v2.py` — **consciously re-point** `test_unknown_format_tag_fail_loud` to a bogus tag (`PIE-CHART`) + **add** a positive assertion that all four batch-B tags render; **add** batch-B render/determinism/floor/ratio/fail-loud test classes. No existing assertion weakened or deleted (only the one example tag moves, documented §0).
+- `tools/marketing-render/tests/inputs/fmt-timeline/formats.md`, `…/fmt-vs-contrast/formats.md`, `…/fmt-leaderboard/formats.md`, `…/fmt-chart/formats.md` — **new** renderer-input fixtures (under the existing `tests/inputs/` dir, NOT `fixtures/`, so `acceptance.py`'s 12-fixture set is untouched). No committed PNGs — rendered to a temp dir in tests.
 
-- Documents the flow: (1) run `package.py content/<slug> --week <YYYY-Www>` —
-  which re-runs the gate and refuses a non-PASS/KILLED asset; (2) read the
-  generated `content/<slug>/publish/<channel>.json` packages (caption + attachments
-  + slot) and post **by hand** on each platform; (3) run `mark_posted.py <slug>
-  <channel> --posted-on <date> --permalink <url>` for each channel after posting.
-- States that the skill **never bypasses the gate** and **adds no taste
-  judgement / no copy** — it cites the tools' exit codes and reasons verbatim
-  (mirrors `loop-qa` step "adds no independent taste judgement").
-- Maps exit codes: `0` success, `1` gate refusal (list cited reasons) / already-
-  posted refusal, `2` precondition (missing caption, invalid UTM, absent manifest,
-  bad args) — report the tool's message, do not guess or auto-fix.
+**Out of scope (do not touch):** `render.py`'s v1 functions/constants and the batch-A `_FMT_*` style constants; `measure.py` (frozen — call `dominant_ratio_ok`, `format_slide_type_min` only, add none — `chart-label` floor 26 already exists); `validate.py` (schema + F-001 guard already cover batch B — no edit); `acceptance.py`; any `fixtures/*` asset or `make_fixtures.py`; the TGRERA / hyd content assets; PDF emission; V13–V19 check wiring; the 360px thumbnail (V15) / contrast (V4) gating; any file outside `tools/marketing-render/`.
 
-### 3.6 Exit codes (match render / Sprint-001 / Sprint-002 convention)
+---
 
-- `0` — success (packages written + queue updated; or mark-posted transition done;
-  idempotent re-run of `package.py` also 0).
-- `1` — **domain failure**: `package.py` gate refusal (reasons on stderr, no
-  write); `mark_posted.py` on an already-`posted` row (no write).
-- `2` — **usage / precondition error**: malformed `--week`/`--posted-on`; missing
-  asset/`meta.md`/`manifest`/`captions.md`-body; invalid Flywheel UTM; unmapped/zero
-  channels; empty/non-URL permalink; missing/invalid queue for mark-posted; unknown
-  channel arg; row-not-found for mark-posted. Message on stderr, **no write**, empty
-  stdout.
+## 3. Data / state transitions
 
-## 4. States
+- Input: `content/<slug>/formats.md`. Output: `content/<slug>/render/format-NN.png` + `render/manifest.json`. No DB, no network, no state beyond files.
+- `render_asset` builds all images + manifest **in memory**, then `write_outputs` writes; any parse/layout error raises **before** any file is written (atomic, R19).
+- Determinism (R18): identical `formats.md` → **pixel-identical PNGs** (decoded-RGBA SHA-256) and **byte-identical `manifest.json`** across runs. Bar lengths via deterministic integer `round()`; fonts loaded only from vendored `fonts/`; zero network.
 
-- **Empty / first run:** `package.py` against a non-existent `--queue` creates a
-  valid QUEUE doc; against an empty `--publish-dir` creates it (`mkdir -p`).
-- **Success (package):** gate passes, UTM valid, manifest + captions present →
-  N package files + N `queued` rows with `schedule_slot`/`package_path` non-null.
-- **Success (mark-posted):** a `queued` row → `posted` with `posted_date` +
-  `permalink`.
-- **Gate refusal (package):** missing/non-PASS/failed-checks/KILLED → exit 1, cited
-  reason(s), no write. (Real hyd → `[missing-verdict, killed]`.)
-- **Missing caption:** `captions.md` absent / no body for a packaged channel →
-  exit 2, named, **no write, never invented**.
-- **Invalid UTM (package):** wrong medium / campaign mismatch / etc. → exit 2 with
-  cited Sprint-001 code, no write.
-- **Absent manifest / no surfaces:** exit 2, no write.
-- **Idempotency:** re-run `package.py` on same inputs → byte-identical package
-  files + queue + stdout; no duplicate `(slug, channel)` rows.
-- **No-regress / no-overwrite of posted:** a pre-existing `posted` row for
-  `(slug, channel)` survives a re-`package.py` unchanged, and its package file is
-  **not** rewritten (`kept-posted`).
-- **Mark-posted non-idempotent:** second mark-posted on the same row → exit 1, no
-  write.
-- **Offline:** no network; any network import is a defect.
+---
 
-## 5. Non-UI expectations (a11y / responsive / contrast do not apply)
+## 4. Empty / loading / success / error / invalid states
 
-Headless CLI + one skill doc. In place of keyboard/focus/ARIA/contrast/responsive:
+- **Missing asset folder** → `FileNotFoundError`, exit 1, nothing written.
+- **No renderable input** → `FileNotFoundError` naming the requirement, exit 1.
+- **Success** → `format-NN.png` + `manifest.json` (schema "2") under `render/`, exit 0, per-file "wrote …" lines.
+- **Fail-loud invalid `formats.md`:** unknown/bogus format tag; unparseable line; content slide with 0 or ≥2 dominants; missing wordmark; TIMELINE <2 events; VS-CONTRAST 0/≥2 headline or <2 labels; LEADERBOARD <2 rows; CHART <2 bars or 0 source; `Bar:` with no numeric run; ≥11 slides; band overflow; tofu glyph → **`ValueError`/`RuntimeError`**, exit 1, **no partial write**.
+- **validate.py on a v2 asset (incl. batch B)** → clean **exit 2** with the cited "V13–V19 not yet wired" message, nothing written (no traceback).
+- **No loading state** (synchronous CLI).
 
-- **Usability:** every refusal/error message is specific and recoverable — it
-  names the asset, the channel, and the concrete fact (e.g. `no caption body for
-  channel 'youtube' — add a caption:youtube or caption:all block to captions.md`;
-  `Flywheel UTM invalid: [campaign-mismatch] ...`; `manifest.json not found at
-  <path>`), never a bare "failed".
-- **Runs from any cwd:** paths resolved from `__file__`; `<asset_dir>`, `--queue`,
-  `--publish-dir` accept absolute or relative paths.
-- **Import safety:** importing `captions`, `schedule`, `package`, `mark_posted`
-  has no side effects and prints nothing.
-- **Single source of truth:** channel↔source map imported from Sprint-001
-  `utm.CHANNEL_SOURCE_MAP`; canonical channel order from the same; QUEUE schema
-  constants/serialization from Sprint-002 `queue.py`; the gate from Sprint-002
-  `gate.py`. No forks, no re-declared maps.
+---
 
-## 6. Security / privacy
+## 5. Keyboard / focus / ARIA / contrast / responsive
 
-- Stdlib only (`json`, `re`, `argparse`, `pathlib`, `datetime` for parsing the
-  supplied `--posted-on` only — never `now()`, `urllib.parse` for building/parsing
-  query strings only — never to fetch). No third-party deps. No network. No
-  secrets. No personal data written. Untrusted inputs (`meta.md`, `manifest.json`,
-  `captions.md`) → parse defensively; a malformed input is a cited exit-2 error,
-  never a crash and never an invented value. No dependency on the globally-
-  installed `pmp-gywd@5.0.0` npm package.
-- `content/publish-queue.json` and `content/<slug>/publish/*.json` are tracked,
-  non-secret artifacts. Tests write only to temp `--queue`/`--publish-dir` and
-  never mutate real `content/` (except the committed real `captions.md`, which is
-  source, not a test artifact).
+- **UI a11y:** N/A — no DOM/viewport. Stated so the omission is not read as a gap.
+- **Raster legibility (the real a11y surface):** raised type floors met by construction (§1.3). CHART chart-labels are drawn on `bg #faf8f3` in `ink #1c1917` (not on the `--chart-up` bars), keeping contrast high for forward-compat V4. Contrast/thumbnail (V4/V15) routing for format-slides is Sprint 005; not gated here, but colors are chosen to pass. A FAIL in a pre-measured `contrast_check`/thumbnail is a Sprint-005 concern, not a Sprint-003 gate.
+- **Responsive proxy:** the 360px thumbnail legibility gate (V15) is Sprint 005; this sprint guarantees only the declared floors and the ≥3× dominant ratio.
 
-## 7. Explicit non-goals (this sprint)
+---
 
-- **No analytics / CSV / scorecard** (Sprints 004–006).
-- **No change to the four gate conditions** — `gate_asset` is imported and re-run
-  verbatim; UTM validity remains a *package precondition*, not a gate condition.
-- **No live posting APIs, no credentials, no OAuth** — mark-posted only records a
-  human-supplied permalink. The API seam stays the `{queued, posted}` state
-  machine (B-P8, already materialized in Sprint 002).
-- **No modification** of `utm.py`, `gate.py`, `queue.py`, `channels.py`, or any
-  `content/*` file other than adding the one real `captions.md`.
-- **No marketing-copy generation** — captions are authored input; the tool only
-  appends the UTM link.
+## 6. Security / privacy assumptions
 
-## 8. Commands to run
+- No network at import- or render-time. Evaluator may run with network disabled.
+- No secrets/tokens/credentials; no `.env`; no DB writes; no writes outside `content/<slug>/render/` (and, in tests, a temp dir).
+- No new third-party dependency: stdlib + already-vendored Pillow only. `render.py` gains no import beyond what it already uses.
+- Fixture copy is illustrative/public-style (RERA/portal/market-estimate generic guidance) — no TERREM DB numbers (spec §9 provenance-safety). The provenance-checked TGRERA asset is Sprint 006.
+
+---
+
+## 7. Commands to run (Evaluator)
+
+From repo root `/Users/prithviputta/Downloads/terrem-marketing-loops`:
 
 ```bash
-cd /Users/prithviputta/Downloads/terrem-marketing-loops
-TMPQ="$(mktemp -d)/queue.json"
-TMPP="$(mktemp -d)/publish"
+# (a) Render the four batch-B fixtures (same-basename folder into two temp parents,
+#     so slug is identical — CN-002 hygiene from Sprint 002 findings).
+for f in fmt-timeline fmt-vs-contrast fmt-leaderboard fmt-chart; do
+  mkdir -p /tmp/s3a/$f /tmp/s3b/$f && \
+  cp tools/marketing-render/tests/inputs/$f/formats.md /tmp/s3a/$f/ && \
+  cp tools/marketing-render/tests/inputs/$f/formats.md /tmp/s3b/$f/ && \
+  python3 tools/marketing-render/render.py /tmp/s3a/$f && \
+  python3 tools/marketing-render/render.py /tmp/s3b/$f
+done
 
-# Unit tests (all Sprint 001+002+003 must pass)
-python3 -m unittest discover -s tools/marketing-loops/tests -v
+# (b) Canvas + schema: every format PNG is 1080x1350; manifest schema "2";
+#     correct format tag; has_axis:false.
+python3 - <<'PY'
+import json, glob
+from PIL import Image
+seen=set()
+for mf in glob.glob('/tmp/s3a/fmt-*/render/manifest.json'):
+    m = json.load(open(mf))
+    assert m["schema_version"] == "2", mf
+    for s in m["surfaces"]:
+        assert s["role"]=="format-slide" and s["canvas"]=={"w":1080,"h":1350}, s["id"]
+        assert s["has_axis"] is False, s["id"]
+        seen.add(s["format"])
+        im = Image.open(mf.rsplit('/',1)[0] + '/' + s["png"])
+        assert im.size == (1080,1350), s["id"]
+assert {"TIMELINE","VS-CONTRAST","LEADERBOARD","CHART"} <= seen, seen
+print("canvas+schema+tags OK")
+PY
 
-# Real PASS asset -> 3 packages + 3 queued rows with slot+package_path -> exit 0
-python3 tools/marketing-loops/package.py \
-  content/2026-07-03-tgrera-enforcement-wave --week 2026-W27 \
-  --queue "$TMPQ" --publish-dir "$TMPP" ; echo "exit=$?"
-cat "$TMPP/instagram.json"   # utm_source instagram; slot 2026-W27/evening/18:00
-cat "$TMPP/youtube.json"     # utm_source youtube;   slot 2026-W27/morning/11:00
-cat "$TMPQ"                  # 3 rows, schedule_slot + package_path non-null
+# (c) Determinism: decoded-RGBA PNGs + manifest bytes identical across the two runs.
+python3 - <<'PY'
+import hashlib, glob
+from PIL import Image
+def rgba(p): return hashlib.sha256(Image.open(p).convert("RGBA").tobytes()).hexdigest()
+for a in glob.glob('/tmp/s3a/fmt-*'):
+    b = a.replace('/s3a/','/s3b/')
+    for pa in sorted(glob.glob(a + '/render/format-*.png')):
+        pb = b + '/render/' + pa.rsplit('/',1)[1]
+        assert rgba(pa) == rgba(pb), pa
+    assert open(a+'/render/manifest.json','rb').read() == open(b+'/render/manifest.json','rb').read(), a
+print("determinism OK")
+PY
 
-# Idempotency: re-run -> byte-identical packages + queue
-shasum "$TMPP"/*.json "$TMPQ"
-python3 tools/marketing-loops/package.py \
-  content/2026-07-03-tgrera-enforcement-wave --week 2026-W27 \
-  --queue "$TMPQ" --publish-dir "$TMPP" ; shasum "$TMPP"/*.json "$TMPQ"
+# (d) V13/V14 provable against the EMITTED manifest via Sprint-001 measure fns.
+python3 - <<'PY'
+import sys, json, glob
+sys.path.insert(0,'tools/marketing-render'); import measure
+for mf in glob.glob('/tmp/s3a/fmt-*/render/manifest.json'):
+    for s in json.load(open(mf))["surfaces"]:
+        els = s["elements"]
+        r = measure.dominant_ratio_ok(els)
+        assert r["passes"] and (r["exempt"] or r["ratio"] >= 3.0), (s["id"], r)
+        assert sum(1 for e in els if e["role"]=="wordmark")==1, s["id"]
+        assert sum(1 for e in els if e["role"]=="dominant")==1, s["id"]
+        for e in els:
+            if e["role"] != "wordmark":
+                assert measure.format_slide_type_min(e["role"], e["font_px"])["passes"], (s["id"],e["role"],e["font_px"])
+print("V13/V14 (measure) OK")
+PY
 
-# Gate never bypassed: real KILLED asset -> exit 1, no packages, no queue write
-python3 tools/marketing-loops/package.py \
-  content/2026-07-03-hyd-premium-vs-budget --week 2026-W27 \
-  --queue "$TMPQ" --publish-dir "$TMPP" ; echo "exit=$?"
+# (e) Bars are DECORATIVE, not manifest elements: CHART manifest carries only
+#     dominant + chart-labels + source-stamp + wordmark (+ optional headline) —
+#     no phantom "bar" element rows.
+python3 - <<'PY'
+import json
+m = json.load(open('/tmp/s3a/fmt-chart/render/manifest.json'))
+s = [x for x in m["surfaces"] if x["format"]=="CHART"][0]
+roles = sorted(e["role"] for e in s["elements"])
+assert "chart-label" in roles and roles.count("dominant")==1, roles
+assert all(r in {"headline","dominant","chart-label","source-stamp","wordmark"} for r in roles), roles
+assert sum(1 for e in s["elements"] if e["role"]=="chart-label") >= 2, roles
+print("CHART decorative-bars / chart-labels OK:", roles)
+PY
 
-# Mark-posted: queued -> posted, then re-run refused (non-idempotent by design)
-python3 tools/marketing-loops/mark_posted.py \
-  2026-07-03-tgrera-enforcement-wave instagram \
-  --posted-on 2026-07-04 --permalink https://instagram.com/p/xyz \
-  --queue "$TMPQ" ; echo "exit=$?"
-python3 tools/marketing-loops/mark_posted.py \
-  2026-07-03-tgrera-enforcement-wave instagram \
-  --posted-on 2026-07-04 --permalink https://instagram.com/p/xyz \
-  --queue "$TMPQ" ; echo "exit=$? (expect 1: already posted)"
+# (f) validate.py on a batch-B v2 asset -> clean exit 2, cited, NO traceback.
+python3 tools/marketing-render/render.py /tmp/s3a/fmt-timeline >/dev/null
+python3 tools/marketing-render/validate.py /tmp/s3a/fmt-timeline; echo "exit=$?"
 
-# No-regress: re-package after a post -> instagram kept-posted (package not rewritten)
-python3 tools/marketing-loops/package.py \
-  content/2026-07-03-tgrera-enforcement-wave --week 2026-W27 \
-  --queue "$TMPQ" --publish-dir "$TMPP" ; echo "exit=$?"   # stdout: kept-posted ... instagram
+# (g) Regression: hyd + tgrera stay schema "1" and byte-identical after re-render.
+python3 tools/marketing-render/render.py content/2026-07-03-hyd-premium-vs-budget
+python3 tools/marketing-render/render.py content/2026-07-03-tgrera-enforcement-wave
+git -C /Users/prithviputta/Downloads/terrem-marketing-loops status --porcelain content/  # expect no diff
 
-# Import-safety: modules import silently
-python3 -c "import sys; sys.path.insert(0,'tools/marketing-loops'); \
-  import captions, schedule, package, mark_posted; \
-  print(schedule.slot_for('2026-W27','instagram'))"   # -> 2026-W27/evening/18:00
+# (h) Full suites — render count MUST rise above 219 and stay OK; loop stays 254 OK.
+python3 -m unittest discover -s tools/marketing-render/tests 2>&1 | grep -E "^(Ran|OK|FAILED)"
+python3 -m unittest discover -s tools/marketing-loops/tests 2>&1 | grep -E "^(Ran|OK|FAILED)"
+
+# (i) No-network import sanity.
+python3 -c "import sys; sys.path.insert(0,'tools/marketing-render'); import render, validate, measure; print('import-ok')"
 ```
 
-## 9. Evaluator attack checklist (CLI, not Playwright)
+**Baseline (from Sprint-002 findings, re-confirmed in generator_trace.log before code):** render suite `Ran 219 … OK`; loop suite `Ran 254 … OK`. After this sprint: render count **> 219** and `OK`; loop **254 … OK**.
 
-Fixtures shipped under `tools/marketing-loops/fixtures/publish/` (each a full asset
-folder). Required NEW fixtures + expected result:
+---
 
-| Fixture intent | Expected |
-|---|---|
-| `pkg-pass` — PASS, valid UTM, manifest 1 surface, `captions.md` `[all]` block, 3 channels (positive control) | exit 0; 3 packages; 3 queued rows w/ slot+package_path; caption = body + per-channel link |
-| `pkg-multi-surface` — manifest with ≥2 surfaces | `attachments` is the ordered ≥2 repo-relative PNG list |
-| `pkg-per-channel-caption` — `captions.md` has `[all]` + `[instagram]` override | instagram caption uses the override body; youtube/linkedin use `[all]` |
-| `pkg-no-captions` — no `captions.md` | exit 2, names the channels lacking a body, **no package, no queue write** |
-| `pkg-missing-channel-caption` — `captions.md` has only `[instagram]`, Channels include youtube | exit 2, names `youtube` (no `[all]` fallback), no write |
-| `pkg-bad-utm` — gate PASS but Flywheel campaign mismatch (or wrong medium) | exit 2, cites the Sprint-001 code (`campaign-mismatch`/`wrong-medium`), no write |
-| `pkg-no-manifest` — gate PASS but `render/manifest.json` absent | exit 2, no write |
-| `pkg-empty-surfaces` — manifest present but `surfaces: []` | exit 2, no write |
-| (reuse `killed`) — KILLED marker | gate refuses, exit 1, no package |
-| (reuse `verdict-fail`) — verdict FAIL | gate refuses, exit 1, no package |
+## 8. Adversarial matrix the Evaluator should run (replaces Playwright click paths)
 
-Adversarial probes the Evaluator should run:
+Each row is a distinct, isolable attack; the Generator ships each as a unit test too.
 
-1. **Real tgrera package** (temp queue + publish-dir, `--week 2026-W27`) → exit 0;
-   assert 3 package files; each `schema_version "1"`; `utm_source` matches channel;
-   `utm_link` carries `utm_source=<channel>&utm_medium=social&utm_campaign=tgrera-enforcement-wave`;
-   `attachments == ["content/2026-07-03-tgrera-enforcement-wave/render/chart-card.png"]`;
-   `schedule_slot` exactly per §3.2 W27 table; `caption` ends with the link after a
-   blank line; 3 queue rows `queued` with matching `schedule_slot`+`package_path`.
-2. **Idempotency** → re-run → `shasum` byte-identical for every package file AND the
-   queue; identical stdout; no duplicate rows.
-3. **Per-channel link correctness** → instagram/youtube/linkedin packages carry
-   `utm_source=instagram|youtube|linkedin` respectively, all same campaign, all
-   `utm_medium=social`.
-4. **Gate never bypassed** → real hyd → exit 1, stderr `[missing-verdict, killed]`,
-   temp queue **unchanged/not created**, publish-dir empty.
-5. **Missing caption** → `pkg-no-captions` and `pkg-missing-channel-caption` → exit
-   2, the missing channel named, **no** package file written, queue unchanged.
-6. **Invalid UTM** → `pkg-bad-utm` → exit 2, Sprint-001 violation code cited, no
-   write. (Proves UTM is enforced at publish without being folded into the gate.)
-7. **Manifest guards** → `pkg-no-manifest` and `pkg-empty-surfaces` → exit 2, no
-   write.
-8. **Mark-posted happy path** → seed a queue with a `queued` (tgrera, instagram)
-   row → mark-posted with valid date + `https://…` permalink → exit 0; row now
-   `state=posted`, `posted_date`, `permalink` set; other rows untouched.
-9. **Mark-posted refusals** → (a) same row again → exit 1 "already posted", no
-   write; (b) `(slug, channel)` not in queue → exit 2; (c) empty or
-   non-`http(s)://` permalink → exit 2; (d) malformed `--posted-on` (`2026-7-4`,
-   `2026-13-40`) → exit 2. Each writes nothing.
-10. **No-regress / no-overwrite** → after posting (tgrera, instagram),
-    re-run `package.py` → stdout `kept-posted … instagram`, the instagram package
-    file's mtime/bytes unchanged, the posted row intact; youtube/linkedin
-    re-packaged idempotently.
-11. **Cross-command regression (Sprint-002 stays passing)** → `enqueue.py` (creates
-    null-slot rows) → `package.py` (fills slot+package_path) → `enqueue.py` again →
-    the slot+package_path set by package.py **survive** (merge_rows keeps the queued
-    row wholesale); final queue byte-stable.
-12. **Import safety + determinism source** → `import captions, schedule, package,
-    mark_posted` prints nothing; `schedule.slot_for('2026-W27','instagram') ==
-    '2026-W27/evening/18:00'`; channel map is the imported Sprint-001
-    `CHANNEL_SOURCE_MAP` (no fork).
-13. **No network / no wall-clock** → grep the new sources for `datetime.now`,
-    `requests`, `urlopen`, `socket`, network `urllib` → none (only
-    `datetime.strptime` for `--posted-on` parsing and `urllib.parse` for query
-    handling are permitted; assert those are the only hits).
-14. **Frozen modules untouched** → `git`/diff shows `utm.py`, `gate.py`,
-    `queue.py`, `channels.py` unchanged; the full Sprint 001+002 unit suite still
-    passes.
+| # | Attack | Expected result |
+|---|---|---|
+| 1 | Render `fmt-timeline` | 1080×1350; `format=TIMELINE`; ≥2 event body-chips; anchor dominant; chip pixels drawn with `--border`/`--surface` (NOT manifest elements) |
+| 2 | Render `fmt-vs-contrast` | 1080×1350; `format=VS-CONTRAST`; **exactly one** dominant (132) + one headline second-number (52) + ≥2 body labels |
+| 3 | Render `fmt-leaderboard` | 1080×1350; `format=LEADERBOARD`; one dominant top value; ≥2 body rows; single accent = dominant |
+| 4 | Render `fmt-chart` | 1080×1350; `format=CHART`; `has_axis:false`; ≥2 `chart-label`s; `--chart-up` bar pixels present (decorative, NOT manifest elements); source-stamp present |
+| 5 | `measure.dominant_ratio_ok(elements)` per slide | `passes True`; TIMELINE/VS/LEADER 132/30=4.40; CHART 132/26=5.08 (no-body fallback); exactly one dominant |
+| 6 | `measure.format_slide_type_min(role,font_px)` per non-wordmark element | `passes True` (headline 52, body/chart-label 30, source 26) |
+| 7 | Count `wordmark` + `dominant` per format-slide | exactly **1** each |
+| 8 | `_validate_manifest_schema` on an emitted batch-B v2 manifest | **no raise** (structurally valid; tags + `chart-label` accepted) |
+| 9 | Re-render each fixture (same-basename folder); compare decoded-RGBA PNG + manifest bytes | **identical** (R18) |
+| 10 | CHART `Bar:` line with **no numeric run** | fail-loud `ValueError` naming slide + line; no partial write |
+| 11 | CHART with **1** bar | `ValueError` naming bar minimum (≥2) |
+| 12 | CHART missing `Source:` | `ValueError` naming source requirement |
+| 13 | TIMELINE with **1** event | `ValueError` naming event minimum (≥2) |
+| 14 | LEADERBOARD with **1** row | `ValueError` naming row minimum (≥2) |
+| 15 | VS-CONTRAST with **0** or **2** headlines (second numbers) | `ValueError` naming the exactly-one-headline rule |
+| 16 | VS-CONTRAST with **1** body label | `ValueError` naming the ≥2-label rule |
+| 17 | Any batch-B slide with 0 / 2 `Dominant:` | `ValueError` ("exactly one dominant"), no partial write |
+| 18 | Any batch-B slide missing `Wordmark` | `ValueError` ("exactly one wordmark") |
+| 19 | Header `**F1 PIE-CHART**` (genuinely bogus tag) | `ValueError` ("unknown/unsupported format tag") — the re-pointed Sprint-002 assertion |
+| 20 | Header `**F1 TIMELINE**` (now valid) | renders (the conscious flip: batch-B tag now accepted) |
+| 21 | `validate.py <batch-B v2 asset>` | **exit 2**, cited "format-slide … V13–V19 … Sprint 005" message, **no traceback**, nothing written (F-001, inherited) |
+| 22 | `validate.py` on the 12 v1 fixtures + hyd + tgrera | **unchanged verdicts** — guard does not fire |
+| 23 | Re-render hyd + tgrera | `manifest.json` stays `schema_version "1"`, **byte-identical**; PNGs decoded-RGBA identical |
+| 24 | Every emitted `color`/`bg` (incl. CHART chart-label bg `#faf8f3`, dominant `#0f766e`) | is one of the nine §9 tokens |
+| 25 | Mixed A+B `formats.md` with **11** slides | fail-loud `ValueError` naming count; no `render/` written (R14, inherited) |
+| 26 | Anti-tofu: a batch-B element with a real glyph | renders (no false tofu); guard runs every render |
+| 27 | Visual: read `fmt-chart.png` / `fmt-vs-contrast.png` PNGs | real zero-based bars with direct labels (not inert text); one accent = dominant; no second accent, no chartjunk |
+| 28 | Render suite / loop suite | render `Ran N>219 … OK`; loop `Ran 254 … OK` |
+| 29 | `import render, validate, measure` with network off | `import-ok` |
 
-## 10. Definition of done
+**Freeze invariant (must hold):** rows 22–23 + 28 prove the v1 renderer/validator behavior is byte-for-byte preserved and the batch-A behavior unchanged; no previously-passing artifact changes except the one consciously re-pointed test assertion (rows 19–20), which preserves the "unknown tag fails loud" guarantee.
 
-- `captions.py` parses the marker-delimited `captions.md`, resolves per-channel
-  body with `[channel]→[all]` fallback, and returns `None` (never a fabricated
-  body) when absent; malformed blocks raise `ValueError`; no import side effects.
-- `schedule.py` `slot_for(week, channel)` is pure, wall-clock-free, matches the
-  §3.2 formula, and reproduces the W27 worked table exactly.
-- `package.py` runs the frozen gate (refuse=1), validates UTM/channels/manifest/
-  captions as exit-2 preconditions, and on success writes N deterministic PACKAGE
-  files + updates N QUEUE rows (`schedule_slot`+`package_path`) atomically and
-  idempotently, skipping/keeping `posted` rows without overwriting.
-- `mark_posted.py` transitions `queued`→`posted` with validated `--posted-on` +
-  `--permalink`, refuses non-`queued` rows (exit 1) and bad args/rows (exit 2),
-  writes deterministic queue JSON, and is intentionally non-idempotent.
-- `.claude/skills/loop-publish/SKILL.md` documents the gate→package→post→mark-posted
-  flow, invokes the CLIs, never bypasses the gate, adds no copy/taste — mirroring
-  `loop-qa`.
-- The real `content/2026-07-03-tgrera-enforcement-wave/captions.md` carries an
-  asset-authored (verbatim `Hook:`) caption body; real tgrera packages at exit 0
-  with the §3.3 ground-truth values; real hyd is refused at exit 1 with
-  `[missing-verdict, killed]` and no write.
-- Fixtures for every §9 row shipped under `tools/marketing-loops/fixtures/publish/`.
-- Unit tests prove caption resolution + missing-body error, schedule determinism,
-  package build/attachments/link/caption/idempotency/no-regress, mark-posted
-  transition + all refusals, and the cross-command regression; all pass alongside
-  the untouched Sprint 001+002 suites.
-- Evidence (command output, exit codes, before/after `shasum`, sample PACKAGE +
-  QUEUE JSON, grep-clean for wall-clock/network) logged in `generator_trace.log`.
-```
+---
+
+## 9. Explicit non-goals (Sprint 003)
+
+- **No PDF.** `carousel.pdf` and the top-level `pdf` manifest key are Sprint 004.
+- **No V13–V19 QA wiring.** No `_check_v*` added; only the inherited F-001 exit-2 guard runs on v2 assets.
+- **No `has_axis:true` / plotted numeric axis on CHART.** CHART renders zero-based, direct-labeled bars only; the truncated/disclosed-break V10 path is Sprint 005 via hand-authored manifests (§0).
+- **No `measure.py` change** — frozen; this sprint only *calls* its functions (`chart-label` floor 26 already present).
+- **No `validate.py` change** — schema + F-001 guard already cover batch B.
+- **No `acceptance.py` change**, no `fixtures/*` change, no `make_fixtures.py` change, no TGRERA/hyd content edit.
+- **No v1 renderer edits** and **no batch-A `_FMT_*` constant edits** — byte-unchanged (only the accepted-format set is widened + new directives/role/layout added).
+- **No 360px thumbnail (V15) or contrast (V4) gating** on format-slides — Sprint 005.
+- **No new dependency, no network, no writes outside `tools/marketing-render/` + the target `content/<slug>/render/`.**
+
+---
+
+## 10. Definition of done (what the Evaluator can verify on disk)
+
+1. `render.py` renders `TIMELINE`, `VS-CONTRAST`, `LEADERBOARD`, `CHART` format-slides to **1080×1350** PNGs, each with exactly one `dominant` at **132px** (ratio ≥3 over its body_reference), raised floors met, exactly one wordmark, from an authored `formats.md`.
+2. CHART draws **genuine zero-based `--chart-up` bars with direct `chart-label`s** (bars decorative — not manifest elements); `has_axis:false`; ≥2 chart-labels + ≥1 source-stamp. VS-CONTRAST is asymmetric-by-construction (one 132 dominant + one 52 headline). LEADERBOARD/TIMELINE use one accent = dominant, event chips reuse the RECEIPTS primitive.
+3. `render_asset` emits `schema_version "2"` manifests (batch-B `format` tags, `chart-label` role, `has_axis:false`, no `pdf` key) that `_validate_manifest_schema` accepts and Sprint-001 `measure` functions confirm V13/V14-clean.
+4. Determinism: re-render (same-basename folder) → decoded-RGBA-identical PNGs + byte-identical manifest (§7c/row 9).
+5. Every fail-loud state (§4, rows 10–18, 25) raises with **no partial write**.
+6. The conscious regression change is exactly one: `test_unknown_format_tag_fail_loud` re-pointed to a bogus tag + a new positive batch-B assertion (rows 19–20). No other assertion weakened; the "unknown tag fails loud" guarantee preserved.
+7. `validate.py` on a batch-B v2 asset exits **2** with the cited message, **no traceback** (row 21); on all v1 assets its verdicts are **unchanged** (row 22).
+8. v1 freeze: hyd + tgrera re-render to `schema_version "1"`, byte-identical manifests + decoded-RGBA-identical PNGs (row 23).
+9. Render suite `Ran N>219 … OK`; loop suite `Ran 254 … OK`; no-network import ok.
+10. `generator_trace.log` records the 219/254 baseline re-confirmed **before** code, the files changed, the new-test count, the conscious test re-point justification, the freeze evidence, and any disclosed risk (bar-length rounding, VS-CONTRAST asymmetry, chart-up-as-data-mark rationale).
+
+This contract is testable end-to-end by running §7 commands and the §8 matrix. If any row cannot be executed against the shipped code, the contract is not met.

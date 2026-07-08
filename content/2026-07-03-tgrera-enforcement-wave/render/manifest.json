@@ -1,106 +1,215 @@
 {
-  "schema_version": "1",
+  "pdf": "carousel.pdf",
+  "schema_version": "2",
   "slug": "2026-07-03-tgrera-enforcement-wave",
   "surfaces": [
     {
-      "axis_min": null,
-      "break_disclosed": null,
       "canvas": {
-        "h": 1920,
+        "h": 1350,
         "w": 1080
       },
-      "chart_ref": null,
       "elements": [
         {
           "bbox": [
             90,
-            593,
-            895,
-            115
+            310,
+            463,
+            62
           ],
           "bg": "#faf8f3",
           "color": "#1c1917",
-          "font_px": 44,
+          "font_px": 52,
           "role": "headline",
-          "text": "Telangana's regulator hit three builders in nine days.",
+          "text": "3 builders. 9 days.",
           "weight": 700
         },
         {
           "bbox": [
             90,
-            739,
-            875,
-            70
+            390,
+            533,
+            343
           ],
           "bg": "#faf8f3",
-          "color": "#1c1917",
-          "font_px": 27,
-          "role": "body",
-          "text": "Jun 22 — R Homes: ordered to refund Rs 14.95L + 10.7% interest for pre-registration collection; project sales frozen.",
-          "weight": 500
+          "color": "#0f766e",
+          "font_px": 132,
+          "role": "dominant",
+          "text": "SALES FROZEN",
+          "weight": 700
         },
         {
           "bbox": [
-            90,
-            828,
-            881,
-            70
+            118,
+            799,
+            614,
+            36
           ],
-          "bg": "#faf8f3",
-          "color": "#1c1917",
-          "font_px": 27,
-          "role": "body",
-          "text": "Jun 27 — Maharshi's Estates: penalty proceedings for selling plots in a project that was never registered.",
-          "weight": 500
-        },
-        {
-          "bbox": [
-            90,
-            917,
-            837,
-            70
-          ],
-          "bg": "#faf8f3",
-          "color": "#1c1917",
-          "font_px": 27,
-          "role": "body",
-          "text": "Jun 30 — Jayatri Infrastructure: refund with interest on a delayed Gopanpally project; 45 days to pay.",
-          "weight": 500
-        },
-        {
-          "bbox": [
-            90,
-            1380,
-            874,
-            24
-          ],
-          "bg": "#faf8f3",
+          "bg": "#ffffff",
           "color": "#57534e",
-          "font_px": 20,
-          "role": "source-stamp",
-          "text": "Source: NewsMeter · Siasat · Deccan Chronicle · TGRERA orders as of 2026-06-22 / 27 / 30",
-          "weight": 400
+          "font_px": 30,
+          "role": "body",
+          "text": "₹14.95L refund +10.7% · R Homes · Jun 22",
+          "weight": 700
         },
         {
           "bbox": [
-            888,
-            1800,
-            102,
-            30
+            118,
+            891,
+            562,
+            36
+          ],
+          "bg": "#ffffff",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "PENALTY · Maharshi's Estates · Jun 27",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            118,
+            983,
+            577,
+            36
+          ],
+          "bg": "#ffffff",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "45 DAYS TO PAY · Jayatri Infra · Jun 30",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            883,
+            1240,
+            107,
+            31
           ],
           "bg": "#faf8f3",
           "color": "#0d3d38",
-          "font_px": 25,
+          "font_px": 26,
           "role": "wordmark",
           "text": "TERREM",
           "weight": 700
         }
       ],
+      "format": "RECEIPTS",
       "has_axis": false,
-      "id": "chart-card",
-      "png": "chart-card.png",
-      "role": "chart-card",
-      "zero_based": null
+      "id": "format-01",
+      "png": "format-01.png",
+      "role": "format-slide"
+    },
+    {
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            90,
+            444,
+            87,
+            158
+          ],
+          "bg": "#faf8f3",
+          "color": "#0f766e",
+          "font_px": 132,
+          "role": "dominant",
+          "text": "3",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            648,
+            455,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Find the project's RERA number",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            694,
+            689,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Match the promoter name on the TGRERA order",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            740,
+            667,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Confirm the registration status before you pay",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            786,
+            720,
+            78
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "so-what",
+          "text": "Check the RERA number before you pay — free → intel.terrem.in",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            874,
+            821,
+            31
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 26,
+          "role": "source-stamp",
+          "text": "NewsMeter · Siasat · Deccan Chronicle · orders 2026-06-22/27/30",
+          "weight": 400
+        },
+        {
+          "bbox": [
+            883,
+            1240,
+            107,
+            31
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 26,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "format": "CHECKLIST",
+      "has_axis": false,
+      "id": "format-02",
+      "png": "format-02.png",
+      "role": "format-slide"
     }
   ]
 }

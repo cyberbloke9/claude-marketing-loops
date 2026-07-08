@@ -3,90 +3,92 @@ SCORE: n/a
 BLOCKERS: 0
 HIGH: 0
 
-## Contract Review — Sprint 005
+## Summary
 
-The Sprint-005 contract is **well-formed, testable, and non-gameable**. All frozen dependencies (INGEST structure, QUEUE schema, schedule slot format, template headings) are verified to exist with the exact structure the contract requires.
+This is a rigorous, testable contract for Sprint 005 (QA Gate V2 checks V13–V19 + adversarial fixtures). The contract is well-scoped, provides concrete commands and fixture specifications, and correctly depends on Sprint 001's pure measurement functions (verified on disk: `dominant_ratio_ok`, `format_slide_type_min`, `thumbnail_ink_ok`, `parse_cover_pattern_block`, `cover_pattern_valid`, `one_dataset_present` all exist with correct signatures and thresholds).
 
-### Verification Summary
+The route invariant is clear: V13–V19 checks fire only on `format-slide` surfaces, leaving the 12 v1 fixtures + hyd carousel + TGRERA unchanged. The guard at `validate.py:728–733` is correctly identified for removal. The adversarial fixture matrix (§6.4) is precise: each fixture targets one check id, and the acceptance runner's singleton assertion (`failed_checks == [target_id]`) will catch any co-firing defect.
 
-**1. Template fidelity (§3.2)** ✓
-- Confirmed: `metrics/TEMPLATE.md` contains exact headings the contract pins:
-  - `## North star`
-  - `## Flywheel`
-  - `## Craft diagnostics (per asset)`
-  - `## Posting-time A/B (weeks 1–8)`
-  - `## Vanity (tracked, never optimized)`
-  - `## Decisions fed back`
-- All byte-equality golden-match tests are verifiable against the template.
+The contract embeds strong self-checks (Risk A empirical probe in trace, singleton matrix assertion) that mitigate potential edge cases. Verification commands in §6.3 are executable and complete.
 
-**2. INGEST schema keys verified** ✓
-- `tools/marketing-loops/ingest.py` (frozen Sprint-004) produces the exact INGEST structure the contract reads:
-  - `ingest["wrr_components"]` — dict with keys `"returning_viewers"`, `"digest_opens"`, `"returning_visitors_social"`, each mapping to `{"present": bool, "value": int|None, "source": "site"}` (line 169).
-  - `ingest["flywheel_clicks_by_campaign"]` — list of `{campaign, clicks}` dicts, sorted lexicographically (lines 140-143).
-  - `ingest["craft"]` — list of `{campaign, channel, slug, hook_number, three_s_hold_pct, completion_pct, shares, clicks}` dicts (lines 113-122).
-  - `ingest["absences"]` — deduplicated list of `{kind, detail}` dicts (line 197).
-  - `ingest["assets"]` — sorted list with `utm_valid` field per asset (line 60 of `assetmap.py`).
-- No INGEST key the contract requires is missing or misnamed. The B-A5 WRR critical edge (all-three-components-present check) is fully implementable from these keys.
-
-**3. Schedule slot format pinned** ✓
-- Confirmed: `tools/marketing-loops/schedule.py` line 79 produces slot strings exactly as the contract specifies: `"{}/{}/{}".format(week, bucket, _TIMES[channel][bucket])` → `<week>/<bucket>/<HH:MM>`.
-- §3.6 A/B parsing logic (split on `/`, index 1 for bucket) is correct and deterministic.
-
-**4. Loop-measure SKILL exists** ✓
-- `.claude/skills/loop-measure/SKILL.md` exists. Current form is narrative documentation.
-- The contract B-A12 deliverable is to update it to invoke `scorecard.py` (with CLI commands, malformed-CSV-vs-missing-input distinction, never-invent rule), mirroring loop-publish SKILL style — this is a clear, implementable requirement, not vague.
-
-### Strengths
-
-1. **Precise test specifications** — §8 provides exact CLI commands with fixture paths and expected outputs (golden-match diffs, exit codes, stdout substrings).
-2. **Comprehensive adversarial checklist** — §9 enumerates 13 specific attack vectors, each with exact pass criteria:
-   - WRR critical edge (one component blank → **blank WRR, NOT partial sum**)
-   - Corruption never silently becomes blank (exit 2, no file written)
-   - Unmatched campaigns flagged
-   - Determinism (two runs → identical shasum)
-   - Import safety (no network, no datetime.now)
-3. **Non-gameable requirements**:
-   - Golden-match byte equality forces correct implementation.
-   - Missing-data section must enumerate every blank with specific reason.
-   - A/B single-week semantics are pinned with explicit acknowledgment of half-empty table as intent (§3.6 rationale).
-4. **Clear boundaries**:
-   - §7 Explicit non-goals: no acceptance runner, no README update, no new JSON schema, no reading prior scorecard, no network, no estimation.
-   - §2 "No modification of any Sprint-001..004 module" — frozen reference is concrete and verifiable.
-5. **Template-faithful rendering** — §3.2–3.10 specify exact Markdown structure, heading-for-heading reproduction, stable row ordering, byte determinism.
-
-### Minor Notes (non-blocking)
-
-1. **Deliverables vs prerequisites clarified** — The contract uses "New" language for fixtures (`wrr-partial/site.csv`, `expected/*.md`, `full/queue.json`, SKILL update). These are Sprint-005 deliverables, not prerequisites. The contract is clear: Generator must create them.
-2. **INGEST schema reference external** — The contract does not reproduce the full INGEST schema inline, instead describing it through usage (§3.3–3.9 show which keys are read). This is acceptable because Sprint-004's `ingest.py` is frozen and documented; Sprint-005 only imports it read-only.
-3. **Template preamble and decisions qualitative content** — The contract references "the template's" exact wording (e.g., "which signal types resonated / flopped") but does not repeat it. Generator must consult the template file, which is standard practice and explicit in §3.8 ("reproduce the template's ... structure").
-
-### Testability Assessment
-
-The contract is **fully testable by automated CLI invocation**:
-- All commands in §8 are deterministic (no wall-clock, no randomness).
-- All expected outputs are byte-verifiable (golden-match diffs, exit codes, grep assertions).
-- All fixtures referenced are either pre-existing (Sprint-004 exports, full/ig.csv etc.) or specified for creation (wrr-partial/, expected/).
-- All error paths are testable (corrupt CSV → exit 2, bad queue path → exit 2, etc.).
-
-The Evaluator can:
-1. Run the full command suite in §8.
-2. Verify golden-match byte equality for full/empty/partial cases.
-3. Confirm exit codes and stderr messages for error cases.
-4. Grep for never-invented numbers (no `N/A`, no partial sums, no fabricated trend).
-5. Re-run determinism test (shasum comparison).
-6. Verify frozen Sprint-001–004 suite still passes.
-7. Inspect the SKILL update for CLI invocation and rule documentation.
+**The contract is ACCEPT-ready.** No blocking defects found.
 
 ---
 
-## Recommendation
+## Medium-level notes (non-blocking clarifications)
 
-**ACCEPT for implementation.** The contract meets all standards:
-- ✓ Requirements are specific and testable.
-- ✓ All frozen dependencies are verified.
-- ✓ Exit codes and error paths are pinned.
-- ✓ Golden fixtures and commands are precise.
-- ✓ WRR critical edge is un-gameable (blank-not-sum rule enforced by test).
-- ✓ No vague references; all template/structure references are resolvable from repo files.
+### M-001: Fixture value `fx-v2-dominant-small` margin is thin but defended
 
-The Generator can proceed with implementing `scorecard.py`, tests, fixtures, and the SKILL update exactly as specified in §2–§10, and the Evaluator can verify using §8–§9.
+**Risk:** The fixture specifies `dominant 80px` on a `body 30px` slide, yielding ratio 2.67 (target: V13 FAIL). Risk A mitigation says "every non-V15 fixture render … dominant ≥100px so measured bands clear 13/21 with ≥3px margin." Arithmetic shows 80px yields ~22.1px band at 360px, only 1.1px above the V15 floor (21px). This is below the ≥3px margin guidance.
+
+**Mitigation:** The contract already requires empirical band measurement for positive control AND this fixture in §1.1 Risk A and §10: "BUILD MUST record the actual measured bands … in `generator_trace.log`." The acceptance matrix row 2 asserts singleton (`failed_checks == [V13]`), so any co-firing V15 will be visible and fail the matrix. This is a self-checking design. The risk is real but defended.
+
+**Action:** None — the contract's empirical probe requirement is sufficient. Builder should verify 80px renders cleanly and yields ≥21px band with margin, recorded in trace.
+
+---
+
+### M-002: Fixture "degrade-render" mechanism for `fx-v2-thumb-illegible` unspecified
+
+**Gap:** The contract says illegible headline should be "degrade-rendered so its 360px band < 13" (contract §6.1). The mechanism (thin font weight, blur filter, reduced rendering quality, etc.) is not specified. The contract only specifies the test outcome: (V14 floor passes declared 48px, V5-crosscheck passes ±25% band measurement, V15 fails).
+
+**Status:** Non-blocking. The test condition is precise and testable. The builder has freedom in implementation method as long as the outcome is met. Risk B mitigation (singleton assertion) will catch any deviation.
+
+---
+
+### M-003: `make_v2_fixtures.py` determinism verification command incomplete
+
+**Gap:** Contract §6.3 says:
+```
+# (d) Regenerate v2 fixtures deterministically, then diff (no drift)
+python3 tools/marketing-render/fixtures/make_v2_fixtures.py
+```
+
+The comment says "then diff" but no diff command is shown. The contract states in §7 "byte-identical PNGs + manifests (decoded-RGBA SHA / byte-equality)" but doesn't specify how to verify this during evaluation.
+
+**Suggestion:** Add explicit diff command:
+```
+cp -r tools/marketing-render/fixtures/fx-v2-* /tmp/fixtures_backup
+python3 tools/marketing-render/fixtures/make_v2_fixtures.py
+diff -r /tmp/fixtures_backup tools/marketing-render/fixtures/fx-v2-* || exit 1
+```
+
+Or clarify the script's output behavior (in-place regeneration with assertion, or temp-dir output for comparison).
+
+**Status:** Non-blocking clarity issue. The builder will understand "regenerate, then diff" and implement the natural approach. The acceptance test can verify byte-equality directly.
+
+---
+
+### M-004: R14 fail-loud test case placeholder
+
+**Gap:** Contract §6.3 command (g) references `<11-slide formats.md folder>` without a concrete fixture path or example. The builder should know to create a test input, but the contract could show which fixture or where to place it.
+
+**Status:** Minor. The builder understands the requirement (11-slide → exit 1, no partial write). Can create an ad-hoc test input or fixture.
+
+---
+
+### M-005: V5-floor skipped on format-slides, V14 owns it — routing clarity
+
+**Note:** The contract correctly specifies (§1.1 routing invariant) that V5-floor is `skipped` on format-slides and V14-type-floor owns the per-element floor checks. The code must ensure `_check_element` does NOT call `measure.type_min_ok("format-slide", …)` (which would raise ValueError — `type_min_ok` only knows `{carousel-slide, chart-card}`), and instead calls `measure.format_slide_type_min(element_role, …)`.
+
+**Status:** Verified in code. `measure.type_min_ok` at line 150 raises ValueError if surface_role not in `{carousel-slide, chart-card}`. Contract correctly specifies this must be routed through V14 in `validate.py`. Builder will follow the contract's wiring instructions.
+
+---
+
+## Verification checklist (Evaluator will confirm at EVALUATE time)
+
+- [ ] `validate.py` guard at 728–733 is removed and replaced with V13–V19 check execution
+- [ ] V13–V19 emit zero records on pure-v1 assets (regression check: v1 fixtures reach unchanged verdicts)
+- [ ] Nine `fx-v2-*` fixtures exist and are deterministically regenerable (byte-equality confirmed)
+- [ ] Each adversarial fixture's `failed_checks` is a singleton of its target id (matrix assertion)
+- [ ] `fx-v2-good` exits 0 (clean PASS)
+- [ ] `acceptance.py` EXPECTATIONS table extended with 9 v2 rows; all pass
+- [ ] Render test suite count ≥263 and passing
+- [ ] Loop test suite = 254 passing (no regression)
+- [ ] R14 fail-loud (11-slide formats.md → exit 1, no partial write) re-confirmed
+- [ ] Risk A empirical band probe for positive control and `fx-v2-thumb-illegible` recorded in trace with measured values
+
+---
+
+## Conclusion
+
+The contract is **ACCEPT**. All core requirements are specific, testable, and grounded in verified code. The non-blocking notes are clarifications that do not prevent build. The self-checking infrastructure (empirical probes, singleton matrix assertions) is strong and will catch edge cases at evaluation time.

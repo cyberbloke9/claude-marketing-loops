@@ -287,5 +287,209 @@ class TestConstants(unittest.TestCase):
         )
 
 
+# =============================================================================
+# Sprint 001 (run 003) — Renderer V2 measurement core (contract §8 rows 1-21)
+# =============================================================================
+
+
+def _el(role, fpx=30):
+    """Minimal element dict for the V13 helpers (only role/font_px are read)."""
+    return {"role": role, "font_px": fpx}
+
+
+class TestBodyReference(unittest.TestCase):
+    def test_max_of_body_elements(self):
+        els = [_el("body", 26), _el("body", 30), _el("dominant", 96)]
+        self.assertEqual(m.body_reference(els), 30)
+
+    def test_fallback_26_when_no_body(self):  # row 8
+        self.assertEqual(m.body_reference([_el("dominant", 96)]), 26)
+        self.assertEqual(m.body_reference([]), 26)
+
+
+class TestCountDominant(unittest.TestCase):
+    def test_counts(self):
+        self.assertEqual(m.count_dominant([]), 0)
+        self.assertEqual(m.count_dominant([_el("dominant"), _el("body")]), 1)
+        self.assertEqual(m.count_dominant([_el("dominant"), _el("dominant")]), 2)
+
+
+class TestIsUtilitySlide(unittest.TestCase):
+    def test_pure_utility(self):  # rows 5, 6
+        self.assertTrue(m.is_utility_slide([_el("so-what"), _el("wordmark")]))
+        self.assertTrue(m.is_utility_slide([_el("source-stamp"), _el("wordmark")]))
+        self.assertTrue(m.is_utility_slide([_el("so-what")]))
+
+    def test_content_role_disqualifies(self):  # row 7
+        self.assertFalse(m.is_utility_slide([_el("so-what"), _el("body")]))
+        self.assertFalse(m.is_utility_slide([_el("dominant")]))
+        self.assertFalse(m.is_utility_slide([_el("headline")]))
+
+    def test_empty_is_not_utility(self):
+        self.assertFalse(m.is_utility_slide([]))
+
+
+class TestDominantRatioOk(unittest.TestCase):
+    def test_boundary_pass_3x(self):  # row 1
+        r = m.dominant_ratio_ok([_el("body", 26), _el("dominant", 78)])
+        self.assertTrue(r["passes"])
+        self.assertEqual(r["ratio"], 3.0)
+        self.assertFalse(r["exempt"])
+        self.assertEqual(r["dominant_count"], 1)
+        self.assertEqual(r["body_reference"], 26)
+
+    def test_boundary_fail_below_3x(self):  # row 2
+        r = m.dominant_ratio_ok([_el("body", 26), _el("dominant", 77)])
+        self.assertFalse(r["passes"])
+        self.assertLess(r["ratio"], 3.0)
+
+    def test_zero_dominant_with_body_fails(self):  # row 3
+        r = m.dominant_ratio_ok([_el("body", 26), _el("headline", 48)])
+        self.assertFalse(r["passes"])
+        self.assertFalse(r["exempt"])
+        self.assertIn("no dominant", r["reason"])
+
+    def test_two_dominants_fail(self):  # row 4
+        r = m.dominant_ratio_ok([_el("dominant", 96), _el("dominant", 90)])
+        self.assertFalse(r["passes"])
+        self.assertEqual(r["dominant_count"], 2)
+        self.assertIn("2 dominant", r["reason"])
+        self.assertIn("exactly one", r["reason"])
+
+    def test_utility_exempt(self):  # rows 5, 6
+        r = m.dominant_ratio_ok([_el("so-what"), _el("wordmark")])
+        self.assertTrue(r["exempt"])
+        self.assertTrue(r["passes"])
+
+    def test_empty_is_content_no_dominant(self):
+        r = m.dominant_ratio_ok([])
+        self.assertFalse(r["exempt"])
+        self.assertEqual(r["dominant_count"], 0)
+        self.assertFalse(r["passes"])
+        self.assertIn("no dominant", r["reason"])
+
+    def test_fallback_ref_when_no_body(self):
+        # dominant 78, no body -> ref 26 -> ratio exactly 3.0 -> pass.
+        r = m.dominant_ratio_ok([_el("dominant", 78)])
+        self.assertEqual(r["body_reference"], 26)
+        self.assertTrue(r["passes"])
+
+
+class TestFormatSlideTypeMin(unittest.TestCase):
+    def test_body_floor_26(self):  # row 9
+        self.assertTrue(m.format_slide_type_min("body", 26)["passes"])
+        self.assertFalse(m.format_slide_type_min("body", 25)["passes"])
+        self.assertEqual(m.format_slide_type_min("body", 26)["minimum"], 26)
+
+    def test_source_stamp_floor_24(self):  # row 10
+        self.assertTrue(m.format_slide_type_min("source-stamp", 24)["passes"])
+        self.assertFalse(m.format_slide_type_min("source-stamp", 23)["passes"])
+        self.assertFalse(m.format_slide_type_min("source-stamp", 20)["passes"])
+
+    def test_headline_floor_48(self):  # row 11
+        self.assertTrue(m.format_slide_type_min("headline", 48)["passes"])
+        self.assertFalse(m.format_slide_type_min("headline", 47)["passes"])
+
+    def test_wordmark_exempt(self):  # row 12
+        r = m.format_slide_type_min("wordmark", 8)
+        self.assertIsNone(r["minimum"])
+        self.assertTrue(r["passes"])
+
+    def test_contract_decision_floors(self):
+        self.assertEqual(m.format_slide_type_min("so-what", 26)["minimum"], 26)
+        self.assertEqual(m.format_slide_type_min("dominant", 48)["minimum"], 48)
+        self.assertEqual(m.format_slide_type_min("hook", 48)["minimum"], 48)
+        self.assertEqual(m.format_slide_type_min("chart-label", 26)["minimum"], 26)
+
+    def test_unknown_role_raises(self):  # row 13
+        with self.assertRaises(ValueError) as ctx:
+            m.format_slide_type_min("banana", 40)
+        self.assertIn("banana", str(ctx.exception))
+
+    def test_v1_type_minimums_untouched(self):
+        # Isolation: the v1 table is byte-for-byte unchanged.
+        self.assertEqual(m._TYPE_MINIMUMS["body"]["carousel-slide"], 24)
+        self.assertIsNone(m._TYPE_MINIMUMS["source-stamp"]["carousel-slide"])
+
+
+class TestThumbnail(unittest.TestCase):
+    def test_scale_band(self):  # row 17
+        self.assertAlmostEqual(m.thumbnail_scale_band(39.84), 13.28, places=6)
+        self.assertAlmostEqual(m.thumbnail_scale_band(1080.0), 360.0, places=6)
+
+    def test_headline_boundary(self):  # row 14
+        self.assertTrue(m.thumbnail_ink_ok("headline", 13.0)["passes"])
+        self.assertFalse(m.thumbnail_ink_ok("headline", 12.99)["passes"])
+        self.assertTrue(m.thumbnail_ink_ok("hook", 13.0)["passes"])
+
+    def test_dominant_boundary(self):  # row 15
+        self.assertTrue(m.thumbnail_ink_ok("dominant", 21.0)["passes"])
+        self.assertFalse(m.thumbnail_ink_ok("dominant", 20.99)["passes"])
+
+    def test_unknown_role_raises(self):  # row 16
+        with self.assertRaises(ValueError):
+            m.thumbnail_ink_ok("body", 30)
+        with self.assertRaises(ValueError):
+            m.thumbnail_ink_ok("source-stamp", 30)
+
+    def test_pinned_constants(self):
+        self.assertEqual(m.THUMB_W, 360)
+        self.assertEqual(m.CANVAS_W, 1080)
+        self.assertEqual(m.THUMB_HEADLINE_MIN_PX, 13)
+        self.assertEqual(m.THUMB_DOMINANT_MIN_PX, 21)
+
+
+_VALID_BLOCK = (
+    "# meta\n\n"
+    "<!-- cover-pattern:start -->\n"
+    "pattern: BIG-NUMBER            # or CHART-FIRST  (V17)\n"
+    "one_dataset: TGRERA enforcement orders, Jun 2026   # (V19)\n"
+    "<!-- cover-pattern:end -->\n"
+)
+
+
+class TestCoverPatternBlock(unittest.TestCase):
+    def test_parse_valid_block(self):  # row 18
+        parsed = m.parse_cover_pattern_block(_VALID_BLOCK)
+        self.assertEqual(parsed["pattern"], "BIG-NUMBER")
+        self.assertEqual(parsed["one_dataset"], "TGRERA enforcement orders, Jun 2026")
+
+    def test_parse_absent_block(self):  # row 21
+        self.assertIsNone(m.parse_cover_pattern_block("# meta\n\nno block here\n"))
+
+    def test_cover_pattern_valid_true(self):  # row 19
+        parsed = m.parse_cover_pattern_block(
+            _VALID_BLOCK.replace("BIG-NUMBER", "CHART-FIRST"))
+        self.assertTrue(m.cover_pattern_valid(parsed))
+
+    def test_cover_pattern_invalid_value(self):  # row 20
+        parsed = m.parse_cover_pattern_block(
+            _VALID_BLOCK.replace("BIG-NUMBER", "TIMELINE"))
+        self.assertIsNotNone(parsed)
+        self.assertFalse(m.cover_pattern_valid(parsed))
+
+    def test_none_predicates(self):  # row 21
+        self.assertFalse(m.cover_pattern_valid(None))
+        self.assertFalse(m.one_dataset_present(None))
+
+    def test_one_dataset_present(self):
+        parsed = m.parse_cover_pattern_block(_VALID_BLOCK)
+        self.assertTrue(m.one_dataset_present(parsed))
+
+    def test_one_dataset_missing(self):
+        block = (
+            "<!-- cover-pattern:start -->\n"
+            "pattern: BIG-NUMBER\n"
+            "<!-- cover-pattern:end -->\n"
+        )
+        parsed = m.parse_cover_pattern_block(block)
+        self.assertFalse(m.one_dataset_present(parsed))
+        self.assertTrue(m.cover_pattern_valid(parsed))
+
+    def test_valid_patterns_set(self):
+        self.assertEqual(m.VALID_COVER_PATTERNS,
+                         frozenset({"BIG-NUMBER", "CHART-FIRST"}))
+
+
 if __name__ == "__main__":
     unittest.main()

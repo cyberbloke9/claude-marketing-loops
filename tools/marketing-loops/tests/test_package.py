@@ -20,7 +20,10 @@ _PACKAGE = _TOOL_DIR / "package.py"
 _ENQUEUE = _TOOL_DIR / "enqueue.py"
 _FX = _TOOL_DIR / "fixtures" / "publish"
 _CONTENT = _REPO_ROOT / "content"
-_TGRERA = _CONTENT / "2026-07-03-tgrera-enforcement-wave"
+# Sprint-006 CONSCIOUS RELOCATION (Risk 2/C): the live TGRERA folder is now a
+# schema-v2 carousel; the chart-card ground-truth packaging assertion is
+# re-pointed to the byte-identical retained v1 snapshot. Assertions preserved.
+_TGRERA = _REPO_ROOT / "tools" / "marketing-render" / "tests" / "data" / "2026-07-03-tgrera-enforcement-wave"
 _HYD = _CONTENT / "2026-07-03-hyd-premium-vs-budget"
 
 
@@ -63,7 +66,8 @@ class TestSuccessPath(unittest.TestCase):
             ig = json.loads((pd / "instagram.json").read_text())
             self.assertEqual(
                 ig["attachments"],
-                ["content/2026-07-03-tgrera-enforcement-wave/render/chart-card.png"])
+                ["tools/marketing-render/tests/data/2026-07-03-tgrera-enforcement-wave"
+                 "/render/chart-card.png"])
             self.assertEqual(ig["schedule_slot"], "2026-W27/evening/18:00")
             self.assertIn("utm_campaign=tgrera-enforcement-wave", ig["utm_link"])
             yt = json.loads((pd / "youtube.json").read_text())

@@ -61,20 +61,37 @@ INK_MIN_PX = 50       # min matching pixels inside a bbox for V3 ink-present
 K_INTER = 0.83        # median ink-band height / declared font_px (Inter)
 BAND_GAP = 3          # >= this many blank rows separates two text-line ink bands
 
-# Required format per surface role (V2).
+# Required format per surface role (V2). Sprint 005 (run 003): format-slide added
+# so V2 enforces the R10 canvas (1080x1350) on v2 surfaces (conscious extension;
+# v1 entries byte-unchanged -> no regression). Contract §1.3.
 _FORMAT_BY_ROLE = {
     "carousel-slide": (1080, 1350),
     "chart-card": (1080, 1920),
+    "format-slide": (1080, 1350),
 }
 
 # V6 applies only to these element roles; the rest are exempt (skipped).
 _SAFEZONE_ROLES = frozenset({"headline", "body", "hook"})
 
-# Roles the manifest may declare (schema s5.3).
+# Roles the manifest may declare (schema s5.3). Widened in Sprint 001 (run 003)
+# to accept schema-v2 format-slide manifests STRUCTURALLY. These sets are used
+# ONLY by _validate_manifest_schema (grep-verified); widening them does not route
+# any format-slide surface through the V2-V12 checks — that wiring is Sprint 005.
+# v1 roles are unchanged; nothing previously accepted becomes rejected.
 _ELEMENT_ROLES = frozenset(
-    {"headline", "hook", "body", "source-stamp", "wordmark", "chart-label"}
+    {"headline", "hook", "body", "source-stamp", "wordmark", "chart-label",
+     "dominant", "so-what"}
 )
-_SURFACE_ROLES = frozenset({"carousel-slide", "chart-card"})
+_SURFACE_ROLES = frozenset({"carousel-slide", "chart-card", "format-slide"})
+
+# The seven format tags a format-slide surface may carry (schema s5.3). A
+# ``format`` key on a format-slide with a value outside this set is a schema
+# error; a ``format`` key on a v1 surface is tolerated/ignored (extra-field
+# tolerance, matching ``chart_ref``).
+_FORMAT_TAGS = frozenset(
+    {"BIG-NUMBER", "TIMELINE", "RECEIPTS", "VS-CONTRAST", "LEADERBOARD",
+     "CHART", "CHECKLIST"}
+)
 
 # V8 date-token detectors (presence-based, Risk C).
 _ISO_DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
@@ -273,6 +290,15 @@ def _validate_manifest_schema(manifest, path):
                     where, surf["role"]
                 )
             )
+        # Schema-v2 format tag (s5.3): validated only on format-slide surfaces;
+        # tolerated/ignored on v1 surfaces (extra-field tolerance).
+        if surf["role"] == "format-slide" and "format" in surf:
+            fmt = surf["format"]
+            if fmt not in _FORMAT_TAGS:
+                raise PreconditionError(
+                    "malformed manifest: {} ('{}') has unknown format tag "
+                    "'{}'".format(where, surf["id"], fmt)
+                )
         canvas = surf["canvas"]
         if not isinstance(canvas, dict) or "w" not in canvas or "h" not in canvas:
             raise PreconditionError(
@@ -359,12 +385,27 @@ def run_checks(asset):
         for el in surf["elements"]:
             _check_element(checks, surf, el, png, sid, srole)
 
+        # V2 format-slide-scoped per-surface checks (contract §1.1/§1.4).
+        if srole == "format-slide":
+            _check_v13_dominant(checks, surf, sid)
+            _check_v14_wordmark(checks, surf, sid)
+            _check_v15_thumbnail(checks, surf, png, sid)
+
         _check_v8_source(checks, surf, sid, srole)
         _check_v10_axis(checks, surf, sid, srole)
 
     _check_v7_hook(checks, manifest)
     _check_v9_blacklist(checks, asset)
     _check_v11_provenance(checks, asset)
+
+    # V2 asset-level checks: run ONLY when >=1 format-slide surface is present.
+    # On a pure-v1 asset they emit ZERO records -> the 12 v1 fixtures + hyd +
+    # TGRERA stay byte-for-byte unchanged (contract §1.0 asset-scope gate).
+    if any(s["role"] == "format-slide" for s in manifest["surfaces"]):
+        _check_v16_sowhat(checks, manifest)
+        _check_v17_cover(checks, asset)
+        _check_v18_slide_count(checks, manifest)
+        _check_v19_dataset(checks, asset)
 
     needs_review = _provenance_prompts()
     return checks, needs_review
@@ -419,20 +460,42 @@ def _check_element(checks, surf, el, png, sid, srole):
              "ratio {}:1 < {}:1 ({})".format(cc["ratio"], cc["threshold"], kind),
              "brand-kit.md §3", bbox)
 
-    # --- V5 floor ---
-    tm = measure.type_min_ok(srole, erole, font_px)
-    if tm["minimum"] is None:
+    # --- V5 floor (v1 surfaces) / V14 type-floor (format-slides) ---
+    # Routing invariant (contract §1.0): measure.type_min_ok raises ValueError on
+    # a format-slide surface (its _SURFACE_ROLES excludes it). So on format-slides
+    # we do NOT call it: V5-floor is emitted 'skipped' and the raised v2 floor is
+    # owned by V14 (measure.format_slide_type_min, keyed on element role only).
+    if srole == "format-slide":
         _rec(checks, "V5-floor", sid, "skipped",
-             "role '{}' exempt from size floor".format(erole),
+             "format-slide floor owned by V14 (v2)",
              "qa-checklist.md §Typography", bbox)
-    elif tm["passes"]:
-        _rec(checks, "V5-floor", sid, "PASS",
-             "font_px {} >= {}".format(font_px, tm["minimum"]),
-             "qa-checklist.md §Typography", bbox)
+        v14 = measure.format_slide_type_min(erole, font_px)
+        if v14["minimum"] is None:
+            _rec(checks, "V14-type-floor", sid, "skipped",
+                 "role '{}' exempt from v2 type floor".format(erole),
+                 "qa-checklist.md §Typography", bbox)
+        elif v14["passes"]:
+            _rec(checks, "V14-type-floor", sid, "PASS",
+                 "font_px {} >= {}".format(font_px, v14["minimum"]),
+                 "qa-checklist.md §Typography", bbox)
+        else:
+            _rec(checks, "V14-type-floor", sid, "FAIL",
+                 "font_px {} < v2 min {} for {}".format(font_px, v14["minimum"], erole),
+                 "qa-checklist.md §Typography", bbox)
     else:
-        _rec(checks, "V5-floor", sid, "FAIL",
-             "font_px {} < min {} for {}/{}".format(font_px, tm["minimum"], srole, erole),
-             "qa-checklist.md §Typography", bbox)
+        tm = measure.type_min_ok(srole, erole, font_px)
+        if tm["minimum"] is None:
+            _rec(checks, "V5-floor", sid, "skipped",
+                 "role '{}' exempt from size floor".format(erole),
+                 "qa-checklist.md §Typography", bbox)
+        elif tm["passes"]:
+            _rec(checks, "V5-floor", sid, "PASS",
+                 "font_px {} >= {}".format(font_px, tm["minimum"]),
+                 "qa-checklist.md §Typography", bbox)
+        else:
+            _rec(checks, "V5-floor", sid, "FAIL",
+                 "font_px {} < min {} for {}/{}".format(font_px, tm["minimum"], srole, erole),
+                 "qa-checklist.md §Typography", bbox)
 
     # --- V5 cross-check (measured from PNG pixels; anti-lie) ---
     band = _median_band_height(row_has_ink) if ink_count >= INK_MIN_PX else None
@@ -589,6 +652,131 @@ def _check_v11_provenance(checks, asset):
          "attestation block present with sources/terrem_db_numbers/as_of", rule)
 
 
+# --- QA Gate V2 checks (V13-V19), format-slide-scoped (Sprint 005, run 003) ----
+# Each calls the pure measure.py functions Sprint 001 shipped; validate.py owns
+# only the surface-role routing + record emission (no measure.py edit). Rule
+# cites are pinned by contract §1.1/§1.2.
+
+
+def _check_v13_dominant(checks, surf, sid):
+    """V13: exactly one dominant at >= 3x body_reference (utility slides exempt)."""
+    rule = "PIPELINE-V2.md §4"
+    res = measure.dominant_ratio_ok(surf["elements"])
+    status = "PASS" if res["passes"] else "FAIL"
+    _rec(checks, "V13-dominant-ratio", sid, status, res["reason"], rule)
+
+
+def _check_v14_wordmark(checks, surf, sid):
+    """V14 (second tooth): a format-slide carries exactly one wordmark element."""
+    rule = "qa-checklist.md §Typography"
+    n = sum(1 for e in surf["elements"] if e["role"] == "wordmark")
+    if n == 0:
+        _rec(checks, "V14-wordmark", sid, "FAIL", "no wordmark on format-slide", rule)
+    elif n >= 2:
+        _rec(checks, "V14-wordmark", sid, "FAIL",
+             "{} wordmarks; exactly one required".format(n), rule)
+    else:
+        _rec(checks, "V14-wordmark", sid, "PASS", "exactly one wordmark", rule)
+
+
+def _check_v15_thumbnail(checks, surf, png, sid):
+    """V15: measured 360px ink legibility of headline/hook + dominant.
+
+    Downscales the WHOLE PNG (1080x1350 -> 360x450, Image.LANCZOS), scales each
+    gated element bbox by 360/1080, and measures the rendered ink-band height in
+    the scaled crop with the existing _crop_rows_ink + _median_band_height
+    machinery against the element's declared color. The measured band IS the
+    360px effective_px (no re-scaling). Utility slides are exempt. The transient
+    preview is never written to disk. Contract §1.1 V15, Risk 4/A.
+    """
+    rule = "PIPELINE-V2.md §4"
+    if measure.is_utility_slide(surf["elements"]):
+        _rec(checks, "V15-thumbnail", sid, "skipped",
+             "utility slide — V15 exempt", rule)
+        return
+    real_w, real_h = png.size
+    thumb_h = int(round(real_h * measure.THUMB_W / real_w))
+    thumb = png.resize((measure.THUMB_W, thumb_h), Image.LANCZOS)
+    scale = measure.THUMB_W / real_w  # 360/1080 = 1/3
+    gated = [e for e in surf["elements"]
+             if e["role"] in ("headline", "hook", "dominant")]
+    for e in gated:
+        x, y, w, h = e["bbox"]
+        sb = [int(round(x * scale)), int(round(y * scale)),
+              int(round(w * scale)), int(round(h * scale))]
+        rgb = _hex_rgb(e["color"])
+        _ink, rows = _crop_rows_ink(thumb, sb, rgb)
+        band = _median_band_height(rows)
+        effective_px = band if band is not None else 0
+        res = measure.thumbnail_ink_ok(e["role"], effective_px)
+        if res["passes"]:
+            _rec(checks, "V15-thumbnail", sid, "PASS",
+                 "{} 360px band {}px >= {}".format(
+                     e["role"], effective_px, res["minimum"]),
+                 rule, e["bbox"])
+        else:
+            _rec(checks, "V15-thumbnail", sid, "FAIL",
+                 "{} 360px band {}px < {} (thumbnail-illegible)".format(
+                     e["role"], effective_px, res["minimum"]),
+                 rule, e["bbox"])
+
+
+def _check_v16_sowhat(checks, manifest):
+    """V16: the carousel carries >=1 so-what element across its format-slides."""
+    rule = "PIPELINE-V2.md §4"
+    has = any(e["role"] == "so-what"
+              for s in manifest["surfaces"] for e in s["elements"])
+    if has:
+        _rec(checks, "V16-so-what", "asset", "PASS",
+             "so-what utility element present", rule)
+    else:
+        _rec(checks, "V16-so-what", "asset", "FAIL",
+             "no so-what element in carousel", rule)
+
+
+def _check_v17_cover(checks, asset):
+    """V17: meta.md cover-pattern block present with a valid pattern value."""
+    rule = "PIPELINE-V2.md §4"
+    parsed = measure.parse_cover_pattern_block(asset["meta_text"])
+    if measure.cover_pattern_valid(parsed):
+        _rec(checks, "V17-cover-pattern", "asset", "PASS",
+             "cover-pattern '{}' valid".format(parsed.get("pattern")), rule)
+    elif parsed is None:
+        _rec(checks, "V17-cover-pattern", "asset", "FAIL",
+             "no cover-pattern block in meta.md", rule)
+    else:
+        _rec(checks, "V17-cover-pattern", "asset", "FAIL",
+             "cover-pattern value {!r} not in "
+             "{{BIG-NUMBER, CHART-FIRST}}".format(parsed.get("pattern")), rule)
+
+
+def _check_v18_slide_count(checks, manifest):
+    """V18: <=10 format-slide surfaces."""
+    rule = "PIPELINE-V2.md §4"
+    n = sum(1 for s in manifest["surfaces"] if s["role"] == "format-slide")
+    if n <= 10:
+        _rec(checks, "V18-slide-count", "asset", "PASS",
+             "{} format-slides <= 10".format(n), rule)
+    else:
+        _rec(checks, "V18-slide-count", "asset", "FAIL",
+             "{} format-slides > 10 (Instagram API cap)".format(n), rule)
+
+
+def _check_v19_dataset(checks, asset):
+    """V19: meta.md cover-pattern block carries a non-empty one_dataset line.
+
+    Presence-only attestation (Risk 5), never a semantic judgment.
+    """
+    rule = "PIPELINE-V2.md §4"
+    parsed = measure.parse_cover_pattern_block(asset["meta_text"])
+    if measure.one_dataset_present(parsed):
+        _rec(checks, "V19-one-dataset", "asset", "PASS",
+             "one_dataset attestation present", rule)
+    else:
+        _rec(checks, "V19-one-dataset", "asset", "FAIL",
+             "no one_dataset attestation in cover-pattern block", rule)
+
+
 def _provenance_prompts():
     """Emit the qa-checklist.md §Data provenance bullet prompts as needs_review."""
     if not _QA_CHECKLIST.is_file():
@@ -695,6 +883,13 @@ def _print_verdict(doc):
 def run(asset_folder, checked_on, checked_by):
     """Full pipeline. Returns exit code. Raises PreconditionError for exit 2."""
     asset = load_asset(asset_folder)
+    # Sprint 005 (run 003): the Sprint-002 F-001 exit-2 guard is REMOVED — its
+    # sole purpose was to hold the line until the QA Gate V2 checks (V13-V19)
+    # were wired, which is exactly what this sprint does. format-slide surfaces
+    # now flow through run_checks -> the V13-V19 checks (routed by surface role),
+    # emitting a real verdict. Pure-v1 assets never enter the V13-V19 path
+    # (asset-scope gate in run_checks), so the 12 fixtures + hyd + TGRERA are
+    # untouched (contract §1.0, Risk C).
     checks, needs_review = run_checks(asset)
     doc = build_verdict(asset, checks, needs_review, checked_on, checked_by)
     write_verdict_json(asset, doc)

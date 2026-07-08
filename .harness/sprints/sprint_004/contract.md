@@ -1,542 +1,270 @@
-# Contract — Sprint 004: Analytics CSV ingestion (robust) → validated INGEST structure
+# Sprint 004 Contract — Deterministic Multi-Page PDF Emitter (`carousel.pdf`)
 
-> Opens Gap 3 (spec §5.2). Delivers the **ingestion half** of the analytics
-> toolchain: the four documented **CSV column contracts** (B-A1), the **join key**
-> that ties a CSV metrics row to an asset + its hook number (B-A2), the
-> **malformed/truncated rejection path** (B-A3), and the **absent-input handling**
-> foundation (B-A4) — all producing a single **validated intermediate metrics
-> structure** (the INGEST schema) that Sprint 005's scorecard compiler consumes.
->
-> **This sprint produces NO scorecard markdown, computes NO WRR sum, and writes NO
-> `metrics/*.md`.** Those are Sprint 005 (§11). Sprint 004 stops at the validated
-> INGEST structure. It reuses the frozen Sprint-001 `utm` module (imported, not
-> modified) for the join key and per-asset UTM validity.
->
-> This is a **CLI + importable pure library** deliverable — no routes, screens, or
-> Playwright paths. Verification is exact CLI invocations + exit codes +
-> stdout/stderr substrings + on-disk/stdout JSON assertions, mirroring the DNA of
-> `tools/marketing-render/` and the PASSED Sprints 001/002/003.
+Run 004 · Renderer V2 Format Library + QA Gate V2
+Spec refs: §5.1 (R15 multi-page PDF, R16 PDF byte-determinism, R18 determinism/no-network, R19 output-location/atomic), §5.3 (top-level `pdf` manifest key), §6 (states), §9 (Python+Pillow+vendored, no new dep, no network), §10 Risk 1 (v1 freeze) / Risk 8 (PDF page-order + metadata suppression), §11 Sprint-004 row.
+Builds on: Sprint 001 (measure v2 + widened schema), Sprint 002 (batch-A renderer + `formats.md`), Sprint 003 (batch-B renderer, render suite now **252 OK**), all evaluated PASS.
 
-## 1. Scope (this sprint only)
+---
 
-Deliver the CSV ingestion layer of the Gap-3 analytics toolchain:
+## 0. One-paragraph scope
 
-- **Four documented CSV column contracts** (§3.1, spec §5.4 CSV-INPUTS): Instagram
-  export, YouTube export, LinkedIn export, site-analytics export. Each names its
-  required headers, its join column, and which columns feed which downstream
-  scorecard cell (craft diagnostics, flywheel clicks, the three WRR components).
-  These are an **authored internal contract** (Assumption A-5) — fixtures conform;
-  no attempt is made to reproduce any real platform's export layout.
-- A **robust CSV parser** (`csvspec.py`) that validates a provided CSV against its
-  contract and **rejects** (exit 2, cited file + reason, no downstream output) on:
-  unparseable content, a missing required header, a data row with the wrong column
-  count, a truncated/unterminated row, or a **non-blank non-numeric** value in a
-  numeric column (B-A3 / story #7 "corruption never silently becomes a blank
-  cell"). A **blank** cell in a numeric column is **absent**, not corrupt (B-A4).
-- An **asset resolver** (`assetmap.py`) that scans `content/*/meta.md`, builds the
-  `campaign → (slug, hook_number, utm_valid, utm_violations)` map via the frozen
-  Sprint-001 `utm` module, and exposes the join key (B-A2 / B-A11 material).
-- An **ingestion builder + CLI** (`ingest.py`) that reads whichever of the four
-  CSVs the operator provides, joins metrics rows to assets, aggregates flywheel
-  clicks and the three WRR component inputs, tracks every **absence** (source not
-  provided / value blank / component missing / campaign-with-no-asset / wrong-UTM
-  asset), and emits the **INGEST** JSON structure (§3.5). Provided-but-corrupt CSV
-  → exit 2, no output; absent source → recorded as missing, exit 0.
-- Unit tests + fixtures covering every path in §9.
+For every asset that renders **≥1 `format-slide` surface** (i.e. `schema_version "2"`), the renderer additionally emits a single **`content/<slug>/render/carousel.pdf`**: the format-slide PNGs as PDF pages, **one page per format-slide, in slide order**, and records a **top-level `"pdf": "carousel.pdf"`** key in `manifest.json`. The PDF is **byte-identical across two independent `render.py` process invocations of the same input** (R16): per-run PDF metadata (CreationDate, ModDate) is suppressed, the Producer string is fixed, the Title is pinned independent of the output path, and Pillow emits no run-varying document `/ID`. This sprint touches **only `render.py`** (PDF build + manifest key + CLI "wrote" line) and its tests/input-fixtures. It wires **no** V13–V19 QA check, changes **no** `measure.py` / `validate.py` / `acceptance.py` / `fixtures/*`, and edits **no** TGRERA/hyd content asset. The v1 path stays **byte-frozen**: hyd (carousel-slide) and tgrera (chart-card) carry no format-slide, so **no PDF is emitted and no `pdf` key is added** — their `manifest.json` and PNGs stay byte-identical (Risk 1 freeze).
 
-**Explicitly OUT of this sprint** (Sprint 005): the scorecard markdown, the WRR
-sum + no-partial-sum blanking decision, the Missing-data section text, the
-posting-time A/B table, the Decisions-fed-back section, `metrics/YYYY-Www.md`
-output, and the `loop-measure` SKILL update. Sprint 004 exposes the raw inputs +
-presence flags that Sprint 005 turns into those cells. See §7.
+**Conscious regression-budget change, stated up front (spec §9 regression budget; the Sprint-003 PIE-CHART re-point discipline).** Sprint 003 shipped **two** tests named `test_no_pdf_key_this_sprint` (`tools/marketing-render/tests/test_render_v2.py:84` for batch-A fixtures and `:454` for batch-B fixtures), each asserting `assertNotIn("pdf", manifest)`. Emitting the PDF this sprint **legitimately flips both** — a v2 manifest now MUST carry `pdf: "carousel.pdf"`. Under the hard regression budget these two tests are **consciously re-pointed** to assert the **positive** invariant (`manifest["pdf"] == "carousel.pdf"` on a format-slide asset) **and** the preserved negative invariant (a `schema_version "1"` manifest — hyd/tgrera — still has **no** `pdf` key). This is a conscious extension (the "v1 manifests carry no pdf key" guarantee is preserved and re-proven; only the too-early "v2 has no pdf key" assertion moves to its correct post-Sprint-004 value), **never a silent deletion**. No other existing assertion is weakened. `test_validate.py:458 test_top_level_pdf_tolerated` already proves the validator tolerates the `pdf` key — that test is **unchanged** and re-run as a regression witness.
 
-## 2. Files created / affected
+**Determinism scope note (state, do not over-claim).** R16 byte-equality is a **same-environment, same-Pillow-version** guarantee. Pillow writes a fixed comment `created by Pillow <version> PDF driver` into every PDF; that version string is environment-pinned, not a cross-machine promise. The Evaluator runs the byte-equality check on **one machine / one interpreter** (Pillow 11.3.0 present); cross-machine PDF byte-equality is out of scope and not claimed.
 
-New, under `tools/marketing-loops/` (Generator may adjust private helper names but
-MUST honor the behaviors, the importable-pure-function requirement, and the
-fixtures-live-under-`tools/` rule):
+Playwright is **not applicable** — no browser UI. This is a CLI/raster sprint. The Evaluator attacks it by rendering real assets across two separate processes, hashing/`cmp`-ing the emitted `carousel.pdf` bytes, counting/ordering PDF pages, confirming the manifest `pdf` key, confirming v1 assets emit no PDF and stay byte-frozen, and running both unittest suites — not click paths.
 
-- `csvspec.py` — **importable pure module**: the four column contracts as data +
-  `read_csv(path, contract)` returning validated typed rows or raising a cited
-  `CsvError`. No CLI side effects on import. No wall-clock, no network.
-- `assetmap.py` — **importable pure module**: scan a content dir, return the
-  `campaign → asset-record` map (slug, hook_number, utm_valid, utm_violations).
-  Imports the frozen Sprint-001 `utm`. No writes, no wall-clock, no network.
-- `ingest.py` — the ingestion CLI + its pure builder function `build_ingest(...)`.
-  Imports `csvspec`, `assetmap`, `utm`. Parses args, validates CSVs, builds the
-  INGEST structure, emits JSON (stdout or `--out`), maps errors → exit codes.
-- `tests/test_csvspec.py`, `tests/test_assetmap.py`, `tests/test_ingest.py` — unit
-  tests.
-- `fixtures/metrics/<fx-name>/` — new ingestion fixtures (CSV files + small content
-  dirs of `meta.md`-only asset folders as needed), listed in §9. Fixtures live
-  **under `tools/`, never under `content/`**.
+---
 
-**Read-only — imported, NOT modified** (Sprint-001/002/003 contracts are frozen and
-PASSED): `utm.py`, `gate.py`, `queue.py`, `channels.py`, `captions.py`,
-`schedule.py`, `package.py`, `mark_posted.py`, and all of `content/*`. New shared
-logic lives in the **new** modules and only *imports* `utm.py` — no function is
-added to any frozen module, so no PASSED contract can regress.
+## 1. Exact user-visible behaviors
 
-**No new tracked disk artifact is introduced.** `ingest.py` prints the INGEST JSON
-to stdout by default; `--out PATH` writes it for inspection. Sprint 005 imports
-`build_ingest(...)` directly. Tests read fixture CSVs and write only to temp paths.
+The "user" is a content operator (or `/loop-create` agent) who authors `content/<slug>/formats.md` and runs one command. Sprint 004 adds one new output file and one manifest key to the existing v2 render.
 
-## 3. Exact behaviors
+### 1.1 New output: `carousel.pdf`
 
-### 3.1 The four CSV column contracts (`csvspec.py`) — B-A1 / spec §5.4 CSV-INPUTS
+- Running `python3 tools/marketing-render/render.py content/<slug>/` on an asset with **≥1 `format-slide`** surface writes, in addition to the existing `format-NN.png`s and `manifest.json`, a **`content/<slug>/render/carousel.pdf`**.
+- The CLI prints an additional `wrote …/render/carousel.pdf` line (after the PNG lines, before or after the manifest line — deterministic order the Generator fixes; the manifest line stays last is acceptable).
+- **PDF page set + order (R15):** exactly the asset's `format-slide` surfaces, **one page each, in manifest surface-list order** (which is `format-01 … format-NN` slide order, R19). No chart-card or carousel-slide page ever appears in `carousel.pdf`. Page count == number of format-slide surfaces (≤10, R14).
+- **PDF page pixels:** each page is the same 1080×1350 raster as its `format-NN.png` (built from the identical in-memory `RGB` image, so the page and the PNG are the same rendered pixels). Default 72 dpi / 72.0 resolution (Pillow default, pinned — no `dpi=`/`resolution=` override that would vary).
 
-Each contract is a documented, versioned data structure declared once in
-`csvspec.py`, exactly like `manifest.json`/`qa-verdict.json` are versioned schemas.
-A `CSV_SCHEMA_VERSION = "1"` constant lives once. Column contract fields: the
-ordered **required headers**, each header's **type** (`str` | `int` | `num`), and
-the **join column**. Extra columns beyond the required set are **ignored** (not an
-error). Header match is exact and case-sensitive.
+### 1.2 New manifest key: top-level `pdf`
 
-**Platform exports — Instagram / YouTube / LinkedIn** (one row per published
-asset×channel; the craft-diagnostics source B-A7 + the `returning_viewers` note
-below). Required headers, in order:
+- When a `carousel.pdf` is emitted, `manifest.json` carries a **top-level** `"pdf": "carousel.pdf"` key (spec §5.3). Present **iff** `schema_version == "2"` (≥1 format-slide surface). Value is the exact filename string `"carousel.pdf"` (a `render/`-relative name, matching the `png` per-surface convention — a bare filename, not an absolute path).
+- A `schema_version "1"` manifest (hyd carousel-slide, tgrera chart-card, all 12 v1 fixtures) carries **no** `pdf` key — byte-unchanged from Sprint 003 (Risk 1 freeze).
+- Manifest JSON serialization is unchanged (`json.dumps(..., ensure_ascii=False, indent=2, sort_keys=True) + "\n"`). Because `sort_keys=True`, the new `pdf` key sorts deterministically among the top-level keys (`pdf` between `slug` and `surfaces`… actually alphabetical: `pdf`, `schema_version`, `slug`, `surfaces`) — a single fixed byte-layout across runs.
 
-| Header | Type | Feeds |
-|---|---|---|
-| `utm_campaign` | str | **join key** (B-A2) → asset slug + hook # |
-| `three_s_hold_pct` | num | Craft: 3s-hold % |
-| `completion_pct` | num | Craft: completion / swipe-through % |
-| `shares` | int | Craft: Shares |
-| `clicks` | int | Craft: Clicks |
+### 1.3 R16 — PDF byte-determinism (the load-bearing behavior)
 
-The three platform contracts are structurally identical; the **kind** (`instagram`
-/ `youtube` / `linkedin`) is supplied by which `--instagram/--youtube/--linkedin`
-flag the file arrives on, and fixes the row's `channel`. (A platform CSV does NOT
-carry a channel column; the flag is the channel.)
+`carousel.pdf` MUST be **byte-identical across two independent `render.py` process invocations of the same `formats.md`** on the same environment. The renderer achieves this by, on the Pillow PDF save, explicitly:
 
-**Site-analytics export** (per-campaign rows; the flywheel source B-A6 + the sole
-home of the three WRR component inputs — A-5/A-6 authored contract). Required
-headers, in order:
+- suppressing the per-run **CreationDate** and **ModDate** (Pillow defaults them to `time.gmtime()` — the sole per-run source; passing them as `None`/omitting drops the `/Info` `CreationDate`/`ModDate` entries),
+- pinning a **fixed Producer** string (a constant, not run- or environment-derived beyond the version comment Pillow itself writes),
+- pinning **Title** to a fixed value **independent of the output filename** (Pillow otherwise derives Title from `os.path.splitext(basename(filename))` — `"carousel"` — which is deterministic per this fixed filename but is pinned explicitly so the bytes do not depend on the save path/method),
+- relying on Pillow 11.3.0 emitting **no `/ID` array** in the trailer (verified: `PdfParser.write_xref_and_trailer` writes only `Root`/`Size`/`Info`, no document ID) — so there is no run-varying ID to suppress.
 
-| Header | Type | Feeds |
-|---|---|---|
-| `utm_source` | str | filter (informational) |
-| `utm_medium` | str | filter: only `social` rows count for flywheel + WRR comp3 |
-| `utm_campaign` | str | **join key** → flywheel grouping (B-A6) |
-| `clicks` | int | Flywheel: clicks to intel.terrem.in by campaign (B-A6) |
-| `returning_viewers` | int | **WRR component 1** (returning viewers) |
-| `digest_opens` | int | **WRR component 2** (digest/email open-streak) |
-| `returning_visitors_social` | int | **WRR component 3** (returning site visitors from social) |
+**Evidence standard (must be cross-process, not same-process):** the byte-equality proof renders the same input under **two separate `python3 render.py` invocations into two different parent dirs with an identical basename** (the Sprint-003 `s4a`/`s4b` two-parent slug-identity pattern) and compares the two on-disk `render/carousel.pdf` files with `cmp`/SHA-256. A same-process `BytesIO` round-trip proves only that the encoder is deterministic; it does **not** prove cross-run determinism (the R16 requirement) and does not exercise the real save path (where Title is filename-derived unless pinned).
 
-> **Why all three WRR components live in site-analytics (A-5/A-6, documented):**
-> WRR is a single week-level rollup, not a per-asset metric. Housing its three
-> component columns in the one week/site-level export keeps WRR single-source
-> (no "which platform sources were provided" ambiguity) and makes the Sprint-005
-> B-A5 "any component absent → blank WRR" edge testable at the value level (blank
-> a column → that component absent). This is the manifest.json approach applied to
-> inputs; it is an authored internal contract, not a claim about a real export.
+### 1.4 Atomicity + no-partial-write (R19, inherited)
 
-**Numeric typing (`int` / `num`) — the B-A3 vs B-A4 crux, pinned:**
+The PDF is built in memory (or written) only **after** `render_asset` succeeds; any parse/layout error still raises **before** any file (`format-NN.png`, `manifest.json`, or `carousel.pdf`) is written. A ≥11-slide `formats.md` (R14) still fails loud with **no `render/` dir written** — no partial PDF. The Generator may build the PDF bytes in `render_asset` (returned alongside images/manifest) or in `write_outputs` from the in-memory images filtered to format-slide surfaces; either way the "build in memory, then write" invariant holds and no file is written on error.
 
-- A **blank** cell (`""` after strip) in an `int`/`num` column → the value is
-  **absent** (`None`), NOT corrupt, NOT zero. This is B-A4 (Sprint 005 blanks it +
-  lists it under Missing data). Exit stays 0.
-- A **non-blank** cell in an `int` column must parse as a base-10 integer
-  (`^-?\d+$`); in a `num` column as an integer or decimal (`^-?\d+(\.\d+)?$`).
-  Any **non-blank value that fails to parse** (e.g. `abc`, `12x`, `1,2`) → **corrupt
-  → reject** (exit 2, cite file + 1-based data-row number + column name). This is
-  B-A3 / story #7: corruption never silently becomes a blank cell.
-- `0` (and `0.0`) is a **present value**, distinct from absent. Absent must never
-  be defaulted to `0` (B-A7 "blank cell, not zero"). The blank-vs-non-blank test
-  above enforces this; no code path converts absent → 0.
-- `str`-typed cells are taken verbatim (leading/trailing whitespace stripped for
-  the join column `utm_campaign` and for `utm_medium`); a blank `utm_campaign` in a
-  data row → reject (a row that cannot join is corrupt for the join column), cited.
+### 1.5 Which assets get a PDF (exhaustive)
 
-### 3.2 Robust parse + rejection (`csvspec.read_csv`) — B-A3
+| Asset shape | format-slides? | schema_version | `carousel.pdf` | `pdf` key |
+|---|---|---|---|---|
+| `formats.md` (v2 batch A/B, 1–10 slides) | ≥1 | "2" | **emitted** | **present** |
+| hyd `carousel.md` (carousel-slide) | 0 | "1" | **not emitted** | **absent** |
+| tgrera `chart-spec.md` (chart-card) | 0 | "1" | **not emitted** | **absent** |
+| 12 v1 `fixtures/*` | 0 | "1" | **not emitted** | **absent** |
+| mixed (carousel.md + formats.md in one folder) | ≥1 | "2" | **emitted — only the format-slide pages** | **present** |
 
-`read_csv(path, contract)` reads a provided CSV with the stdlib `csv` module and
-returns a list of validated row dicts `{header: typed_value_or_None}` — OR raises
-`CsvError(message)` (the CLI turns it into exit 2). Rejection conditions, each with
-a specific cited message naming the file and (where applicable) the row/column:
+The mixed case is not a required fixture but MUST behave as stated (PDF pages = format-slide surfaces only; carousel-slide/chart-card surfaces never enter the PDF). Rule: **PDF emitted iff ≥1 format-slide surface**, exactly the `schema_version == "2"` condition.
 
-1. **Unparseable / unterminated:** the `csv` reader raises `csv.Error` (e.g. an
-   unterminated quoted field, a NUL byte) → reject: `"<file>: not parseable as CSV
-   (<detail>)"`.
-2. **No header / empty file:** zero lines, or a header row that is empty → reject:
-   `"<file>: missing required header(s): <list>"` (an empty file is missing every
-   required header).
-3. **Missing required header:** any contract-required header absent from the header
-   row → reject, naming the missing header(s). (Extra headers are ignored.)
-4. **Wrong column count:** any **data** row whose field count ≠ the header field
-   count → reject: `"<file>: row <n> has <k> columns, expected <h>"`. A file
-   truncated mid-row yields a short final row → caught here (or by (1) if a quote is
-   left open). `<n>` is the 1-based data-row index (header is not counted).
-5. **Non-numeric in a numeric column / blank join column:** per §3.1 typing →
-   reject, cited with file + data-row number + column name.
+---
 
-**A provided CSV with a valid header and ZERO data rows is NOT malformed** — it is
-a valid, *present* source that contributes no values (every downstream cell drawn
-from it is absent → Sprint-005 blanks + lists). This is the sharp line between
-"present-but-empty" (exit 0) and "corrupt" (exit 2).
+## 2. Routes / screens / components affected
 
-`read_csv` performs **no** wall-clock, **no** network, and **no** writes. It reads
-`path` with `encoding="utf-8"`; a decode error → `CsvError` (reject, exit 2).
+No routes/screens (no UI). Files:
 
-### 3.3 Asset resolver + join key (`assetmap.py`) — B-A2 / B-A11
+- `tools/marketing-render/render.py` — **add** a fixed PDF-metadata constant block (producer/title); **build** `carousel.pdf` bytes from the in-memory format-slide `RGB` images in manifest surface-list order with CreationDate/ModDate suppressed + fixed Producer/Title; **add** the top-level `pdf` key to the manifest when a PDF is emitted; **write** `carousel.pdf` in `write_outputs` (atomic, after PNGs/manifest or alongside); **add** its `wrote …` CLI line. **All v1 code paths, batch-A/B `_FMT_*` constants, `render_slide`/`render_chart_card`/`render_format_slide`/layout functions stay byte-unchanged** (only the emission seam gains a PDF).
+- `tools/marketing-render/tests/test_render_v2.py` — **consciously re-point** both `test_no_pdf_key_this_sprint` (`:84` batch-A, `:454` batch-B) to assert the **positive** `pdf == "carousel.pdf"` invariant on v2 assets **plus** the preserved **negative** invariant that a `schema_version "1"` manifest has no `pdf` key; **add** PDF test class(es): page-count == slide-count, page order, cross-process byte-determinism, PDF metadata contains no CreationDate/ModDate, v1 asset emits no PDF, manifest `pdf` key presence/absence. No existing assertion weakened or deleted beyond the two documented re-points.
+- `tools/marketing-render/tests/inputs/fmt-multi/formats.md` — **new** multi-slide (**3** format-slide) renderer-input fixture, so page-count/order is provable against a >1-page PDF (existing single-format fixtures give 1-page PDFs only). Illustrative/public copy, no TERREM DB numbers. Under `tests/inputs/` (NOT `fixtures/`, so `acceptance.py`'s 12-fixture set is untouched); no committed PDF/PNG — rendered to a temp dir in tests and by the Evaluator.
 
-`build_asset_map(content_dir) -> {campaign: asset_record}` scans every immediate
-subdirectory of `content_dir` that contains a `meta.md` (skipping `TEMPLATE.md` and
-non-asset entries), and for each builds an **asset record**:
+**Out of scope (do not touch):** `render.py` v1 functions/constants + batch-A/B `_FMT_*` constants (byte-unchanged except the new PDF emission seam); `measure.py` (frozen); `validate.py` (schema already tolerates the `pdf` key — `test_top_level_pdf_tolerated` proves it; F-001 guard unchanged); `acceptance.py`; any `fixtures/*` or `make_fixtures.py`; TGRERA/hyd content assets; V13–V19 wiring; V15 thumbnail / V4 contrast gating; any file outside `tools/marketing-render/`.
 
-```
-{
-  "slug": "<folder name, date prefix intact>",
-  "campaign": "<utm.campaign_from_slug(slug)>",   # the join key (B-A2)
-  "hook_number": <int|null>,                       # first #<n> on the Hook: line
-  "utm_valid": <bool>,                             # utm.validate_asset(...).ok
-  "utm_violations": [<code>, ...],                 # Sprint-001 violation codes
-}
-```
+---
 
-- **Join key (B-A2):** `campaign = utm.campaign_from_slug(slug)` (date-stripped
-  slug) — the identical key CSV rows join on. Two assets mapping to the same
-  campaign → raise `ValueError` (an authoring collision the operator must fix;
-  surfaced, never silently coalesced).
-- **Hook number:** the first `#\d+` token on the `Hook:` line of `meta.md`
-  (`Hook: hook-bank #11 …` → `11`; `… #13 … #21` → `13`). No `Hook:` line, or no
-  `#\d+` on it → `hook_number = null` (Sprint 005 leaves the Hook # cell blank; the
-  tool never invents a hook number).
-- **UTM validity (B-A11 material):** `utm.validate_asset(asset_dir)` — a wrong-UTM
-  asset is recorded (`utm_valid=false`, `utm_violations=[...]`) so Sprint 005 can
-  flag it in Missing-data/notes and never silently attribute metrics to it. This
-  sprint records the flag; Sprint 005 renders it.
-- Pure: no writes, no wall-clock, no network. An asset folder missing `meta.md` is
-  skipped (not an error). Result campaigns are unique keys; iteration order is
-  irrelevant (the INGEST builder sorts).
+## 3. Data / state transitions
 
-### 3.4 Ingestion builder + CLI (`ingest.py`) — B-A2 / B-A4 / B-A6 (aggregation only)
+- Input: `content/<slug>/formats.md`. Output (v2): `render/format-NN.png` × N + `render/manifest.json` (with `pdf` key) + **`render/carousel.pdf`**. No DB, no network, no state beyond files.
+- `render_asset` builds all images + manifest in memory; PDF bytes derive from the same in-memory images; `write_outputs` writes PNGs, manifest, and (when present) the PDF into `render/` only; any error raises before any write (atomic, R19).
+- **Determinism (R18 + R16):** identical `formats.md` → pixel-identical PNGs (decoded-RGBA SHA-256), byte-identical `manifest.json`, **and byte-identical `carousel.pdf`** across two independent process runs. No embedded per-run timestamp/ID; fixed Producer/Title; images encoded from deterministic RGB pixel data (proven: same-input PDF bytes equal). Fonts loaded only from vendored `fonts/`; zero network.
 
-CLI:
+---
 
-```
-python3 tools/marketing-loops/ingest.py --week YYYY-Www \
-  [--instagram FILE] [--youtube FILE] [--linkedin FILE] [--site FILE] \
-  [--content-dir DIR] [--out FILE]
-```
+## 4. Empty / loading / success / error / invalid states
 
-Ordered steps (all validation before any output; on any error nothing is written
-and stdout is empty):
+- **Missing asset folder / no renderable input** → `FileNotFoundError`, exit 1, nothing written (no PDF). Unchanged.
+- **Success (v2)** → `format-NN.png` × N + `manifest.json` (schema "2", with `pdf`) + `carousel.pdf` under `render/`, exit 0, per-file "wrote …" lines including the PDF.
+- **Success (v1)** → hyd/tgrera/fixtures render exactly as Sprint 003: PNGs + `manifest.json` (schema "1", **no** `pdf` key), **no** `carousel.pdf`, exit 0.
+- **Fail-loud invalid `formats.md`** (unknown tag, unparseable line, wrong dominant/wordmark count, per-format minima, `Bar:` no-numeric, **≥11 slides**, band overflow, tofu glyph) → `ValueError`/`RuntimeError`, exit 1, **no partial write — no `render/` dir, no PDF** (R19 atomic). Unchanged, now also proven to leave no partial PDF.
+- **validate.py on a v2 asset (now carrying the `pdf` key)** → still clean **exit 2** with the inherited cited "V13–V19 not yet wired" message, **no traceback**, nothing written; the `pdf` key is tolerated by the schema check (`test_top_level_pdf_tolerated`, unchanged). No validate.py edit.
+- **No loading state** (synchronous CLI).
 
-1. **`--week` format** `^\d{4}-W\d{2}$` → else exit 2 (cited).
-2. **At least one of** `--instagram/--youtube/--linkedin/--site` **or** none: **none
-   provided is allowed** (the empty state — a valid all-absent INGEST, exit 0).
-3. **Provided path existence:** any `--<source> FILE` whose path does not exist / is
-   not a file → exit 2 (`"<flag> file not found: <path>"`). *Absent flag ≠ bad
-   path:* omitting a flag records the source as not-provided (exit 0); passing a
-   flag to a nonexistent file is a usage error (exit 2). These are two distinct
-   states.
-4. **`--content-dir`** (default: repo `content/`, resolved from `__file__`) must be
-   an existing directory → else exit 2. Build the asset map (§3.3); a campaign
-   collision → exit 2 (cited).
-5. **Parse each provided CSV** via `csvspec.read_csv` with its contract (§3.1–3.2).
-   Any `CsvError` → **exit 2**, print the cited message to **stderr**, emit **no**
-   JSON (B-A3: no downstream output on corrupt input).
-6. **Join + aggregate** (pure `build_ingest(...)`), all from present values only —
-   no estimation, interpolation, or defaulting (spec §5.2, §7 anti-patterns):
-   - **Craft rows (B-A7):** for each row of each provided platform CSV, one craft
-     entry keyed `(campaign, channel)`; resolve `slug` + `hook_number` via the
-     asset map (unmatched campaign → `slug=null`, `hook_number=null`, and record an
-     `unmatched-campaign` absence). Blank metric cell → `null` (absent), never `0`.
-   - **Flywheel clicks (B-A6):** from the site CSV, rows with `utm_medium=="social"`
-     grouped by `utm_campaign`, summing `clicks` over **present (non-blank)** cells.
-     A campaign whose `clicks` cells are all blank → click total absent for it.
-   - **WRR component inputs:** from the site CSV, for each of the three component
-     columns, the column-sum over present cells (comp3 filtered to
-     `utm_medium=="social"`). Each component: `{"present": bool, "value": int|null,
-     "source": "site"}` — `present=true` iff the site source is provided AND that
-     column has ≥1 non-blank cell; else `value=null, present=false`. **This sprint
-     does NOT sum the three into WRR and does NOT decide the blank-WRR rule** — that
-     is Sprint 005's B-A5. It only exposes the three component inputs + presence.
-7. **Record absences** (the raw material for Sprint 005's Missing-data section):
-   an ordered, de-duplicated list of `{kind, detail}` entries with `kind ∈
-   {source, wrr-component, unmatched-campaign, wrong-utm}` (value-level blanks are
-   representable by the `null` cells themselves + the `sources_provided` map; the
-   absences list captures the higher-level items). Ordering is deterministic
-   (by `kind`, then `detail`).
-8. **Emit INGEST JSON** (§3.5) to stdout, or to `--out FILE` if given (the file is
-   the only optional write; `mkdir -p` its parent). `json.dumps(..., sort_keys=True,
-   indent=2) + "\n"`. Exit **0**.
+---
 
-**Determinism (spec §7):** same inputs → byte-identical INGEST JSON. Sorted keys;
-craft entries ordered by `(campaign, channel)`; flywheel entries by `campaign`
-(lexicographic); assets by `slug`; absences by `(kind, detail)`. No `datetime.now()`
-anywhere; the only date-ish input is the operator-supplied `--week` (validated as a
-string, never parsed against "now"). No network.
+## 5. Keyboard / focus / ARIA / contrast / responsive
 
-### 3.5 INGEST schema (spec §5.4 "intermediate metrics blob") — the seam Sprint 005 consumes
+- **UI a11y:** N/A — no DOM/viewport. Stated so the omission is not read as a gap.
+- **Raster/PDF legibility:** PDF pages are the identical 1080×1350 rendered slides (raised floors + ≥3× dominant already met by construction, Sprints 002/003). PDF is a re-container of the same pixels — it introduces no new legibility surface. V15 thumbnail / V4 contrast gating remains Sprint 005.
+- **Responsive proxy:** unchanged from Sprint 003; the 360px thumbnail gate is Sprint 005.
 
-Serialized `json.dumps(..., sort_keys=True, indent=2) + "\n"`:
+---
 
-```json
-{
-  "schema_version": "1",
-  "week": "YYYY-Www",
-  "sources_provided": {
-    "instagram": false, "youtube": false, "linkedin": false, "site": false
-  },
-  "assets": [
-    { "slug": "2026-07-03-tgrera-enforcement-wave",
-      "campaign": "tgrera-enforcement-wave",
-      "hook_number": 11, "utm_valid": true, "utm_violations": [] }
-  ],
-  "wrr_components": {
-    "returning_viewers":        { "present": false, "value": null, "source": "site" },
-    "digest_opens":             { "present": false, "value": null, "source": "site" },
-    "returning_visitors_social":{ "present": false, "value": null, "source": "site" }
-  },
-  "flywheel_clicks_by_campaign": [
-    { "campaign": "tgrera-enforcement-wave", "clicks": 42 }
-  ],
-  "craft": [
-    { "campaign": "tgrera-enforcement-wave", "channel": "instagram",
-      "slug": "2026-07-03-tgrera-enforcement-wave", "hook_number": 11,
-      "three_s_hold_pct": 31.0, "completion_pct": 26.0,
-      "shares": 4, "clicks": 33 }
-  ],
-  "absences": [
-    { "kind": "source", "detail": "youtube export not provided" }
-  ]
-}
-```
+## 6. Security / privacy assumptions
 
-- `schema_version` is `"1"`, declared once in `ingest.py`.
-- Absent numeric cells are JSON `null`; present ones are numbers. `0` is `0`, never
-  conflated with `null`.
-- `craft[].slug` / `hook_number` are `null` for an unmatched campaign.
-- The structure is **complete for an all-absent run**: `sources_provided` all
-  `false`, `assets` populated from the content scan, `wrr_components` all
-  `present:false`, `flywheel_clicks_by_campaign: []`, `craft: []`, and an `absences`
-  list naming each not-provided source. This is the empty state (exit 0).
+- No network at import- or render-time. Evaluator may run with network disabled.
+- No secrets/tokens/credentials; no `.env`; no DB writes; no writes outside `content/<slug>/render/` (and, in tests, a temp dir).
+- **No new third-party dependency:** PDF via already-vendored Pillow's `Image.save(..., format="PDF", save_all=True, append_images=…)`. `render.py` gains **no import beyond what it already uses** (Pillow's PDF driver is part of the existing Pillow; no `reportlab`/`fpdf`/etc.).
+- New multi-slide fixture copy is illustrative/public-style — no TERREM DB numbers (spec §9). Provenance-checked TGRERA is Sprint 006.
+- `.gitignore` hygiene: no `carousel.pdf` / `render/` artifact committed by this sprint (outputs are regenerated; tests use temp dirs).
 
-### 3.6 Exit codes (match render / Sprint 001–003 convention)
+---
 
-- **`0`** — success, including a **partial** run (some sources absent → mix of
-  present values + `null` cells) and the **empty** run (no sources → all-absent
-  INGEST). A valid partial/empty INGEST is a success, not an error (spec §6
-  "Partial input … exit 0").
-- **`1`** — **intentionally unused** by this tool. Ingestion has no "domain verdict
-  on well-formed input" outcome analogous to a gate FAIL: a corrupt CSV is
-  *malformed input* (→ 2, matching Sprint-003's malformed-`manifest.json` → 2 and
-  render's malformed-input → 2), and unmatched-campaign / wrong-UTM are **flags**
-  (B-A11), not rejections. Documented so the Sprint-006 acceptance runner sees a
-  consistent taxonomy across both gaps.
-- **`2`** — **usage / precondition error**, message on **stderr**, **no** JSON on
-  stdout, **no** `--out` write: malformed `--week`; a provided `--<source>` path
-  that does not exist; a bad `--content-dir`; an asset-map campaign collision; and
-  **every B-A3 CSV rejection** (unparseable, missing header, wrong column count,
-  truncated row, non-numeric numeric cell, blank join column).
+## 7. Commands to run (Evaluator)
 
-## 4. States
-
-- **Empty (no sources):** `--week` only → valid all-absent INGEST (§3.5 note),
-  exit 0, one `absences` entry per not-provided source.
-- **Empty (present-but-header-only):** a provided CSV with header + zero data rows →
-  present source, no values, exit 0 (distinct from corrupt).
-- **Success (full):** all four sources provided, well-formed → craft rows joined,
-  flywheel grouped, three WRR components present with summed values, exit 0.
-- **Partial input:** some sources provided → mix of present values + `null` cells +
-  `sources_provided` false for the missing → exit 0 (never an error).
-- **Absent source vs bad path:** omitting `--youtube` → recorded missing, exit 0;
-  `--youtube /no/such.csv` → exit 2 (`file not found`). Two distinct states.
-- **Corrupt CSV (B-A3):** unparseable / missing header / wrong column count /
-  truncated / non-numeric numeric cell / blank join column → exit 2, cited
-  file+row+column, **no JSON emitted, no `--out` write**.
-- **Unmatched campaign (B-A11):** a CSV `utm_campaign` matching no content asset →
-  craft/flywheel entry retained with `slug=null`, an `unmatched-campaign` absence
-  recorded, exit 0 (a flag, not a rejection).
-- **Wrong-UTM asset (B-A11):** an asset whose `meta.md` UTM link is scheme-invalid →
-  `utm_valid=false` + `utm_violations` recorded in `assets[]` and a `wrong-utm`
-  absence entry, exit 0 (Sprint 005 renders the flag).
-- **Idempotency / determinism:** same inputs → byte-identical INGEST JSON, stable
-  ordering, no wall-clock.
-- **Offline:** no network; any network import is a defect.
-
-## 5. Non-UI expectations (a11y / responsive / contrast do not apply)
-
-Headless CLI + importable library. In place of keyboard/focus/ARIA/contrast/
-responsive:
-
-- **Usability:** every rejection message is specific and recoverable — it names the
-  file, the 1-based data-row number, and/or the column (e.g. `fixtures/…/ig.csv:
-  row 3 column 'shares': non-blank value 'x' is not an integer`; `site.csv: missing
-  required header(s): digest_opens`), never a bare "invalid CSV".
-- **Runs from any cwd:** paths resolved from `__file__`; `--content-dir` and every
-  `--<source>` accept absolute or relative paths; default `--content-dir` is the
-  repo `content/`.
-- **Import safety:** importing `csvspec`, `assetmap`, `ingest` has no side effects
-  and prints nothing.
-- **Single source of truth:** the join key + per-asset UTM validity come from the
-  frozen Sprint-001 `utm` module (`campaign_from_slug`, `validate_asset`); no forked
-  channel map, no re-declared campaign-stripping regex.
-
-## 6. Security / privacy
-
-- Stdlib only: `csv`, `json`, `argparse`, `pathlib`, `re`. **No** `datetime` use for
-  "now" (no date parsing is even required here — `--week` is validated as a string).
-  No third-party deps. No network. No secrets. No personal data written. CSV inputs
-  are **untrusted**: parsed defensively; every malformation is a cited exit-2 error,
-  never a crash and never an invented/defaulted value. No dependency on the
-  globally-installed `pmp-gywd@5.0.0` npm package.
-- `ingest.py` writes nothing by default (JSON to stdout); `--out` writes only where
-  the operator points it. Tests read fixtures under `tools/` and write only to temp
-  paths; no real `content/` or `metrics/` file is mutated.
-
-## 7. Explicit non-goals (this sprint)
-
-- **No scorecard markdown, no `metrics/YYYY-Www.md`** — Sprint 005.
-- **No WRR sum, no no-partial-sum blanking decision, no Missing-data section text,
-  no posting-time A/B table, no Decisions-fed-back section** — Sprint 005 (B-A5,
-  B-A8, B-A9, B-A10). Sprint 004 exposes the raw component inputs + presence + the
-  absences list only.
-- **No `loop-measure` SKILL update** — Sprint 005 (B-A12).
-- **No modification** of any Sprint-001/002/003 module or any `content/*` file.
-- **No estimation, interpolation, defaulting, or zero-filling** of any absent
-  metric — absent stays `null`; `0` is only ever a genuinely present `0`.
-- **No live posting APIs, no network, no scraping** — inputs are operator-provided
-  CSV files only.
-
-## 8. Commands to run
+From repo root `/Users/prithviputta/Downloads/terrem-marketing-loops`:
 
 ```bash
-cd /Users/prithviputta/Downloads/terrem-marketing-loops
-FX=tools/marketing-loops/fixtures/metrics
+# (a) BASELINE re-confirm BEFORE reading Sprint-004 code changes.
+python3 -m unittest discover -s tools/marketing-render/tests 2>&1 | grep -E "^(Ran|OK|FAILED)"   # expect Ran 252 ... OK (pre-004 baseline)
+python3 -m unittest discover -s tools/marketing-loops/tests   2>&1 | grep -E "^(Ran|OK|FAILED)"   # expect Ran 254 ... OK
 
-# Unit tests (all Sprint 001+002+003+004 must pass)
-python3 -m unittest discover -s tools/marketing-loops/tests -v
+# (b) Cross-process PDF byte-determinism (R16) — TWO separate render.py invocations,
+#     identical basename in two parents (slug-identity), compare on-disk carousel.pdf bytes.
+rm -rf /tmp/s4a /tmp/s4b
+for f in fmt-multi fmt-chart fmt-receipts; do
+  mkdir -p /tmp/s4a/$f /tmp/s4b/$f
+  cp tools/marketing-render/tests/inputs/$f/formats.md /tmp/s4a/$f/
+  cp tools/marketing-render/tests/inputs/$f/formats.md /tmp/s4b/$f/
+  python3 tools/marketing-render/render.py /tmp/s4a/$f >/dev/null
+  python3 tools/marketing-render/render.py /tmp/s4b/$f >/dev/null
+  cmp /tmp/s4a/$f/render/carousel.pdf /tmp/s4b/$f/render/carousel.pdf && echo "PDF byte-identical: $f"
+done
 
-# Full happy path: 4 well-formed sources -> exit 0, INGEST JSON with craft rows,
-# flywheel grouping, three present WRR components
-python3 tools/marketing-loops/ingest.py --week 2026-W27 \
-  --instagram "$FX/full/ig.csv" --youtube "$FX/full/yt.csv" \
-  --linkedin "$FX/full/li.csv" --site "$FX/full/site.csv" \
-  --content-dir "$FX/full/content" ; echo "exit=$?"
+# (c) Page count == slide count, pages in slide order, manifest pdf key.
+python3 - <<'PY'
+import json, glob
+from PIL import Image
+for mf in glob.glob('/tmp/s4a/fmt-*/render/manifest.json'):
+    m = json.load(open(mf)); d = mf.rsplit('/',1)[0]
+    fs = [s for s in m["surfaces"] if s["role"]=="format-slide"]
+    assert m["schema_version"]=="2", mf
+    assert m.get("pdf")=="carousel.pdf", ("missing/wrong pdf key", mf, m.get("pdf"))
+    pdf = Image.open(d + '/carousel.pdf')
+    pages = getattr(pdf, "n_frames", 1)
+    assert pages == len(fs), ("page count != slide count", mf, pages, len(fs))
+    # order: each page is 1080x1350 (all format-slides are)
+    for i in range(pages):
+        pdf.seek(i); assert pdf.size == (1080,1350), (mf, i, pdf.size)
+    print("pages OK:", d.split('/')[-2], pages)
+PY
 
-# Empty state: no sources -> valid all-absent INGEST, exit 0
-python3 tools/marketing-loops/ingest.py --week 2026-W27 \
-  --content-dir "$FX/full/content" ; echo "exit=$?"
+# (d) Multi-page proof (fmt-multi has 3 slides -> 3 PDF pages).
+python3 - <<'PY'
+from PIL import Image
+p = Image.open('/tmp/s4a/fmt-multi/render/carousel.pdf')
+assert getattr(p,"n_frames",1)==3, p.n_frames
+print("fmt-multi pages:", p.n_frames)
+PY
 
-# Partial: only IG provided -> mix of present + null, exit 0
-python3 tools/marketing-loops/ingest.py --week 2026-W27 \
-  --instagram "$FX/full/ig.csv" --content-dir "$FX/full/content" ; echo "exit=$?"
+# (e) No per-run metadata in the PDF bytes (CreationDate/ModDate suppressed).
+python3 - <<'PY'
+b = open('/tmp/s4a/fmt-multi/render/carousel.pdf','rb').read()
+assert b"CreationDate" not in b, "CreationDate leaked (non-deterministic)"
+assert b"ModDate" not in b, "ModDate leaked (non-deterministic)"
+assert b"/ID" not in b, "run-varying document /ID present"
+assert b"%PDF" in b[:8], "not a PDF"
+print("no per-run metadata OK; has fixed Pillow producer comment:", b"created by Pillow" in b)
+PY
 
-# Determinism: same inputs -> byte-identical stdout
-python3 tools/marketing-loops/ingest.py --week 2026-W27 \
-  --site "$FX/full/site.csv" --content-dir "$FX/full/content" | shasum
-python3 tools/marketing-loops/ingest.py --week 2026-W27 \
-  --site "$FX/full/site.csv" --content-dir "$FX/full/content" | shasum
+# (f) v1 FREEZE: hyd + tgrera emit NO carousel.pdf, NO pdf key, byte-identical after re-render.
+python3 tools/marketing-render/render.py content/2026-07-03-hyd-premium-vs-budget >/dev/null
+python3 tools/marketing-render/render.py content/2026-07-03-tgrera-enforcement-wave >/dev/null
+test ! -e content/2026-07-03-hyd-premium-vs-budget/render/carousel.pdf && echo "hyd: no PDF OK"
+test ! -e content/2026-07-03-tgrera-enforcement-wave/render/carousel.pdf && echo "tgrera: no PDF OK"
+python3 - <<'PY'
+import json
+for slug in ("2026-07-03-hyd-premium-vs-budget","2026-07-03-tgrera-enforcement-wave"):
+    m = json.load(open(f'content/{slug}/render/manifest.json'))
+    assert m["schema_version"]=="1" and "pdf" not in m, (slug, m.get("pdf"))
+print("v1 manifests schema 1, no pdf key OK")
+PY
+git -C /Users/prithviputta/Downloads/terrem-marketing-loops status --porcelain content/   # expect empty (no diff)
 
-# B-A3 rejections (each exit 2, cited, NO json on stdout):
-python3 tools/marketing-loops/ingest.py --week 2026-W27 \
-  --site "$FX/truncated/site.csv" --content-dir "$FX/full/content" ; echo "exit=$?"
-python3 tools/marketing-loops/ingest.py --week 2026-W27 \
-  --site "$FX/wrong-header/site.csv" --content-dir "$FX/full/content" ; echo "exit=$?"
-python3 tools/marketing-loops/ingest.py --week 2026-W27 \
-  --instagram "$FX/wrong-colcount/ig.csv" --content-dir "$FX/full/content" ; echo "exit=$?"
-python3 tools/marketing-loops/ingest.py --week 2026-W27 \
-  --instagram "$FX/non-numeric/ig.csv" --content-dir "$FX/full/content" ; echo "exit=$?"
+# (g) validate.py on a v2 asset (now with pdf key) -> clean exit 2, cited, no traceback.
+python3 tools/marketing-render/validate.py /tmp/s4a/fmt-multi; echo "exit=$?"   # expect exit 2, cited msg
 
-# Absent source vs bad path:
-python3 tools/marketing-loops/ingest.py --week 2026-W27 \
-  --youtube /no/such/file.csv --content-dir "$FX/full/content" ; echo "exit=$? (expect 2)"
+# (h) Atomic: an 11-slide formats.md fails loud, leaves NO render/ dir (no partial PDF).
+mkdir -p /tmp/s4over/asset
+python3 - <<'PY'
+lines=[]
+for i in range(1,12):
+    lines += [f"**F{i} BIG-NUMBER**","Dominant: 42","Body: ctx","So-what: x","Wordmark",""]
+open('/tmp/s4over/asset/formats.md','w').write("\n".join(lines))
+PY
+python3 tools/marketing-render/render.py /tmp/s4over/asset; echo "exit=$?"   # expect exit 1
+test ! -e /tmp/s4over/asset/render && echo "no partial render/ dir OK"
 
-# Bad --week
-python3 tools/marketing-loops/ingest.py --week 2026-27 \
-  --content-dir "$FX/full/content" ; echo "exit=$? (expect 2)"
+# (i) Full suites — render count MUST rise above 252 and stay OK; loop stays 254 OK.
+python3 -m unittest discover -s tools/marketing-render/tests 2>&1 | grep -E "^(Ran|OK|FAILED)"
+python3 -m unittest discover -s tools/marketing-loops/tests   2>&1 | grep -E "^(Ran|OK|FAILED)"
 
-# Import-safety
-python3 -c "import sys; sys.path.insert(0,'tools/marketing-loops'); \
-  import csvspec, assetmap, ingest; print('ok')"
-
-# No wall-clock / no network in new sources
-grep -nE "datetime\.now|requests|urlopen|socket|urllib" \
-  tools/marketing-loops/csvspec.py tools/marketing-loops/assetmap.py \
-  tools/marketing-loops/ingest.py || echo "clean"
+# (j) No-network import sanity.
+python3 -c "import sys; sys.path.insert(0,'tools/marketing-render'); import render, validate, measure; print('import-ok')"
 ```
 
-## 9. Evaluator attack checklist (CLI, not Playwright)
+**Baseline (re-confirmed in generator_trace.log BEFORE code):** render `Ran 252 … OK`; loop `Ran 254 … OK`. After this sprint: render count **> 252** and `OK`; loop **254 … OK**.
 
-Fixtures shipped under `tools/marketing-loops/fixtures/metrics/` (CSV files + tiny
-`meta.md`-only content dirs). Required NEW fixtures + expected result:
+---
 
-| Fixture intent | Expected |
-|---|---|
-| `full/` — 4 well-formed CSVs + a content dir with ≥2 assets (incl. tgrera-style, hook #11) | exit 0; craft rows joined w/ slug+hook#; flywheel grouped; 3 WRR components present w/ summed values |
-| `full` **present-but-header-only** variant (a CSV with header, 0 data rows) | exit 0; that source present, its values absent (`null`) |
-| `truncated/site.csv` — file cut mid-row (unterminated / short last row) | exit 2, cited file + row, **no JSON on stdout** |
-| `wrong-header/site.csv` — a required header renamed/removed (`digest_opens` gone) | exit 2, names the missing header, no JSON |
-| `wrong-colcount/ig.csv` — one data row with an extra/missing field | exit 2, `row <n> has <k> columns, expected <h>`, no JSON |
-| `non-numeric/ig.csv` — `shares` cell `x` (non-blank, unparseable) | exit 2, cites row+column, no JSON (corruption ≠ blank) |
-| `blank-cell/ig.csv` — a `clicks` cell left `""` | exit 0; that craft cell is `null` (absent), **not 0** |
-| `zero-cell/ig.csv` — a `clicks` cell `0` | exit 0; that craft cell is `0` (present), **not null** |
-| `unmatched/ig.csv` — a `utm_campaign` with no matching content asset | exit 0; craft entry `slug=null`, an `unmatched-campaign` absence recorded |
-| `wrong-utm/content/` — an asset whose `meta.md` UTM link is scheme-invalid | exit 0; that asset `utm_valid=false`+violations, a `wrong-utm` absence |
-| `blank-join/site.csv` — a data row with blank `utm_campaign` | exit 2 (row cannot join), cited, no JSON |
-| `empty` (no `--source` flags) | exit 0; all-absent INGEST, one absence per not-provided source |
+## 8. Adversarial matrix (replaces Playwright click paths)
 
-Adversarial probes the Evaluator should run:
+Each row is a distinct, isolable attack; the Generator ships each as a unit test too.
 
-1. **Full happy path** → exit 0; assert INGEST has `schema_version "1"`, correct
-   `sources_provided`, craft rows with the RIGHT `slug`/`hook_number` per join,
-   flywheel grouped by campaign with summed clicks, all three `wrr_components`
-   `present:true` with the expected sums.
-2. **Determinism** → run twice → `shasum` byte-identical stdout; ordering stable
-   (craft by `(campaign, channel)`, flywheel by campaign, assets by slug, absences
-   by `(kind, detail)`).
-3. **B-A3 corruption suite** → `truncated`, `wrong-header`, `wrong-colcount`,
-   `non-numeric`, `blank-join` → **each** exit 2, a cited message (file + row +
-   column where applicable), and **empty stdout** (no partial JSON). Confirm no
-   `--out` file is created when `--out` is passed alongside a corrupt input.
-4. **B-A4 blank-vs-zero** → `blank-cell` → the cell is JSON `null`; `zero-cell` →
-   the cell is `0`. The two are never conflated. No absent value is defaulted to 0.
-5. **Absent source vs bad path** → omit `--youtube` → exit 0, `sources_provided.
-   youtube=false`, a `source` absence; `--youtube /no/such.csv` → exit 2 `file not
-   found`. Two distinct states.
-6. **Partial + empty** → IG-only run → exit 0, mix of present + null; no-source run
-   → exit 0, all-absent INGEST with the §3.5 shape.
-7. **Join correctness** → craft rows resolve `slug` + `hook_number` from `meta.md`
-   (tgrera → 11; a fixture asset → its own #); `unmatched` campaign → `slug=null`,
-   `hook_number=null`, absence recorded.
-8. **WRR component presence** → all three present when site provided with values;
-   blank one component's column → that component `present:false, value:null`, the
-   other two still present (value-level edge for Sprint-005 B-A5). Confirm Sprint
-   004 does **not** emit a summed WRR anywhere.
-9. **Wrong-UTM flagging (B-A11)** → `wrong-utm` asset → `utm_valid=false`,
-   `utm_violations` = the exact Sprint-001 codes, `wrong-utm` absence; exit 0
-   (flagged, not rejected).
-10. **Bad `--week`** (`2026-27`, `26-W27`, `2026-W5`) → exit 2, no JSON.
-11. **Import safety + no wall-clock/no network** → `import csvspec, assetmap,
-    ingest` prints nothing; grep the three new sources → no `datetime.now`,
-    `requests`, `urlopen`, `socket`, or network `urllib` (none permitted; the tool
-    needs none).
-12. **Frozen modules untouched** → diff shows `utm.py`, `gate.py`, `queue.py`,
-    `channels.py`, `captions.py`, `schedule.py`, `package.py`, `mark_posted.py`
-    unchanged; the full Sprint 001+002+003 unit suite still passes.
+| # | Attack | Expected result |
+|---|---|---|
+| 1 | Render any v2 fixture; look for `render/carousel.pdf` | file exists, starts `%PDF` |
+| 2 | Render `fmt-multi` (3 slides); count PDF pages (`n_frames`) | **3** pages |
+| 3 | PDF page count vs format-slide count for every v2 fixture | equal |
+| 4 | PDF page order | page *i* == `format-0(i+1).png` slide order; every page 1080×1350 |
+| 5 | Cross-process re-render (`s4a` vs `s4b`), `cmp carousel.pdf` | **byte-identical** (R16) — same env |
+| 6 | Same-input single-process re-render | byte-identical (encoder determinism, subset of #5) |
+| 7 | grep PDF bytes for `CreationDate` / `ModDate` | **absent** (per-run metadata suppressed) |
+| 8 | grep PDF bytes for `/ID` | **absent** (no run-varying document ID) |
+| 9 | grep PDF bytes for fixed producer comment | `created by Pillow …` present (fixed per env) |
+| 10 | manifest top-level `pdf` on a v2 asset | `== "carousel.pdf"` |
+| 11 | manifest top-level `pdf` on hyd/tgrera/v1 fixtures | **absent** (`"pdf" not in manifest`) |
+| 12 | hyd + tgrera re-render → `render/carousel.pdf` | **not created** (v1 emits no PDF) |
+| 13 | hyd + tgrera `manifest.json` + PNG bytes after re-render | **byte-identical** (`git status --porcelain content/` empty) — freeze holds |
+| 14 | `_validate_manifest_schema` / `validate.py` on a v2 asset carrying the `pdf` key | tolerated → clean **exit 2** cited, no traceback (`test_top_level_pdf_tolerated` unchanged) |
+| 15 | 11-slide `formats.md` | fail-loud `ValueError`, exit 1, **no `render/` dir**, no partial PDF (R14/R19) |
+| 16 | Mixed carousel.md + formats.md folder | PDF pages = format-slide surfaces only (no carousel-slide page); `pdf` key present |
+| 17 | The two re-pointed `test_no_pdf_key_this_sprint` | now assert positive `pdf` presence on v2 + preserved absence on v1 (conscious flip, §0) |
+| 18 | Render suite / loop suite | render `Ran N>252 … OK`; loop `Ran 254 … OK` |
+| 19 | `import render, validate, measure` network-off | `import-ok` |
+| 20 | `render.py` imports — no new third-party dep | only stdlib + already-vendored Pillow (PDF driver in-Pillow); no `reportlab`/`fpdf` |
 
-## 10. Definition of done
+**Freeze invariant (must hold):** rows 11–14 + 18 prove v1 renderer/validator behavior is byte-for-byte preserved and batch-A/B PNG behavior unchanged; the only previously-passing assertions that change are the two consciously re-pointed `test_no_pdf_key_this_sprint` tests (row 17), which preserve the "v1 manifests carry no pdf key" guarantee.
 
-- `csvspec.py` declares the four versioned column contracts + a pure
-  `read_csv(path, contract)` that returns typed rows or raises a cited `CsvError`,
-  rejecting unparseable/missing-header/wrong-column-count/truncated/non-numeric/
-  blank-join inputs and treating a blank numeric cell as absent (`None`), never 0 —
-  with no import side effects, no wall-clock, no network.
-- `assetmap.py` scans a content dir and returns `campaign → asset-record` (slug,
-  hook_number, utm_valid, utm_violations) via the frozen Sprint-001 `utm`; hook # is
-  the first `#\d+` on the Hook line or `null`; a campaign collision raises; pure.
-- `ingest.py` validates args + CSVs (corrupt → exit 2, no output), joins metrics to
-  assets, aggregates flywheel clicks + the three WRR component inputs from present
-  values only, records every absence, and emits a deterministic INGEST JSON (§3.5)
-  on stdout or `--out`; partial and empty runs are exit-0 successes; exit 1 is
-  intentionally unused; no WRR sum and no scorecard are produced.
-- Fixtures for every §9 row shipped under `tools/marketing-loops/fixtures/metrics/`.
-- Unit tests prove the four contracts' parsing, every rejection path, blank-vs-zero,
-  the join + hook resolution, unmatched-campaign + wrong-UTM flagging, WRR component
-  presence, determinism, and import safety; all pass alongside the untouched
-  Sprint 001+002+003 suites.
-- Evidence (command output, exit codes, sample INGEST JSON, before/after `shasum`,
-  grep-clean for wall-clock/network) logged in `generator_trace.log`.
+---
+
+## 9. Explicit non-goals (Sprint 004)
+
+- **No V13–V19 QA wiring.** No `_check_v*` added; validate.py's F-001 exit-2 guard still fires on v2 assets.
+- **No `measure.py` change** — frozen; not even called by the PDF path.
+- **No `validate.py` change** — schema already tolerates the top-level `pdf` key (`test_top_level_pdf_tolerated`); F-001 guard unchanged.
+- **No `acceptance.py` change**, no `fixtures/*` change, no `make_fixtures.py` change, no TGRERA/hyd content edit (TGRERA carousel + PDF + its acceptance baseline are Sprint 006).
+- **No new dependency** — PDF via already-vendored Pillow only; no `reportlab`/`fpdf`/`weasyprint`.
+- **No PDF for v1 assets** — carousel-slide/chart-card assets emit no `carousel.pdf` and gain no `pdf` key (freeze).
+- **No cross-machine / cross-Pillow-version PDF byte-equality claim** — R16 is same-environment (§0 note).
+- **No 360px thumbnail (V15) / contrast (V4) gating**, no publisher, no network, no writes outside `tools/marketing-render/` + the target `content/<slug>/render/`.
+- **No re-layout / re-encode of PDF pages** — pages are the exact rendered 1080×1350 slide rasters, not re-scaled or re-flowed.
+
+---
+
+## 10. Definition of done (Evaluator-verifiable on disk)
+
+1. Rendering a v2 (`formats.md`) asset emits `content/<slug>/render/carousel.pdf` — one page per format-slide, in slide order, each page 1080×1350 — plus a top-level `"pdf": "carousel.pdf"` manifest key (§7 b/c/d, rows 1–4, 10).
+2. `carousel.pdf` is **byte-identical across two independent `render.py` process runs** of the same input on the same env; PDF bytes contain **no** `CreationDate`/`ModDate`/`/ID` and a fixed Producer/Title (§7 b/e, rows 5–9). Proof is cross-process on-disk `cmp`, not same-process BytesIO.
+3. `fmt-multi` (new 3-slide fixture) yields a 3-page PDF, proving page-count == slide-count on >1 page (§7 d, row 2).
+4. **v1 freeze:** hyd + tgrera + 12 fixtures emit **no** `carousel.pdf` and **no** `pdf` key; hyd/tgrera `manifest.json` + PNGs re-render byte-identical (`git status --porcelain content/` empty) (§7 f, rows 11–13).
+5. Atomic: an 11-slide `formats.md` fails loud (exit 1) leaving **no `render/` dir** and no partial PDF (§7 h, row 15).
+6. `validate.py` on a v2 asset carrying the `pdf` key exits **2** cited, **no traceback** — no validate.py edit; `test_top_level_pdf_tolerated` unchanged (§7 g, row 14).
+7. The conscious regression change is exactly the two re-pointed `test_no_pdf_key_this_sprint` tests (batch-A `:84`, batch-B `:454`) → positive `pdf`-present on v2 + preserved `pdf`-absent on v1; no other assertion weakened (§0, row 17).
+8. Render suite `Ran N>252 … OK`; loop suite `Ran 254 … OK`; no new third-party dependency; no-network import ok (§7 i/j, rows 18–20).
+9. `generator_trace.log` records: the 252/254 baseline re-confirmed **before** code, files changed, new-test count, the two-test conscious re-point justification, the freeze evidence (hyd/tgrera no-PDF + byte-identical), the cross-process PDF byte-equality evidence path, and disclosed risks (env-pinned Pillow producer comment; Title pinned independent of save path; mixed-asset page-set rule).
+
+This contract is testable end-to-end by running §7 commands and the §8 matrix. If any row cannot be executed against the shipped code, the contract is not met.
