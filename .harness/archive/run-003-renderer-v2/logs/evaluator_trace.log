@@ -1,0 +1,320 @@
+[2026-07-06T00:00:00Z] CONTRACT_REVIEW mode, Sprint 001
+[2026-07-06T00:00:00Z] Reading: spec.md (§5–§11), contract.md (Sprint 001)
+[2026-07-06T00:00:00Z] Task: validate contract clarity, testability, implementability
+[2026-07-06T00:00:00Z] Result: ACCEPT
+[2026-07-06T00:00:00Z] Rationale: 
+  - Scope tightly defined (pure functions, no rendering, no V-check wiring)
+  - Isolation guarantee explicit (schema widening only, no check-routing edits)
+  - All function signatures specified with return schemas
+  - Adversarial matrix comprehensive (26 rows, each isolable and testable)
+  - Boundary arithmetic verified: 78/26=3.0 (pass), 77/26≈2.96 (fail), 39.84/3=13.28
+  - Non-goals explicit and clear
+  - Test baselines pinned (render 139→N, loop 254)
+  - Error states specified (empty input, missing block, invalid roles, malformed manifest)
+  - Verification commands provided (4 shell commands, all runnable)
+  - Spec alignment confirmed across §5.2–§10
+  - One observation: spec §11 says "16/24 thresholds" but spec §5.2 + contract pin "13/21" with K_INTER arithmetic (0.83×48/3≈13.3, 0.83×78/3≈21.6); thresholds marked provisional, revalidatable in Sprint 006; no blocker
+[2026-07-06T00:00:00Z] No vagueness, no hidden scope, no gameable criteria
+[2026-07-06T00:00:00Z] Verdict file: /Users/prithviputta/Downloads/terrem-marketing-loops/.harness/sprints/sprint_001/contract_review.md
+
+[2026-07-06 evaluate sprint_001] EVALUATE — Measurement core + schema-v2 seam (pure library, no UI).
+Ran: render suite -> "Ran 182 tests ... OK" (>139 baseline); loop suite -> "Ran 254 tests ... OK"; import measure,validate -> import-ok (no network).
+Independently reproduced §8 adversarial matrix rows 1-26 against imported modules (not the generator's own tests): ALL PASS. V13 ratio 78/26=3.0 pass / 77 fail; V14 floors body26/25 src24/23/20 head48/47; V15 comparator 13.0/12.99 & 21.0/20.99; thumbnail_scale_band(39.84)=13.28; cover-pattern parse/valid/one_dataset; schema widening v1 accepted / v2 accepted / bogus format rejected naming surface+value / v1 malformed+non-token still rejected.
+Isolation verified: measure.py 0 deletions (fully additive); validate.py only schema-local frozensets widened; measure._SURFACE_ROLES NOT widened; render.py/acceptance.py/fixtures untouched; only 4 in-scope files changed; test edits additions-only.
+Confirmed no schema_version "2" manifest and no format-slide fixture exist in-repo -> disclosed latent CLI-crash-on-v2 is UNREACHABLE via any shipped artifact -> recorded as F-001 Medium forward-carry to Sprint 005, non-blocking.
+Verdict: PASS. Score 4.8. 0 blockers, 0 high, 1 medium. Wrote findings.md. No prompt_patch warranted.
+
+[2026-07-06 evaluator.contract-review]
+Task: CONTRACT_REVIEW mode for Sprint 002.
+Files read: spec.md, sprints/sprint_002/contract.md, generator_trace.log.
+Critical assumptions verified on disk:
+  1. Git repo exists (.git present) — §7f freeze check via `git status` is viable.
+  2. measure.dominant_ratio_ok exists with correct dict return {exempt, dominant_count, body_reference, dominant_font_px, ratio, passes, reason}; called by §7d, §8 rows 4–5.
+  3. measure.format_slide_type_min exists with correct dict return {minimum, passes}; called by §7d, §8 rows 4–5.
+  4. PreconditionError defined in validate.py line 110; main() maps it to exit 2 (line ~540); used for §1.7 guard premise.
+  5. Sprint 001 baseline confirmed in generator_trace.log line 19: "render Ran 182 tests ... OK"; contract §7 baseline and DoD item 7 (>182) reference this.
+Scope assessment: Sharp and testable. Formats (BIG-NUMBER, RECEIPTS, CHECKLIST) at 1080×1350, dominant 132px (ratio 4.4), raised floors, schema_version "2", determinism, v1 freeze, fail-loud on invalid input, exit-2 guard for v2 on validate.py.
+Testability: §7 provides 8 command blocks (render, canvas+schema, determinism, measure, validate guard, regression, suites, import); §8 provides 23 adversarial rows (success, fail-loud paths, regression). One-fixture-one-check discipline intact.
+Non-blocking notes (all LOW, do not affect verdict):
+  - Manifest bbox accuracy not tested in §7 (correct by design — V15 pixel-truth is Sprint 005; Evaluator can post-hoc measure).
+  - "Real glyph" / "tofu guard" terminology not re-explained in contract (context sufficient; v1 code stable).
+  - Determinism byte-order implicit in PIL (deterministic by construction; not explicitly stated).
+  - "Content band" visual positioning vague (correct — layout is Generator's to choose deterministically; manifest specifies exact bboxes).
+  - Minimum slides not specified (correct — 0 slides fails R19 implicitly; not gameable).
+Result: VERDICT = ACCEPT. No blockers. No high-level concerns. Contract is clear, testable, grounded in verified dependencies.
+Evidence: contract_review.md written; §7 commands executable; §8 matrix verifiable; v1 regression baseline provable.
+Next: Orchestrator routes to Generator (BUILD mode).
+
+[2026-07-06 EVALUATE Sprint 002]
+Mode: EVALUATE (CLI/raster; Playwright N/A). Verdict: PASS. Score 4.9. Blockers 0, High 0.
+Reproduced: render 3 batch-A fixtures -> 1080x1350, schema "2", correct format tags, has_axis:false.
+V13 dominant ratio 5.08/4.40/4.40 via measure; V14 raised floors pass every non-wordmark element; 1 dominant + 1 wordmark each.
+Determinism: same-folder re-render -> raw-identical PNG + byte-identical manifest (R18 holds). Contract §7c copy-to -a/-b command mismatches only on slug (=folder.name, frozen v1 behavior) -> logged as informational F-001, NOT a defect; Generator's own byte-equality test uses same-basename temp dirs and passes.
+F-001 exit-2 guard: validate.py on v2 asset -> exit 2, cited, no traceback, nothing written.
+All 8 fail-loud states (0/2 dominant, 0 wordmark, RECEIPTS chip 1/5, CHECKLIST 1 step, 11 slides, unknown tag, unparseable line) -> ValueError, no partial write. Atomic valid-then-broken -> no write.
+v1 freeze: hyd+tgrera re-render schema "1", git content/ clean; fx-good-min still VERDICT: PASS (guard silent).
+Suites: render Ran 219 OK (baseline 182, +37 none weakened); loop Ran 254 OK. No-network import ok.
+git diff render.py/validate.py additive: deletions confined to render_asset extension + schema-version conditional + widened schema frozensets; no v1 style const/parse/render fn edited.
+Visual: 3 PNGs inspected — one accent per surface, brand tokens, domain copy, wordmark accent-deep; no slop.
+Wrote: .harness/sprints/sprint_002/findings.md (VERDICT: PASS).
+
+[2026-07-06 evaluator.contract-review]
+Task: CONTRACT_REVIEW mode for Sprint 003 (Batch B formats: TIMELINE, VS-CONTRAST, LEADERBOARD, CHART).
+Files read: spec.md, sprints/sprint_003/contract.md.
+Critical code premises verified on disk:
+  1. measure.dominant_ratio_ok: has fallback body_reference=26 when no body element exists (measure.py:277, 285-297). CHART no-body->26 fallback confirmed; ratio 132/26=5.08≥3 table is true.
+  2. measure.format_slide_type_min: _V2_TYPE_MINIMUMS already includes "chart-label": 26 (measure.py:395-420). Function handles it correctly; "already exists" claim verified.
+  3. render.py batch-A infrastructure (_FMT_DIRECTIVE_MAP, _V2_BATCH_A_FORMATS, all v2 constants, _FMT_DIRECTIVE_RE, parse_formats): all present (lines 610-657, 641-712). Comment at line 623 explicitly anticipates batch-B. Functions ready to extend with three new directives (Event:, Row:, Bar:).
+Scope assessment: Four new format-slide templates (1080×1350 each). Dominant 132px (ratio 4.40 or 5.08 with fallback). Raised v2 type floors. Decorative primitives (bars, chips) not manifest elements. Required-role counts per format with fail-loud. Determinism (same input -> pixel-identical PNG + byte-identical manifest). v1 freeze (cargo-cult hyd+tgrera unchanged). Conscious test re-point (PIE-CHART now fails, TIMELINE now renders; "unknown tag fails loud" preserved).
+Testability: §7 provides 9 command blocks (render fixtures twice, canvas/schema, determinism, measure checks, validate guard, regression, suites, import). §8 provides 29 adversarial rows (happy paths, per-format rules, fail-loud cases, decorative vs manifest, determinism, conscious re-point, regression, visual). All copy-paste ready. Measurement and regex patterns specified exactly. Bar-length formula deterministic (round(value/max_value*track_w)).
+No vague specs: grammar table exact; per-format requirements exact integers; fail-loud behavior specified with exception types; decorative primitives documented per format; ratio fallback = 26 verified in code; chart-label floor = 26 verified in code.
+Non-blocking LOW notes:
+  - Test baseline >219 (not exact count): intentional; behavior tested independently of count; loose lower bound OK.
+  - Bar rounding and vs-contrast asymmetry documented; not gameable.
+  - Empty formats.md (zero slides) edge case not specified: inherited Sprint-002 behavior, minor edge, Low.
+Result: VERDICT = ACCEPT. BLOCKERS 0. HIGH 0. No load-bearing assumptions violated. All code premises true. Spec is clear, commands executable, matrix verifiable. Conscious regression change documented and discipline-preserving.
+Evidence: contract_review.md written at sprint_003/contract_review.md. §7 commands viable. §8 rows cover all behaviors.
+Next: Orchestrator routes to Generator (BUILD mode).
+
+[2026-07-07] EVALUATE Sprint 003 — Format Templates Batch B (TIMELINE, VS-CONTRAST, LEADERBOARD, CHART).
+Verdict: PASS (score 4.8, 0 blockers, 0 high). Wrote sprints/sprint_003/findings.md.
+Evidence: rendered 4 batch-B fixtures x2 (determinism OK, decoded-RGBA + manifest bytes identical);
+canvas 1080x1350 + schema "2" + tags + has_axis:false OK; V13/V14 via measure OK (ratios 4.40/5.08,
+1 dominant + 1 wordmark each); CHART decorative bars (no phantom manifest rows, >=2 chart-labels);
+validate.py on v2 -> clean exit 2 cited, no traceback; hyd+tgrera re-render schema "1", content/ git-clean;
+render suite Ran 252 OK (baseline 219, +33), loop 254 OK; acceptance.py 14/14 PASS; import-ok offline.
+Adversarial fail-loud matrix (12 rows: bad Bar/1 bar/no source/1 event/1 row/0-2 headlines/1 label/
+2 dominants/no wordmark/PIE-CHART/11 slides) all fire on the RIGHT check with descriptive msg, no partial write.
+Visual: all 4 PNGs inspected — one accent = dominant, genuine zero-based CHART bars w/ direct labels,
+asymmetric VS-CONTRAST (132 vs 52), RECEIPTS-primitive event chips. No slop, no inert text cards.
+Non-blocking note: fixtures/fx-good-min meta.md + qa-verdict.json dirty = date-stamp-only side-effect
+of acceptance runner (validate stamps checked_on); verdict unchanged, PNGs/manifests byte-frozen; not scored.
+
+---
+EVALUATOR TRACE — Sprint 004 CONTRACT_REVIEW
+Date: 2026-07-07
+Mode: CONTRACT_REVIEW
+
+## Task
+Review Sprint 004 contract (Deterministic Multi-Page PDF Emitter) before code is written.
+
+## Findings Summary
+VERDICT: ACCEPT
+BLOCKERS: 0
+HIGH: 0
+
+## Key Observations
+
+1. **Scope and Focus**: Exceptionally clear. Single job: emit `carousel.pdf` from format-slide surfaces with byte-determinism guarantee. Out-of-scope items (V13-V19 wiring, validate.py edits, TGRERA content) are explicit.
+
+2. **Output Specification**: Exact.
+   - File: `content/<slug>/render/carousel.pdf`
+   - Manifest key: top-level `"pdf": "carousel.pdf"` (iff schema_version "2")
+   - v1 path: no PDF, no `pdf` key, byte-identical after re-render
+
+3. **Byte-Determinism Requirement (R16)**: Non-gameable evidence standard. §1.3 explicitly requires:
+   - Two separate `python3 render.py` invocations into different parent dirs
+   - On-disk `cmp` on resulting carousel.pdf files
+   - Rejects BytesIO round-trip as insufficient (doesn't exercise real save path)
+   - Metadata suppression explicit: no CreationDate/ModDate/ID, fixed Producer/Title
+   - Scope boundary acknowledged: "same-environment, same-Pillow-version" (not cross-machine)
+
+4. **Regression Budget Transparency**: Exemplary (§0).
+   - Names exact tests that flip: `test_no_pdf_key_this_sprint` (lines :84, :454)
+   - Distinguishes "conscious extension" from "silent deletion"
+   - Preserves v1 guarantee: "v1 manifests carry no pdf key" is re-proven
+   - States: "No other existing assertion is weakened"
+
+5. **Error/State Handling**: Complete (§4).
+   - Missing asset → FileNotFoundError, exit 1, nothing written
+   - Success v2 → PNGs + manifest (pdf key) + carousel.pdf, exit 0
+   - Success v1 → PNGs + manifest (no pdf key), no carousel.pdf, exit 0
+   - Invalid formats.md (≥11 slides) → ValueError, exit 1, no partial write (R19 atomicity)
+   - validate.py on v2 asset → exit 2 cited, no traceback
+
+6. **Verification Commands**: 10 blocks (§7, a–j), copy-paste-ready with explicit expected outputs.
+   - Baseline (a): render 252 OK, loop 254 OK
+   - Cross-process determinism (b): cmp two carousel.pdfs → identical
+   - Page-count/order (c/d): page count == format-slide count; fmt-multi 3→3
+   - Metadata check (e): no CreationDate/ModDate/ID in bytes
+   - v1 freeze (f): hyd/tgrera no PDF, byte-identical re-render, git status clean
+   - validate.py (g): exit 2 cited, no traceback
+   - Atomicity (h): 11-slide fails with no render/ dir
+   - Suites (i): render >252 OK, loop 254 OK
+   - No-network (j): import ok
+
+7. **Adversarial Matrix**: 20 rows (§8), non-overlapping, each isolable.
+   - Tests PDF existence, page count/order, byte-determinism
+   - Tests metadata suppression, producer comment presence
+   - Tests manifest keys (v2 present, v1 absent), v1 freeze
+   - Tests validate.py tolerance, atomicity, mixed-asset rule
+   - Tests re-pointed tests, suite counts, no-network, no new deps
+
+8. **Scope Boundaries & Risks**: Explicit.
+   - "same-environment, same-Pillow-version" (not cross-machine)
+   - Pillow version comment is environment-pinned
+   - Disclosed risks: env-pinned Pillow comment, Title pinned independent of save path, mixed-asset page-set rule
+
+9. **Non-Goals**: Explicit (§9, 9 items).
+   - No V13-V19 wiring, no validate.py/measure.py/acceptance.py changes
+   - No new dependency, no PDF for v1 assets, no cross-machine byte-equality
+   - No 360px thumbnail/contrast gating, no re-layout
+
+10. **Definition of Done**: 9 measurable Evaluator-verifiable criteria (§10).
+
+## Quality Assessment
+
+This is a **reference-quality contract**:
+- Specific: every requirement has exact values, paths, behaviors
+- Testable: §7 commands are copy-paste-ready; §8 matrix exhaustive
+- Not vague: no hedging, no "should", no "likely"
+- Not gameable: "cross-process not same-process" evidence standard defeats BytesIO shortcuts; explicit metadata suppression requirements
+- Regression-budget transparent: conscious flip documented with line numbers, v1 guarantees preserved
+- Risk-aware: acknowledges Pillow version pinning, environment dependency, scope boundaries
+- Complete error/state coverage: all success/failure/invalid cases specified
+- Non-goals clear: explicit list of what's NOT in scope
+
+## Recommendation
+
+ACCEPT. Zero blockers, zero high findings. Contract is ready for code implementation.
+
+[2026-07-07] EVALUATE Sprint 004 — Deterministic multi-page carousel.pdf emitter.
+Verdict: PASS (score 4.6, 0 blockers, 0 high). Wrote sprints/sprint_004/findings.md.
+Executed: render suite Ran 263 OK (baseline 252, +11); loop suite Ran 254 OK; acceptance harness 14/14.
+Cross-process PDF byte-identity (s4a vs s4b, cmp) for fmt-multi/fmt-chart/fmt-receipts/fmt-big-number.
+Page count/order via stdlib byte-parse (/Count=/Type-Page=/MediaBox=format-slide count): fmt-multi 3, others 1; pdfinfo Pages 3, 1080x1350, PDF 1.4, Title "TERREM carousel", Producer "TERREM marketing-render".
+Metadata: no CreationDate/ModDate/ID; fixed Pillow producer comment present.
+v1 freeze: hyd+tgrera no pdf/no pdf key, git status content/ empty; acceptance 12 fixtures unchanged.
+Atomic: 11-slide -> exit 1, no render/ dir. validate v2 -> clean exit 2 cited, no traceback.
+Mixed asset: PDF /Count=1 = format-slide only. No new dependency; import-ok offline.
+Confirmed Generator-disclosed contract defect: rows 2-4 use Image.open (Pillow has no PDF decoder, UnidentifiedImageError) — harmless verification-snippet defect; byte-parse route confirms behavior. Noted for Planner, not a finding.
+[2026-07-07] Sprint 004 addendum: page ORDER observed via pdfimages -png + mean-abs-diff nearest-match (clean diagonal page0->format-01 etc). Discovered PDF pages are DCTDecode/JPEG (lossy): max localized diff 69-74, ~0.1% px off by >30 at text edges. Recorded as F-001 (Medium, Craft, non-blocking) — R15/R16 mechanically met, determinism holds, imperceptible; contract "same rendered pixels" wording vs behavior gap; flagged for Sprint 006 (real TGRERA public PDF) to consciously choose lossless-vs-lossy or fix wording. Score corrected 4.6->4.7 (arithmetic). Verdict PASS unchanged.
+
+=== EVALUATOR: Sprint 005 Contract Review ===
+Timestamp: 2026-07-07T00:00:00Z
+Mode: CONTRACT_REVIEW
+Verdict: ACCEPT (BLOCKERS: 0, HIGH: 0)
+
+1. Code anchors verified:
+   - measure.format_slide_type_min (line 407-419): floors match spec exactly
+     * headline/hook/dominant: 48px
+     * body/chart-label/so-what: 26px
+     * source-stamp: 24px
+     * wordmark: None (exempt)
+   - validate.py guard at 728-733: exists, cited correctly
+   - measure._SURFACE_ROLES: v1 only (carousel-slide, chart-card); v2 widened in validate.py
+   - Sprint-001 functions all present:
+     * dominant_ratio_ok (line 318-382)
+     * format_slide_type_min (line 407-419)
+     * thumbnail_ink_ok (line 457-475)
+     * parse_cover_pattern_block (line 489-505)
+     * cover_pattern_valid (line 508-517)
+     * one_dataset_present (line 520-529)
+     * _crop_rows_ink (line 122-147)
+     * _median_band_height (line 150-177)
+
+2. Risk A margin check:
+   K_INTER = 0.83; band_px = font_px * 0.83 / 3
+   - fx-v2-dominant-small: 80px dominant -> 22.1px band (1.1px above floor 21)
+   - Thin margin but defended by Risk A empirical probe requirement in contract
+   - Singleton matrix assertion will catch co-firing
+
+3. Contract self-checks identified:
+   - Risk A: empirical band probe required in trace
+   - Risk B: singleton assertion in acceptance matrix (one-fixture-one-check)
+   - Risk C: TestFormatSlideGuard rewrite justified as conscious extension
+   - Risk D: regression budget (263+ render tests, 254 loop tests) monitored
+
+4. Non-blocking notes logged:
+   - M-001: 80px margin thin but defended by empirical probe
+   - M-002: degrade-render mechanism unspecified (test condition is clear)
+   - M-003: diff command for fixture determinism incomplete
+   - M-004: R14 test placeholder path
+   - M-005: V5/V14 routing verified in code
+
+Verdict written to: /Users/prithviputta/Downloads/terrem-marketing-loops/.harness/sprints/sprint_005/contract_review.md
+
+[2026-07-08] EVALUATE Sprint 005 — QA Gate V2 checks (V13-V19) + adversarial fixtures. VERDICT: PASS (score 4.8, 0 blockers, 0 high).
+Ran: render suite 266 OK (baseline 263, +3); loop suite 254 OK; acceptance.py exit 0 PASS 23/23 (TGRERA + 12 v1 fixtures byte-unchanged, 9 v2 rows met).
+Adversarial singletons confirmed: each fx-v2-* fires EXACTLY its target id (V13/V14-type-floor/V14-wordmark/V15/V16/V17/V18/V19); bad-cover isolates V17 (not V19), no-dataset isolates V19 (not V17).
+Independent attacks (not the baked fixtures): injected 2nd dominant -> V13 alone; stripped so-what -> V16 alone; V15 proven genuinely PIXEL-based (bumped manifest headline font_px 48->96, PNG untouched, V15 STILL fails). Routing invariant holds: zero tracebacks, V5-floor skipped + V14 owns v2 floor (type_min_ok ValueError avoided). v1 fx-good-min carries ZERO V13-V19 records.
+V15 margin probe reproduced: good headline band 18/floor 13, dominant 24/floor 21; illegible headline band 10 (<13) FAIL. R14 fail-loud: 11-slide formats.md -> exit 1, no partial render/. Determinism: 28 v2 fixture files regen zero drift.
+One Low/process finding F-001: v2 fixtures + make_v2_fixtures.py git-untracked (v1 set is tracked) — non-gating; disk state correct + regenerable. Wrote findings.md.
+
+=== SPRINT 006 CONTRACT REVIEW (2026-07-08) ===
+
+Mode: CONTRACT_REVIEW
+Evaluator: Haiku 4.5
+Task: Review sprint 006 contract for testability, vagueness, and gameable paths.
+
+### Analysis
+
+Read: spec.md (full, sections 1-11), sprint_006/contract.md (full).
+
+Contract scope: Author TGRERA as pure v2 carousel (format-slides only), render PNGs + carousel.pdf, validate through V2 gate → PASS, re-point acceptance.py TGRERA baseline. Path-A (inline so-what/source, no utility-slide branch, no render.py/validate.py changes). Frozen: render.py, validate.py, measure.py, 12 v1 fixtures, 9 v2 fixtures, hyd.
+
+#### Testability
+- Commands (§6.1): Seven concrete, runnable CLI commands with machine-readable output (exit codes, JSON, test counts). ✓
+- Adversarial matrix (§6.2): 15 attacks, each targeting one check with right rule cited (V16, V14, V15, V17, R14). One-fixture-one-check discipline. ✓
+- Expected outputs: PASS verdict, failed_checks:[], PNG determinism (decoded-RGBA SHA), PDF byte-equality, schema v2, no chart-card.png, all fixture verdicts frozen. ✓
+
+#### Non-vagueness
+- Slide plan (§1.1): 2 slides (RECEIPTS cover, CHECKLIST), dominant-bearing, inline so-what/source, wordmark per slide. Flexibility on chip count (2-4) and wording, but roles mandatory. ✓
+- Meta.md blocks (§1.2): Exact format, required keys (pattern, one_dataset), valid values (BIG-NUMBER/CHART-FIRST). ✓
+- Determinism (R8/R16/R18): No-network, vendored fonts, identical input → pixel/byte identical outputs. Inherited. ✓
+- Regression: Render ≥266 OK, loop 254 OK, acceptance PASS, all fixture rows unchanged except run_tgrera. ✓
+
+#### Load-bearing assumption verified
+- V8-skipped-on-format-slides: Verified in validate.py code. V8 check applies "is_chart or (carousel-slide and has_stamps)", returning "skipped" for format-slide. Sprint-005 frozen behavior. ✓
+- Prior sprints correct: §7 pre-contract probe (Path-A asset → validate PASS, 98/0) provides empirical evidence. ✓
+
+#### Non-gameable
+- Asset authenticity: Public-order-only copy, wordmark required, dominant+so-what render-checkable. ✓
+- V15 anti-gaming: Contract forbids threshold-lowering; headline +3 margin documented; BUILD must re-confirm ≥13/21 in trace. ✓
+- No chart-card leak: Explicitly checked (no chart-card.png in ls, pdf key in manifest, all surfaces format-slide). ✓
+- Determinism: Tested and enforced in §6.1(c), §6.2 rows 3-4, §10 points 4-6. ✓
+
+#### Risks & mitigations well-structured
+- Risk A (V15 headline +3): Documented; BUILD must record bands; contingency author-side (not threshold-lowering). ✓
+- Risk B (mixed-asset): Supersede chart-spec.md; verify no chart-card.png. ✓
+- Risk C (acceptance re-point): All other fixture rows byte-identical; reactive-single coverage via fx-good-min. ✓
+- Risk D (regression budget): 266/254/PASS counts must not fall. ✓
+- Risk E (provenance): Public-order-only; provenance block kept (V11). ✓
+
+#### Minor clarity (advisory, not blocking)
+1. Pattern vs. format distinction (RECEIPTS format, BIG-NUMBER pattern): Correct but requires reading full contract. Well-explained in §1.2, Risk 6. ✓
+2. "Three chips" example: Flexed to 2-4 in "may adjust" clause. ✓
+3. §10 point 3 prescriptive skipped-check naming: Testable, not vague. ✓
+
+#### N/A (correctly marked)
+- Keyboard, responsive, ARIA: No DOM, no viewport. CLI/raster sprint. ✓
+
+#### Non-goals honored
+Excludes: render.py/validate.py/measure.py edits, utility standalone slides, PDF lossy-page rework, v1 fixture edits, semantic one-dataset judgment, stub copy, publisher, new tokens. Scope tight. ✓
+
+### Verdict
+
+ACCEPT. Contract is testable (7 commands + 15 adversarial tests), specific (file scope, expected outputs, exact checks), non-vague (slide plan, meta blocks, determinism rules, regression gates), non-gameable (asset authenticity, V15 thresholds enforced, chart-card leak blocked, determinism measured). Load-bearing assumption (V8-skipped) verified in Sprint-005 code. Risks well-mitigated and documented. Recommendation: BUILD execute in documented order, record V15 bands in trace, verify no chart-card leak, and confirm all regression counts.
+
+BLOCKERS: 0
+HIGH: 0
+
+
+[2026-07-08] EVALUATE Sprint 006 — VERDICT PASS (score 4.8, 0 blockers, 0 high).
+Reproduced: render TGRERA -> schema-2 carousel, no chart-card; validate -> PASS exit0 failed_checks []; two-render R8 PNG decoded-RGBA + R16 PDF byte identity; acceptance PASS (25/25) with honest run_tgrera re-point (TGRERA_EXPECTATIONS=4); render 266 OK / loop 254 OK; fx-good-min zero V13-V19; 9 fx-v2 singletons fire.
+Gate teeth: drop So-what -> [V16] only; bad pattern -> [V17] only; body<26 -> V14-type-floor (V5-crosscheck co-fires, expected on hand-edited manifest); 11th slide -> R14 fail-loud, no partial write.
+CONTROL POINT — deviation (TGRERA v1 chart-card tests relocated to tools/marketing-render/tests/data snapshot): verified TRUE RELOCATION not weakening — snapshot chart-card.png/manifest/chart-spec/script + provenance block byte-identical to git HEAD; relocated tests re-run parse_chart_spec/render_chart_card/_layout_chart_card against identical input (render path genuinely exercised); only _TGRERA path constant moved, all assertions preserved verbatim; suite held at 266 (no deletion); spec Risk 2 mandates old code path stays exercised.
+findings.md written.
+[2026-07-08] Post-advisor: Read both shipped PNGs (format-01 RECEIPTS cover, format-02 CHECKLIST) — clean hierarchy, one accent, wordmark present, no tofu/overflow/slop; Design/Originality now evidenced. Reconciled V15: gate's real LANCZOS band = headline 16>=13 (matches generator), arithmetic 17.3 was a proxy. Wrote prompt_patch_006.md (CONTRACT_REVIEW must grep tests for mutated asset paths before blessing an isolation claim). Verdict unchanged: PASS.
+
+--- EVALUATE_SYSTEM (Run 003 acceptance gate) 2026-07-08 ---
+render tests: python3 -m unittest discover -s tools/marketing-render/tests -> Ran 266, OK, RC0
+loop tests:   python3 -m unittest discover -s tools/marketing-loops/tests   -> Ran 254, OK, RC0
+render acceptance.py -> ACCEPTANCE: PASS (25/25), exit 0
+loops  acceptance.py -> ACCEPTANCE: PASS (50/50), exit 0
+TGRERA fresh render RC0; validate -> PASS (98 checks, 0 failed), RC0
+TGRERA determinism: PNG decoded-RGBA identical + carousel.pdf byte-identical across 2 runs
+hyd v1 carousel -> FAIL only on pre-existing V11-provenance (Ledger#1 kill), NOT on v2 floors (Risk-1 holds)
+7 format tags all present in render.py
+Cross-sprint regression: NONE. VERDICT: PASS, SCORE 4.7, BLOCKERS 0, HIGH 0.
+Wrote .harness/acceptance.md
