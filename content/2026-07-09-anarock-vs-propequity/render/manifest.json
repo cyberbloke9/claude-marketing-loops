@@ -1,0 +1,312 @@
+{
+  "pdf": "carousel.pdf",
+  "schema_version": "2",
+  "slug": "2026-07-09-anarock-vs-propequity",
+  "surfaces": [
+    {
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            150,
+            567,
+            329,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "PropEquity · Bengaluru",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            625,
+            567,
+            319,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "ANAROCK · Bengaluru",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            129,
+            625,
+            371,
+            158
+          ],
+          "bg": "#faf8f3",
+          "color": "#0f766e",
+          "font_px": 132,
+          "role": "dominant",
+          "text": "+47%",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            679,
+            721,
+            212,
+            62
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 52,
+          "role": "headline",
+          "text": "just +1%",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            883,
+            1240,
+            107,
+            31
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 26,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "format": "VS-CONTRAST",
+      "has_axis": false,
+      "id": "format-01",
+      "png": "format-01.png",
+      "role": "format-slide"
+    },
+    {
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            90,
+            357,
+            694,
+            62
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 52,
+          "role": "headline",
+          "text": "Same quarter. Two reports.",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            437,
+            728,
+            158
+          ],
+          "bg": "#faf8f3",
+          "color": "#0f766e",
+          "font_px": 132,
+          "role": "dominant",
+          "text": "46-PT GAP",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            118,
+            661,
+            671,
+            36
+          ],
+          "bg": "#ffffff",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Bengaluru · ANAROCK +1% · PropEquity +47%",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            118,
+            753,
+            685,
+            36
+          ],
+          "bg": "#ffffff",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Hyderabad · ANAROCK +2% · PropEquity +22%",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            118,
+            845,
+            645,
+            36
+          ],
+          "bg": "#ffffff",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Chennai · ANAROCK −9% · PropEquity +18%",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            118,
+            937,
+            596,
+            36
+          ],
+          "bg": "#ffffff",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Pune · ANAROCK −15% · PropEquity +9%",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            883,
+            1240,
+            107,
+            31
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 26,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "format": "RECEIPTS",
+      "has_axis": false,
+      "id": "format-02",
+      "png": "format-02.png",
+      "role": "format-slide"
+    },
+    {
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            90,
+            426,
+            87,
+            158
+          ],
+          "bg": "#faf8f3",
+          "color": "#0f766e",
+          "font_px": 132,
+          "role": "dominant",
+          "text": "3",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            630,
+            800,
+            78
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Check the city basket — top-7 vs top-9 aren't the same market",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            718,
+            818,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Check what counts as a sale — bookings vs registrations",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            764,
+            749,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Trust registered transactions over survey estimates",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            810,
+            881,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "so-what",
+          "text": "Headlines disagree. Registered data doesn't → intel.terrem.in",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            856,
+            835,
+            67
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 26,
+          "role": "source-stamp",
+          "text": "ANAROCK via BusinessToday 2026-07-01 · PropEquity via Business Standard 2026-06-25",
+          "weight": 400
+        },
+        {
+          "bbox": [
+            883,
+            1240,
+            107,
+            31
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 26,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "format": "CHECKLIST",
+      "has_axis": false,
+      "id": "format-03",
+      "png": "format-03.png",
+      "role": "format-slide"
+    }
+  ]
+}

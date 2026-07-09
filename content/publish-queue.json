@@ -1,0 +1,25 @@
+{
+  "rows": [
+    {
+      "channel": "instagram",
+      "package_path": "content/2026-07-09-anarock-vs-propequity/publish/instagram.json",
+      "permalink": null,
+      "posted_date": null,
+      "schedule_slot": "2026-W28/morning/09:00",
+      "slug": "2026-07-09-anarock-vs-propequity",
+      "state": "queued",
+      "week": "2026-W28"
+    },
+    {
+      "channel": "linkedin",
+      "package_path": "content/2026-07-09-anarock-vs-propequity/publish/linkedin.json",
+      "permalink": null,
+      "posted_date": null,
+      "schedule_slot": "2026-W28/morning/08:30",
+      "slug": "2026-07-09-anarock-vs-propequity",
+      "state": "queued",
+      "week": "2026-W28"
+    }
+  ],
+  "schema_version": "1"
+}

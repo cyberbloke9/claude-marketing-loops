@@ -41,6 +41,10 @@ Legend: **[P1]** Upgrader · **[P2]** Investor · pain codes: PRICE (81% anxiety
 
 21. **[P1·PRICE / P2·YIELD]** "<Premium locality> got cheaper this quarter. <Budget locality> rose __%." — *same-city divergence; the city average is a lie. First used: 2026-07-03 Weekly Ledger (Jubilee Hills / Medchal).* NEW
 
+## Authority-conflict (who do you believe) — NEW
+
+22. **[P2·EXIT/PRICE]** "<Source A> says <+X%>. <Source B> says <+Y%>. Same city, same quarter." — *two authorities contradicting each other; TERREM resolves. First used: 2026-07-09 Ledger #2 (ANAROCK/PropEquity, VS-CONTRAST cover).* NEW
+
 ## Challenge / utility CTA
 
 19. **[P1·all]** "Check your builder in 2 minutes. If this chart is red, walk."
