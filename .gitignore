@@ -2,3 +2,4 @@ ruvector.db
 agentdb.rvf*
 .DS_Store
 .env
+content/publish-plan.json

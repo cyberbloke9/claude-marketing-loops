@@ -34,6 +34,7 @@ Loop 5 output. Compiled from platform exports + site analytics. Retention first;
 | instagram | | 51 | |
 | youtube | 30 | | |
 | linkedin | | 67 | |
+| facebook | | | |
 
 ## Vanity (tracked, never optimized)
 
@@ -57,9 +58,11 @@ Followers:  · Likes:
 - WRR trend not computable (needs last-week WRR)
 - hard-stop WRR-flat check needs 8 published weeks
 - last-week WRR not provided (no prior-week input)
+- no facebook slot recorded for 2026-W27
 - no instagram morning data in 2026-W27
 - no linkedin morning data in 2026-W27
 - no youtube evening data in 2026-W27
+- posting-time A/B verdict for facebook needs cross-week comparison
 - posting-time A/B verdict for instagram needs cross-week comparison
 - posting-time A/B verdict for linkedin needs cross-week comparison
 - posting-time A/B verdict for youtube needs cross-week comparison

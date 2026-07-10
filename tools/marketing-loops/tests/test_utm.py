@@ -35,16 +35,35 @@ def codes(asset_dir):
 
 
 class TestChannelMap(unittest.TestCase):
-    def test_exactly_three_channels(self):
+    def test_channel_set(self):
+        # facebook appended last (publish-loop Sprint 001, spec B33).
         self.assertEqual(
-            sorted(utm.CHANNEL_SOURCE_MAP), ["instagram", "linkedin", "youtube"])
+            sorted(utm.CHANNEL_SOURCE_MAP),
+            ["facebook", "instagram", "linkedin", "youtube"])
+
+    def test_facebook_appended_last_ordinals_preserved(self):
+        # Ordinals for the original three must be byte-stable (spec B33): facebook
+        # is the 4th key so schedule.py bucket math for 0/1/2 is unchanged.
+        order = tuple(utm.CHANNEL_SOURCE_MAP)
+        self.assertEqual(order,
+                         ("instagram", "youtube", "linkedin", "facebook"))
+        self.assertEqual(order.index("instagram"), 0)
+        self.assertEqual(order.index("youtube"), 1)
+        self.assertEqual(order.index("linkedin"), 2)
+        self.assertEqual(order.index("facebook"), 3)
 
     def test_allowed_sources_derived_from_map(self):
         self.assertEqual(
             utm.ALLOWED_SOURCES, frozenset(utm.CHANNEL_SOURCE_MAP.values()))
 
+    def test_allowed_sources_contains_facebook(self):
+        self.assertIn("facebook", utm.ALLOWED_SOURCES)
+
     def test_youtube_maps_to_youtube_source(self):
         self.assertEqual(utm.CHANNEL_SOURCE_MAP["youtube"], "youtube")
+
+    def test_facebook_maps_to_facebook_source(self):
+        self.assertEqual(utm.CHANNEL_SOURCE_MAP["facebook"], "facebook")
 
 
 class TestCampaignFromSlug(unittest.TestCase):

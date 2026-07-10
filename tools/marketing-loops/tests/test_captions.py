@@ -126,5 +126,19 @@ class TestImportSafety(unittest.TestCase):
         self.assertEqual(r.stderr, "")
 
 
+class TestFacebookChannel(unittest.TestCase):
+    """spec B36: body_for accepts facebook (map-derived); no unknown-channel raise."""
+
+    def test_body_for_facebook_no_block_returns_none(self):
+        self.assertIsNone(captions.body_for({}, "facebook"))
+
+    def test_body_for_facebook_falls_back_to_all(self):
+        self.assertEqual(captions.body_for({"all": "hi"}, "facebook"), "hi")
+
+    def test_body_for_unknown_channel_still_raises(self):
+        with self.assertRaises(ValueError):
+            captions.body_for({"all": "hi"}, "tiktok")
+
+
 if __name__ == "__main__":
     unittest.main()

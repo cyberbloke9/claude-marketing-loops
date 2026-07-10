@@ -133,5 +133,22 @@ class TestLoad(unittest.TestCase):
             self.assertEqual(queue.load_queue(p)["rows"], q["rows"])
 
 
+class TestFacebookChannel(unittest.TestCase):
+    """spec B36: facebook picked up automatically from the shared map."""
+
+    def test_valid_channels_contains_facebook(self):
+        self.assertIn("facebook", queue.VALID_CHANNELS)
+
+    def test_new_row_facebook_succeeds(self):
+        row = queue.new_row("2026-07-09-x", "facebook", "2026-W28")
+        self.assertEqual(row["state"], "queued")
+        self.assertEqual(row["channel"], "facebook")
+
+    def test_unknown_channel_still_rejected(self):
+        # Adding facebook must not loosen validation for a genuinely bad channel.
+        with self.assertRaises(ValueError):
+            queue.new_row("2026-07-09-x", "tiktok", "2026-W28")
+
+
 if __name__ == "__main__":
     unittest.main()

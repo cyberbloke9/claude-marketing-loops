@@ -75,5 +75,32 @@ class TestImportSafety(unittest.TestCase):
         self.assertEqual(r.stderr, "")
 
 
+class TestFacebookChannel(unittest.TestCase):
+    """spec B35: facebook is ordinal 3; slot_for must not KeyError."""
+
+    def test_facebook_w27_morning(self):
+        # ordinal 3: bucket = morning if (WW + 3) % 2 == 0. WW=27 -> (30)%2==0.
+        self.assertEqual(schedule.slot_for("2026-W27", "facebook"),
+                         "2026-W27/morning/10:00")
+
+    def test_facebook_w28_evening(self):
+        # (28+3)%2 == 1 -> evening.
+        self.assertEqual(schedule.slot_for("2026-W28", "facebook"),
+                         "2026-W28/evening/19:00")
+
+    def test_facebook_no_keyerror_either_bucket(self):
+        for wk in ("2026-W27", "2026-W28"):
+            self.assertTrue(schedule.slot_for(wk, "facebook").startswith(wk + "/"))
+
+    def test_original_three_unchanged_after_facebook(self):
+        # Ordinals 0/1/2 preserved -> byte-identical slots (contract s3.2 table).
+        self.assertEqual(schedule.slot_for("2026-W27", "instagram"),
+                         "2026-W27/evening/18:00")
+        self.assertEqual(schedule.slot_for("2026-W27", "youtube"),
+                         "2026-W27/morning/11:00")
+        self.assertEqual(schedule.slot_for("2026-W27", "linkedin"),
+                         "2026-W27/evening/17:30")
+
+
 if __name__ == "__main__":
     unittest.main()

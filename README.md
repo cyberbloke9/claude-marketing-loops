@@ -102,9 +102,12 @@ For agent-based validation, the `/loop-qa` skill wraps `validate.py`, consuming
 
 A deterministic, no-network CLI toolchain under `tools/marketing-loops/` assembles a
 QA-passed asset into per-channel publish packages and tracks them in a single
-machine-readable queue up to (but not across) the live-posting-API boundary. There
-are no posting APIs and no platform credentials; a human posts manually and records
-the permalink back into the queue.
+machine-readable queue. A direct-publish CLI (`publish_api.py`, below) can now render
+the exact platform API calls for a queued asset, but it ships **dry-run-first**: with
+zero credentials it emits an inspectable request plan and makes no network calls, and
+its `--live` posting path is gated on `SETUP-CHECKLIST.md` completion. Until those
+credentials exist, the operator still posts by hand and records the permalink back
+into the queue with `mark_posted.py`.
 
 Verify UTM hygiene across assets (spec §5.0):
 
@@ -140,6 +143,46 @@ python3 tools/marketing-loops/mark_posted.py <slug> instagram --posted-on 2026-0
 fixed `state` enum `{queued, posted}`, and per-row nullable `posted_date` / `permalink`,
 so a future live-posting adapter flips state and fills fields without reshaping the file.
 The `/loop-publish` skill (`.claude/skills/loop-publish/`) documents the operator flow and
+never bypasses the gate.
+
+### Direct-publish layer — `publish_api.py` (dry-run-first)
+
+`publish_api.py` drives the queued rows across the platform API boundary. Dry-run is
+the **DEFAULT**: with no credentials it renders, per queued row, the exact ordered
+HTTP request plan each channel adapter would make, to stdout and to
+`content/publish-plan.json`, with **zero network calls** and **zero queue-state
+change**:
+
+```
+python3 tools/marketing-loops/publish_api.py --week 2026-W28 --dry-run
+```
+
+The plan faithfully renders the verified Instagram (two-step container flow),
+LinkedIn (`initializeUpload` + `/rest/posts`), and Facebook (round-5-gap) surfaces
+from `RESEARCH.md` R4-B/R5, with secrets shown as `<REDACTED>` and response-dependent
+values shown as named placeholders. It is **deterministic** — same inputs ⇒
+byte-identical `content/publish-plan.json` (which is gitignored, not committed).
+
+Going live is gated and **not usable today** (credentials absent):
+
+```
+python3 tools/marketing-loops/publish_api.py --week 2026-W28 --live \
+  --date 2026-07-09 --i-have-verified-dry-run
+```
+
+`--live` requires three preconditions, each cited independently, unlocked only by
+completing `SETUP-CHECKLIST.md`: (a) an env file (default `.env`, `--env PATH`) with
+the channel tokens (`IG_USER_ID`, `IG_ACCESS_TOKEN`, `LI_PERSON_URN`,
+`LI_ACCESS_TOKEN`, plus `FB_PAGE_ID`/`FB_PAGE_TOKEN` only with `--enable-facebook`);
+(b) `PUBLIC_ASSET_BASE_URL` (from the env file or `--public-asset-base-url`); and
+(c) the explicit `--i-have-verified-dry-run` acknowledgment. On success a row
+transitions `queued → posted` with the returned permalink and `--date` recorded.
+
+`--enable-facebook` is **default OFF** (round-5-gap, unverified) — a `facebook` row is
+skipped with a notice while other channels proceed. Exit codes: **0** success, **1**
+domain refusal (already-posted row, container error, rate-limit, day-cap breach),
+**2** usage/precondition (missing queue/package, unknown channel, an unmet `--live`
+gate item, malformed `--week`/`--date`). The `/loop-publish` skill wraps this flow and
 never bypasses the gate.
 
 ## Analytics scorecard (Gap 3)

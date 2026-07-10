@@ -37,7 +37,8 @@ if str(_HERE) not in sys.path:
 import utm  # noqa: E402
 
 # Canonical channels + their fixed order, DERIVED from the shared map (no fork).
-# Dict insertion order in utm.CHANNEL_SOURCE_MAP is instagram, youtube, linkedin.
+# Dict insertion order in utm.CHANNEL_SOURCE_MAP is instagram, youtube, linkedin,
+# facebook (facebook appended last; earlier ordinals preserved).
 CANONICAL_CHANNELS = tuple(utm.CHANNEL_SOURCE_MAP.keys())
 
 # Alias table (contract s3.5). Keys are lower-cased tokens; values are canonical
@@ -48,6 +49,11 @@ _ALIASES = {
     "yt": "youtube",
     "youtube": "youtube",
     "linkedin": "linkedin",
+    # facebook aliases (spec B34): a "Channels:" line mentioning Facebook now maps
+    # instead of surfacing as an unmapped platform token (which the CLI turns into
+    # exit 2). Values point at the canonical "facebook" channel reserved in utm.
+    "facebook": "facebook",
+    "fb": "facebook",
 }
 
 # Format words that describe an asset's shape, not a channel (contract s3.5).

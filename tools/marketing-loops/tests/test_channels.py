@@ -24,8 +24,9 @@ class TestCanonicalSetIsShared(unittest.TestCase):
         # No forked copy: order + membership come from the Sprint-001 map.
         self.assertEqual(channels.CANONICAL_CHANNELS,
                          tuple(utm.CHANNEL_SOURCE_MAP.keys()))
+        # facebook appended last (publish-loop Sprint 001, spec B34).
         self.assertEqual(channels.CANONICAL_CHANNELS,
-                         ("instagram", "youtube", "linkedin"))
+                         ("instagram", "youtube", "linkedin", "facebook"))
 
 
 class TestParse(unittest.TestCase):
@@ -52,6 +53,26 @@ class TestParse(unittest.TestCase):
     def test_unmapped_platform_surfaced(self):
         ch, un = channels.parse_channels_line("IG reel, Twitter post, YT short")
         self.assertEqual(ch, ["instagram", "youtube"])
+        self.assertEqual(un, ["Twitter"])
+
+    def test_facebook_alias_maps(self):
+        # spec B34: "Facebook" now maps instead of surfacing as unmapped.
+        self.assertEqual(channels.parse_channels_line("Facebook post"),
+                         (["facebook"], []))
+
+    def test_fb_alias_case_insensitive(self):
+        self.assertEqual(channels.parse_channels_line("FB reel"),
+                         (["facebook"], []))
+
+    def test_mixed_facebook_keeps_canonical_order(self):
+        ch, un = channels.parse_channels_line("Facebook, IG, LinkedIn")
+        self.assertEqual(ch, ["instagram", "linkedin", "facebook"])
+        self.assertEqual(un, [])
+
+    def test_facebook_does_not_disable_unmapped_surfacing(self):
+        # Adding facebook must not turn off surfacing for other unknown platforms.
+        ch, un = channels.parse_channels_line("FB reel, Twitter post")
+        self.assertEqual(ch, ["facebook"])
         self.assertEqual(un, ["Twitter"])
 
     def test_only_format_words_yields_empty(self):

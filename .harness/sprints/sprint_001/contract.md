@@ -134,10 +134,15 @@ none KeyErrors on a 4th channel:
   from `CHANNEL_SOURCE_MAP`. This is the Gap-3 analytics source set (includes
   `site`, has no notion of facebook). Appending facebook to the map does not
   touch it. These stay green.
-- `tests/test_enqueue.py:44` (`test_tgrera_enqueues_three_rows`) is ALREADY in
-  the pre-existing failing baseline (§6, content drift). The tgrera `meta.md`
-  `Channels:` line does not mention Facebook, so the new alias cannot change its
-  enqueued channels — this sprint neither fixes nor further breaks it.
+- `tests/test_enqueue.py:44` (`test_tgrera_enqueues_three_rows`) asserts the
+  enqueued channel set equals `["instagram","linkedin","youtube"]` (three
+  channels). This test PASSES in the current baseline (§6 confirms 254 OK, zero
+  failures). The real tgrera `meta.md` `Channels:` line is
+  `IG reel, YT short (LinkedIn text post variant included)` — it does NOT mention
+  Facebook, so the new `facebook`/`fb` alias cannot change what tgrera enqueues:
+  it will continue to enqueue exactly three rows after Sprint 001. This test
+  therefore stays GREEN and needs no edit — Facebook cannot alter its outcome.
+  (Verified: `grep -in 'channels:' content/2026-07-03-tgrera-enforcement-wave/meta.md`.)
 
 If BUILD reveals a channel-set assertion not listed here, it must be updated too
 (B37: "enumerate all, do not stop at these") and recorded in the trace.
@@ -154,36 +159,24 @@ If BUILD reveals a channel-set assertion not listed here, it must be updated too
 - **Unmapped-token behavior preserved:** a genuinely unknown platform (e.g.
   `Twitter`, `TikTok`) is STILL surfaced as unmapped by `channels.py` — adding
   facebook must not turn the unmapped-surfacing off for other tokens.
-- **No new failure state:** the pre-existing failing set (§6) must not grow.
+- **No new failure state:** both suites stay fully green (§6).
 
-## 6. Frozen baseline — pre-existing failures (NOT this sprint's responsibility)
+## 6. Baseline — both suites are green
 
-Captured before any Sprint-001 edit. Command:
-
-```
-python3 -m unittest discover -s tools/marketing-loops/tests -p 'test_*.py'
-```
-
-Result: `Ran 254 tests … FAILED (failures=8, errors=1)`. The 9 failing tests:
+As of orchestrator commit `201456c` (stray qa-verdict artifact removed from the
+KILLED hyd asset; TGRERA's `qa-verdict.json` regenerated after the acceptance
+re-render wiped it), both suites pass with zero failures:
 
 ```
-ERROR: test_idempotent_byte_identical (test_enqueue.TestSuccessPath)
-FAIL:  test_runner_exits_zero (test_acceptance.SmokeTest)
-FAIL:  test_real_hyd_two_reasons_in_order (test_enqueue.TestGateRefusalNoWrite)
-FAIL:  test_no_regress_posted_row (test_enqueue.TestSuccessPath)
-FAIL:  test_tgrera_enqueues_three_rows (test_enqueue.TestSuccessPath)
-FAIL:  test_populated_needs_review_and_checks_are_ignored (test_gate.TestPassingGate)
-FAIL:  test_real_tgrera_passes (test_gate.TestPassingGate)
-FAIL:  test_real_hyd_ground_truth (test_gate.TestTerminalAndOrder)
-FAIL:  test_real_hyd_missing_verdict_and_killed (test_package.TestGateNeverBypassed)
+python3 -m unittest discover -s tools/marketing-loops/tests -p 'test_*.py'   # loops: 254 OK
+python3 -m unittest discover -s tools/marketing-loops/tests -p 'test_*.py'   # (render suite: 266 OK)
 ```
 
-Cause: real-content data drift — the `hyd-premium-vs-budget` asset is now
-`KILLED`, `tgrera-enforcement-wave` was re-rendered (v2), and the new
-`2026-07-09-anarock-vs-propequity` asset was added. None involve the channel
-map. These are OUT OF SCOPE for Sprint 001 (see §8 Non-goals) and must NOT be
-"fixed" by widening scope. The gate (§7) is defined as a DIFF against this
-frozen set, not an absolute "green".
+The gate is therefore the simple one: **both suites stay green, or are
+consciously extended.** The only conscious extensions this sprint authors are
+the two exact-set literal updates in §4a plus the new facebook regression cases
+in §2. Any test that goes red and is NOT one of those §4a updates is a
+regression this sprint must fix, not accept.
 
 ## 7. Verification — commands the Evaluator runs
 
@@ -203,13 +196,14 @@ python3 -m unittest -v \
 and repeat per file, or run each file directly with
 `python3 tools/marketing-loops/tests/test_utm.py`.) Expected: OK, 0 failures.
 
-**Gate clause 2 — failing set does not grow (`after ⊆ before`):**
+**Gate clause 2 — both suites stay green:**
 ```
 python3 -m unittest discover -s tools/marketing-loops/tests -p 'test_*.py'
 ```
-Expected: the ONLY failing tests are a subset of the 9 in §6. No new failing
-test may appear. (Total test count may rise slightly from the new regression
-cases; that is expected.)
+Expected: `OK`, zero failures/errors. (Total test count may rise slightly from
+the new regression cases; that is expected.) The render suite (266 OK) must
+also remain green — Sprint 001 touches no renderer code, so confirm it is
+untouched.
 
 **Gate clause 3 — no KeyError / crash from a 4th channel; behaviors hold:**
 ```
@@ -244,10 +238,10 @@ Expected: exit 0, empty stdout.
 - NO `publish_api.py`, transport seam, adapters, dry-run plan, or CLI flags
   (Sprints 002–006).
 - NO Facebook adapter / photos+feed flow (Sprint 005; round-5 gap, gated).
-- NO fixing the 9 pre-existing content-drift failures in §6 (out of scope; do
-  not widen scope to touch `enqueue.py`, `gate.py`, `package.py`, `acceptance.py`
-  or the real content assets).
-- NO queue-schema change, NO renderer/QA-gate/caption-authoring change.
+- NO renderer / QA-gate / acceptance / content-asset changes; do not touch
+  `enqueue.py`, `gate.py`, `package.py`, `acceptance.py`, `render.py`, or any
+  real content asset. This sprint is confined to the channel-map seam (§2).
+- NO queue-schema change, NO caption-authoring change.
 - NO new dependency; stdlib only.
 - NO wall-clock read anywhere.
 
@@ -279,6 +273,18 @@ Sprint 001 passes iff ALL hold:
    `captions.body_for(...,"facebook")` all succeed without KeyError/ValueError.
 4. The two exact-set literal assertions (§4a) are updated and green; the
    derived-map assertions (§4b) stay green with no edit.
-5. Full-suite run shows `failing(after) ⊆ failing(before)` (§6) — zero NEW
-   failures.
+5. Both suites stay fully green (loops 254 OK, render 266 OK), consciously
+   extended only by the §4a updates and the new facebook regression cases.
 6. Import is silent; no wall-clock; stdlib only; no scope creep beyond §2.
+
+## 12. Risks
+
+- **Re-render wipes qa-verdict (orchestrator note).** `render.py` re-rendering
+  an asset wipes `render/qa-verdict.json`; any step that re-renders MUST
+  re-validate (regenerate the verdict) afterward or the acceptance/gate suites
+  go red. Sprint 001 does not re-render anything, so it is not exposed — but any
+  later sprint or repair that touches rendering must honor this.
+- **Ordinal preservation (§10.7).** `facebook` MUST be appended LAST so schedule
+  bucket math for the existing three (ordinals 0/1/2) is byte-identical.
+- **Hyphenated package path.** `tools/marketing-loops` is not a valid dotted
+  module path; §7 gives `discover`/direct-run fallbacks.

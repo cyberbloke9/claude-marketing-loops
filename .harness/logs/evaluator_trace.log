@@ -1,0 +1,391 @@
+[CONTRACT_REVIEW] Sprint 001 - Frozen-module extension (facebook)
+VERDICT: REJECT
+BLOCKERS: 1 (baseline/test-exclusion contradiction in §6 vs §4d)
+HIGH: 0
+
+Finding C-001: §6 claims "zero failures / 254 OK" but §4d says test_enqueue.py:44 is "ALREADY in the pre-existing failing baseline". These contradict. Baseline empirical check: python3 -m unittest discover shows OK, 254 tests, confirming §6 is factually correct and §4d's "pre-existing failure" clause is false/ambiguous. Gate clause 2 becomes unsatisfiable if one test is pre-authorized-to-fail — Evaluator cannot distinguish new breakage from acceptable drift. This is a must-fix contract deficiency: either delete §4d's failure claim (since baseline is all-green) or rewrite §6 to document pre-existing failures explicitly with counts.
+
+Rejection written to: /Users/prithviputta/Downloads/terrem-marketing-loops/.harness/sprints/sprint_001/contract_review.md
+
+---
+SPRINT_001 | CONTRACT_REVIEW | ROUND_2 | 2026-07-09
+
+Status: ACCEPT
+Blocker from round 1: C-001 (contradictory baseline / test-exclusion) — RESOLVED
+
+Verification:
+- Empirical baseline check: python3 -m unittest discover → 254 OK, zero failures ✓
+- §6 baseline claim: "zero failures" ✓
+- §4d test status: "PASSES in the current baseline" (corrected from false pre-existing-failure) ✓
+- §7 gate clause 2: "Expected: zero failures" (consistent with §6 and §4d) ✓
+
+Analysis:
+- Testability: Four gate clauses with deterministic verification commands
+- Specificity: Test sites enumerated with file:line and exact assertions (§4a/4b/4c/4d)
+- Anti-gameable: Ordinal preservation, conscious updates, no-KeyError guard, unmapped-token preservation, no-regress baseline
+- Comprehensive: Non-goals explicit, risks documented, acceptance summary atomic
+
+No remaining blockers or high findings. Contract ready for implementation.
+
+
+[2026-07-09 evaluator]
+EVALUATE Sprint 001 -> PASS (score 4.6, 0 blockers, 0 high).
+  Loops 271 OK; render 266 OK; acceptance 50/50 PASS; gate-3 probe OK; import silent.
+  Disclosed deviation (scorecard goldens regen) verified: 6 fixtures = facebook-only additions,
+  existing instagram/youtube/linkedin lines byte-identical; scorecard.py NOT forked (single source of truth, spec 9).
+[EVALUATOR] CONTRACT_REVIEW mode - Sprint 002
+[EVALUATOR] Task: Review contract for publishapi.py (transport + CLI + dry-run plan)
+[EVALUATOR] Read: spec.md (entire product spec) + sprint_002/contract.md
+[EVALUATOR] Analysis: 4+ hours reading, comparing against spec, identifying contradictions and underspecifications
+[EVALUATOR] Verdict: REJECT (5 blockers, 6 high findings)
+[EVALUATOR] Critical blockers:
+  1. Package-file validation timing: spec B4 says validate now, contract §13 says defer to adapters (contradiction)
+  2. Transport injection: no mechanism specified for how tests swap in RaisingTransport/RecordingTransport
+  3. Recording transport response format: no definition of what transport.request() returns (critical for adapters 003+)
+  4. Stdout format: "legible per-row block" is not testable; no example provided
+  5. "In scope channels" for gate (a): implicit, not explicit; blocks understanding of token requirements
+[EVALUATOR] High concerns:
+  6. --max-per-day: unclear if required/optional, no default stated
+  7. AST test incomplete: misses `from urllib.request import urlopen` form
+  8. .env parsing: quote/whitespace rules fuzzy (FOO="bar" extra?)
+  9. Frozen-asset precondition: gates hardcode 2026-W28 asset without stating precondition
+  10. main()/run() signatures: not provided; tests can't call run() seam without signature
+[EVALUATOR] File written: sprints/sprint_002/contract_review.md
+[CONTRACT_REVIEW ROUND 2]
+Timestamp: 2026-07-10
+Mode: CONTRACT_REVIEW (re-review after REJECT)
+
+VERDICT: REJECT (1 blocker remains)
+
+Round 1 findings status:
+- F-001 through F-010 from round 1: 9/10 FIXED
+- Generator addressed package opening contradiction in §5.1a, function signatures in §1.1, response format in §8.2, stdout format in §7.2, in-scope channels in §4, max-per-day default in §3.1, AST import forms in §8, .env parsing in §4, asset precondition in §10
+
+New finding: F-001-R2 Blocker
+- §5.1a: "file IS opened and parsed as JSON"
+- §7.1: "file is NOT opened this sprint"
+- §13: "file IS opened but ONLY to validate"
+These three statements contradict each other. §7.1 comment is outdated and must be corrected to align with §5.1a and §13.
+
+Recommendation: Fix §7.1 comment only; contract is otherwise complete and testable.
+[EVALUATOR] Sprint 002 — Round 3 (final) CONTRACT_REVIEW
+  Verified F-001-R2 blocker fixed:
+    - §7.1 comment replaced with exact Required Fix text
+    - §5.1a, §7.1, §13 all now consistent on package-file opening
+    - File IS opened for validation, fields NOT consumed
+  No new issues introduced
+  Contract ready for implementation
+  VERDICT: ACCEPT (BLOCKERS: 0, HIGH: 0)
+
+[2026-07-10] EVALUATE Sprint 002 -> PASS (score 4.8, 0 blockers, 0 high).
+Ran all 11 gate clauses from clean state: 39 new + 310 full suite OK; dry-run real asset
+2-row deterministic plan, QUEUE-UNCHANGED; empty scope no-write; 7 malformed inputs exit 2
+cited; live gate cites 4 preconditions independently, no secret echoed; live-pass-no-adapter
+honest no-op (stdout 0 bytes, SENTINEL count 0); AST urlopen==1 in Transport; hygiene clean.
+Adversarial: in-scope token gating (F-005) correct both directions; empty-before-gate order;
+package B4 missing+bad-json exit 2; .env parser matches frozen worked cases. No prompt_patch needed.
+
+---
+
+SPRINT 003 CONTRACT REVIEW
+Timestamp: 2026-07-10
+Mode: CONTRACT_REVIEW
+Verdict: ACCEPT
+
+Input files:
+- spec.md (full product spec)
+- sprints/sprint_003/contract.md (Instagram adapter contract)
+
+Output file:
+- sprints/sprint_003/contract_review.md
+
+Review summary:
+✅ 8 gate clauses with exact reproduction commands + expected outputs
+✅ API specification frozen (exact endpoints, params, response shapes, placeholders)
+✅ All behaviors defined (happy path, single-image degrade, error paths, live no-op)
+✅ All states specified (success, loading, errors, invalid input, live gate denied)
+✅ Real data (2026-07-09-anarock-vs-propequity asset with 3 attachments)
+✅ Determinism verified (no wall-clock, bounded poll, JSON sort_keys)
+✅ Shared-flow guarantee testable (parity test: plan_steps == transport.calls)
+✅ Sprint-002 regression surface enumerated (instagram row updates, LinkedIn unchanged)
+✅ Security (token redaction, gitignore, no secrets in output)
+✅ Blacklist guard (media_publishing/content_publishing refuted names absent)
+
+Potential risks (mitigated):
+- Response shapes marked live-pending; canned mocks match documented assumptions
+- Polling bounded (MAX_POLL_ATTEMPTS), no wall-clock, injectable no-op delay in tests
+- Single-image degrade has separate test case
+- All deferred features (LinkedIn, Facebook, live posting) explicitly marked "006"
+
+Blockers: 0
+High concerns: 0
+
+Ready for implementation.
+
+[2026-07-10] EVALUATE Sprint 003 (Instagram adapter) -> VERDICT: PASS (score 4.8, 0 blockers, 0 high).
+Ran: new suite 58 OK; full regression 329 OK. Gate 3 dry-run real asset = 8 IG steps in exact s4 order,
+  QUEUE-UNCHANGED, stdout byte-matches s7.2. Gate 4 REDACTED/placeholders/base-placeholder/DETERMINISTIC,
+  blacklist grep=0. Gate 5 concrete base-url join correct. Gate 6 live no-op honest (exit 0, stdout 0 bytes,
+  SENTINEL 0, queue unchanged). Gate 7 exactly 1 urlopen site, import silent. Gate 8 plan gitignored, no secret staged.
+  No wall-clock (only injectable sleep seam). Shared _ig_flow generator = genuine anti-stub; parity test holds.
+ADJUDICATED disclosed conflict: single-image degrade "(6 steps)" vs 5-stage enumeration + "no parent step".
+  Ruling = 5 is the only FAITHFUL reading (carousel N+5=8; degrade N+4=5); "(6)" is a contract arithmetic slip,
+  NOT a code defect. No finding against code. Wrote prompt_patch_003.md (contract count self-consistency check).
+Wrote: sprints/sprint_003/findings.md, patches/prompt_patch_003.md.
+[2026-07-10] Post-advisor: independently tripped the one CLI-reachable failure path (was trusting the suite).
+  Fixture with instagram row package_path -> absolute 11-attachment pkg: exit 2, cited "exceeds 10 children (got 11) R4-B2", NO plan written.
+  0-attachment pkg: exit 2, cited "no attachments to publish", NO plan written. Side-effect-absence (s15.4 "no plan write") confirmed. PASS stands.
+[2026-07-10 CONTRACT_REVIEW sprint_004]
+VERDICT: ACCEPT
+SUMMARY: LinkedIn adapter contract exceptionally well-specified with ground-truth anchoring (RESEARCH.md), anti-stub enforcement (parity test), exact verification commands (9 gate clauses), determinism proven (byte-identical JSON), and conscious regression updates enumerated. 0 blockers, 0 high-severity concerns.
+KEY_STRENGTHS: Anti-stub property via shared-flow + parity test; exact stdout template §6.1 for byte comparison; determinism via no wall-clock + fixed LinkedIn-Version; secrets redaction proven in §8.9; preconditions and error messages specified to exact exit codes and cited text; dry-run/execute distinction clear; live no-op honest; backward-compatible.
+READY_TO_BUILD: Yes. Sufficient precision in API endpoints, payloads, call sequences, test scenarios, and verification commands. Regression guards explicit (§8.7 IG byte-identical, §7 conscious updates enumerated).
+
+[2026-07-10] EVALUATE Sprint 004 — LinkedIn adapter (B25–B29)
+Verdict: PASS (score 4.8, 0 blockers, 0 high). Wrote sprints/sprint_004/findings.md.
+Reproduced all §11 gate clauses from clean state:
+  - gate1 new suite 79 OK; gate2 full 350 OK (IG/facebook/002/003 preserved).
+  - gate3 dry-run: linkedin 3 steps (POST /rest/documents; PUT <li-upload-url-1>;
+    POST /rest/posts); IG still 8; QUEUE-UNCHANGED; exit 0.
+  - gate4 REDACTED/version-hdr/placeholders/owner-ph/mandated; DETERMINISTIC;
+    carousel grep=8 all IG/comment (no LI carousel post type).
+  - gate5 multi-image 7 steps, multiImage present, rest/documents absent (one flow).
+  - gate6 live no-op exit 0, cited notice, SENTINEL 0, no fake permalink, queue unchanged.
+  - gate7 stdout §6.1 byte-match (sorted headers, compact json payload, verbatim caption);
+    IG block unchanged.
+  - gate8 urlopen==1; --linkedin-version bogus exit2, 202503 in plan; gate9 hygiene clean.
+Source-inspected anti-stub: plan_steps + execute both derive from _li_document_flow /
+  _li_multiimage_flow via _drive_plan / _drive_execute (shared generator). Parity +
+  dependent-value + real-bytes + token-in-headers tests genuine. No stubs, no leak.
+
+[2026-07-10] CONTRACT_REVIEW Sprint 005 (Facebook adapter, round-5-gap gated)
+Mode: CONTRACT_REVIEW
+Verdict: REJECT (BLOCKERS: 1, HIGH: 1)
+
+Input files:
+- spec.md (full product spec)
+- sprints/sprint_005/contract.md (Facebook adapter contract)
+
+Output file:
+- sprints/sprint_005/contract_review.md
+
+Review summary:
+✅ Clear scope (B30, B31, B32 from spec §5.7)
+✅ Detailed flow spec (exact endpoints, params, placeholders, N+1 calls)
+✅ Gating logic precise (flag OFF = skip-with-notice, flag ON = full render)
+✅ Preconditions specified (G1 attachments, G2 flag gate, G3 live tokens)
+✅ Skip-with-notice behavior byte-level exact (§7.1, §7.2, §7.3)
+✅ Anti-stub guarantee via shared-flow + parity test (§1.2)
+✅ 8 verification gates with reproduction commands
+✅ 10 unit-test scenarios with hermetic fixtures
+✅ Determinism proven (no wall-clock, fixed constants, sorted JSON)
+✅ Secrets redaction and safety (§9)
+✅ Non-goals explicit
+
+BLOCKERS (1):
+- C-001: §4.4 note template "{N} HTTP calls" contradicts body "N+1 calls for N attachments"
+  For 3-image package: template says "3 calls" but flow spec says "4 calls (3 photos + 1 feed)"
+  Contract must clarify whether {N} = attachment count or total calls
+  Impact: "Exact enabled note:" requirement becomes untestable
+
+HIGH (1):
+- C-002: §11 Gate 6 wording "before and after (or against the Sprint-004 golden)" is ambiguous
+  Unclear if Evaluator should capture before/after within sprint or compare to saved golden
+  Intent deducible from §8 NON-REGRESSION but Gate 6 should be explicit
+  Impact: Evaluator and Generator may interpret verification strategy differently
+
+Analysis:
+- Testability: 8 gate clauses + 10 unit tests, most deterministic
+- Specificity: Flow endpoints, params, placeholders all detailed
+- Anti-gameable: Shared-flow guarantee, parity test, non-regression mandatory
+- Comprehensive: Error paths, security, determinism, non-goals all covered
+- Risk: Internal contradiction on call count; verification strategy ambiguous
+
+Recommendation: REJECT; fix §4.4 note template and §11 Gate 6 wording before implementation.
+
+File written: sprints/sprint_005/contract_review.md
+
+
+[2026-07-10] CONTRACT_REVIEW Sprint 005 — Round 2 (re-review after REJECT)
+Timestamp: 2026-07-10
+Mode: CONTRACT_REVIEW (round 2)
+Verdict: ACCEPT (BLOCKERS: 0, HIGH: 0)
+
+Prior blockers status:
+- C-001 (note template {N} vs N+1): FIXED
+  §4.4 now reads {TOTAL} = N + 1 with explicit example "4 HTTP calls" for N=3
+  No ambiguity; Generator can produce exact note
+  
+- C-002 (Gate 6 non-regression strategy): FIXED
+  §11 Gate 6 now explicit: "Load Sprint-004 golden, run Sprint-005 with --week 2026-W28 no --enable-facebook, assert byte-identical"
+  No ambiguity; Evaluator and Generator agree on verification
+  
+Comprehensive contract strengths (unchanged from R1):
+✅ Flow spec precise (N+1 = N photos + 1 feed, exact endpoints/params/placeholders)
+✅ Gating logic byte-level exact (skip-with-notice when flag OFF, full render when ON)
+✅ Anti-stub guarantee (shared-flow + parity test, identical to IG/LI pattern)
+✅ 8 verification gates + 10 unit-test scenarios, all testable
+✅ Determinism proven (no wall-clock, fixed constants, sorted JSON)
+✅ Secrets redaction and safety verified
+✅ Non-regression mandatory (byte-identical to Sprint 004, full suite green)
+✅ Live no-op honest (zero network, no queue write, no invented permalink — Sprint 006)
+
+No new deficiencies introduced. Ready for implementation.
+
+[2026-07-10] EVALUATE Sprint 005 (Facebook adapter, round-5-gap, gated) => PASS (score 4.7, 0 blockers, 0 high)
+  Independently re-ran all 8 gates: 366 unittests OK (0 skips); flag-OFF skip (exit0, steps0, exact note+stderr NOTICE, IG 8 steps unaffected); flag-ON 4-step photos+feed with placeholder-threaded attached_media, verbatim caption, REDACTED token, round-5-gap+best-documented-guess note; no invented /vXX version prefix; B11 concrete base join; G1 0-attach exit2 cited (no plan); G2 disabled+0-attach skip exit0; real-asset dry-run deterministic + IG/LI unperturbed; single urlopen seam; anti-stub _fb_flow shared by plan+execute (parity green).
+  F-001 (Low, non-gating): disabled FB row with MISSING package file exits 2 (B4 universal) rather than skipping; spec-consistent, all fixtures seed a package. Deferred to Sprint 006 contract if desired.
+  Wrote: .harness/sprints/sprint_005/findings.md
+
+---
+
+## CONTRACT_REVIEW: sprint_006 — 2026-07-10T00:00:00
+
+**VERDICT: REJECT**
+
+**Blocker Finding:**
+- Found fundamental contradiction between §4.1 (Targeted already-posted refusal) and Gate 4 (no-regress, RE-RUN fully-posted week)
+- Both describe identical queue state (queued selection empty, posted rows present) but expect different exit codes (exit 1 vs exit 0)
+- Root cause: §4.1 condition is not discriminated by filter specificity; the phrase "explicitly re-targeted" is undefined
+- Requires precise clause addition to disambiguate "targeted" (both --slug AND --channel supplied) vs "broad" (week-only or partial filters) scopes
+
+**High-level Checks Performed:**
+1. Read spec.md full scope (11 sprints, 15 non-goals, 10 risks)
+2. Read sprint_006/contract.md full text (sections 1-15, gates 1-11, tests 1-19)
+3. Verified cross-reference to Sprint 005 contract for Facebook skip notice (found at §7.1, text is defined)
+4. Analyzed §4.1 logic against Gates 3 and 4 — found inconsistency
+5. Consulted advisor for confirmation and precise fix language
+
+**Elements Passing Review:**
+- Contract is comprehensive (all behaviors from spec §11 covered)
+- Gates are explicit and testable (11 gates with clear setup/expected output)
+- Test scenarios are detailed (19 unit tests with hermetic fixtures)
+- Pre-validation, incremental persistence, secrets discipline all well-specified
+- Facebook gating and round-5-gap labeling consistent with Sprint 005
+- No-network proof (raising transport) and determinism gates present
+- Adapter refusal paths and day-cap enforcement clearly defined
+
+**Elements Needing Clarity:**
+- (Dropped as false: HIGH "exact error message formats" — gates define tokens, examples given)
+- (Dropped as false: HIGH "pre-validation all-vs-first error reporting" — test descriptions sufficient, changes no behavior)
+- (Dropped as false: HIGH "sentinel token definition" — test-fixture latitude, not contract deficiency)
+- (Verified and cleared: HIGH "Facebook skip notice missing" — defined in Sprint 005 §7.1, properly cross-referenced)
+
+**Recommendation:**
+Contract is otherwise sound. One surgical fix (filter-specificity rule to §4.1) resolves the blocker.
+
+---
+EVALUATOR: Contract Review Round 2 (Sprint 006)
+TIMESTAMP: 2026-07-10
+
+MODE: CONTRACT_REVIEW (re-review after REJECT)
+PRIOR VERDICT: REJECT (Round 1) — blocker B-001: §4.1 filter-specificity undefined
+CURRENT VERDICT: ACCEPT (Round 2)
+
+CHANGES VERIFIED:
+✓ §4.1 now includes explicit filter-specificity discriminator (lines 123–131):
+  "This exit-1 refusal fires ONLY when BOTH `--slug` and `--channel` are supplied..."
+✓ Reconciles Gate 3 (targeted → exit 1) and Gate 4 (broad → exit 0)
+✓ Rationale in §4.1 explains coexistence with B16 (posted rows counted in day-cap)
+✓ No new blockers or high concerns introduced by the fix
+
+COMPREHENSIVE CHECKLIST:
+✓ Exit codes: 0 (success), 1 (domain refusal), 2 (precondition) — all clear
+✓ No-regress: filter-specificity discriminator unambiguous
+✓ Day-cap: single baseline + run counter, deterministic, testable
+✓ Incremental write: AFTER each row, prior posts survive later failures
+✓ Secrets: tokens never in output/queue, sentinel token validation in tests
+✓ Facebook: gated behind --enable-facebook (OFF by default)
+✓ Pre-validation: usage errors caught via in-memory _build_plan before any post
+✓ Real-asset regression: Gate 7 expects 2-row fidelity for 2026-07-09-anarock-vs-propequity
+✓ Determinism: byte-identical publish-plan.json on repeat
+✓ No-network: all tests inject mocks; raising-transport proof; AST single-urlopen
+✓ 11 gates with exact commands and expected outputs
+✓ 19 test scenarios with specific assertions
+✓ Risks/assumptions documented with rationale
+✓ Non-goals explicit
+
+VERDICT: ACCEPT
+BLOCKERS: 0
+HIGH: 0
+
+Ready for implementation.
+
+[2026-07-10] EVALUATE Sprint 006 -> PASS (score 4.7, 0 blockers, 0 high).
+  Verified: full suite 386 OK 0 skips; Gate7 real-asset dry-run 2 rows (IG 8 / LI 3);
+  Gate8 determinism byte-identical; queue untouched by dry-run; secrets redacted +
+  gitignored; single urlopen seam; Gate10 live-gate exit2 cited; malformed week exit2;
+  empty scope exit0. Live driver real: _run_live calls execute against injected
+  transport, reuses frozen mark_posted.transition, incremental write_queue, single-
+  baseline day-cap. All 19 section-12 tests present incl 1b rerun-week-exit0; prior-
+  posts-stand tests assert on-disk row state (not just exit code). One Low/info finding
+  (multi-image CWD path, Sprint 007+; disclosed, not in scope). Wrote findings.md.
+
+[2026-07-10] CONTRACT_REVIEW Sprint 007 (Skill + README — documentation-only)
+
+VERDICT: ACCEPT
+SCORE: n/a
+BLOCKERS: 0
+HIGH: 0
+
+Review Summary:
+✅ File scope: exactly 2 files (SKILL.md, README.md); nothing under tools/content/.env
+✅ Reconciliation requirement explicit (§2): stale "no posting API" claims MUST be reworded, not appended
+✅ Required claims: C1–C14 all specific and greppable
+✅ Verification: 8 steps (§8) with exact bash commands + expected outputs
+✅ Value table: §5 enforces 11 key flags/defaults against `--help` verbatim (C17)
+✅ Acceptance criteria: A1–A8 all testable (git status, grep, command execution, unittest)
+✅ Non-goals explicit (§7, §10): no code changes, no new flags, no broad rewrites
+✅ Anti-gameable: cannot reconcile without removing stale sentences; cannot invent flags; cannot skip command testing; cannot add secrets
+
+Strengths:
+- Tight scope (documentation-only, low blast radius)
+- Non-ambiguous reconciliation requirement (§2 contradiction must be resolved)
+- Greppable claims (C1–C14 with §8.3 grep tests)
+- Runnable verification (§8.4 executes actual CLI commands against real asset 2026-W28)
+- Regression gate (§8.6 full prior unittest suite must stay green)
+- Secrets audit (§8.7 grep pattern for token literals)
+
+Minor vagueness (acceptable for docs sprint):
+- Subsection placement "logically" is subjective, but content requirements concrete (C15–C17)
+- Manual-flow retention (C5) not grep-tested, but clear requirement; evaluator verifies via human review
+- "No pasted plan dump" not automated, but C17 enforces "show commands, describe behavior"
+
+Analysis:
+- Testability: 8 gate commands + 8 grep patterns, all deterministic
+- Specificity: Claims C1–C14 precise; value table §5 exhaustive for key flags
+- Anti-gameable: reconciliation enforcement via grep §8.2; command testing §8.4; flag fidelity §8.5; secrets §8.7
+- Comprehensive: both docs' stale claims addressed; dry-run default + manual bridge + live gate all documented; exit codes + facebook flag + LinkedIn selector covered
+
+No deficiencies. Contract ready for implementation.
+
+
+[2026-07-10] EVALUATE Sprint 007 (docs-only: loop-publish SKILL.md + README publish_api section)
+Verdict: PASS (score 4.8, 0 blockers, 0 high). Wrote sprints/sprint_007/findings.md.
+Gates run from project root (Playwright N/A — CLI toolchain, no browser surface):
+  §8.1 git status --porcelain: SKILL.md + README.md this sprint's delta; tools/ dirt =
+       pre-existing uncommitted Sprints 001-006 (HEAD 201456c predates publish_api.py,
+       which is ?? untracked, unchanged). No .env/secret/content artifact. plan gitignored.
+  §8.2 stale-claim greps: "no live posting API" (SKILL) exit1, "no posting APIs" (README)
+       exit1 — both reworded, not appended.
+  §8.3 positive greps: SKILL publish_api.py=7 --dry-run=5 --i-have-verified-dry-run=2
+       PUBLIC_ASSET_BASE_URL=5 SETUP-CHECKLIST=2 --enable-facebook=2 round-5-gap=1 REDACTED=3;
+       README publish_api.py=5 --live=4 SETUP-CHECKLIST=2 --enable-facebook=2. All >=1.
+  §8.4 real-asset dry-run --week 2026-W28: exit 0, 2-row plan (IG 8-step + LI document),
+       REDACTED tokens, base-url placeholder, wrote publish-plan.json 7141B, queue clean.
+  §8.5 --help: max-per-day=3, linkedin-post-type default document, linkedin-version 202506,
+       env default .env — matches §5 value table verbatim.
+  §8.6 unittest discover: Ran 386 tests OK, 0 fail/0 err.
+  §8.7 secret grep: exit1 (no token literal).
+Content C1-C17 verified by full read of both docs. No prompt_patch warranted (clean pass,
+no repeated failure pattern).
+
+=== EVALUATE_SYSTEM 2026-07-10 ===
+VERDICT: PASS  SCORE 4.7  BLOCKERS 0  HIGH 0
+loops suite: 386 tests OK; render suite: 266 tests OK
+Gate7 real-asset dry-run --week 2026-W28: exit0, 2 rows (IG 8-step container, LI 3-step document), caption+UTM verbatim, REDACTED+placeholders
+Gate8 determinism: publish-plan.json byte-identical on repeat; queue unchanged vs HEAD
+Sprint001: facebook appended LAST to CHANNEL_SOURCE_MAP; queue.VALID_CHANNELS/channels._ALIASES(fb,facebook)/schedule._TIMES all integrate
+Sprint006 live tests all green (happy path, no-regress targeted+rerun, daycap, container-error, incremental persist, no-secret, raising-transport exit0, AST single urlopen)
+Sprint007: stale claims reconciled (0 hits both), greppable claims present, --help defaults match table, no secret literal
+No cross-sprint regression. acceptance.md written.

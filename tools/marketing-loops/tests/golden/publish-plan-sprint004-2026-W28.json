@@ -1,0 +1,185 @@
+{
+  "mode": "dry-run",
+  "rows": [
+    {
+      "channel": "instagram",
+      "note": "instagram adapter (Instagram Login, graph.instagram.com); 8 HTTP calls; verified R4-B2/R4-B3/R5-3",
+      "package_path": "content/2026-07-09-anarock-vs-propequity/publish/instagram.json",
+      "slug": "2026-07-09-anarock-vs-propequity",
+      "steps": [
+        {
+          "channel": "instagram",
+          "headers": {},
+          "label": "IG \u00b7 check content_publishing_limit",
+          "method": "GET",
+          "params": {
+            "access_token": "<REDACTED>",
+            "fields": "quota_usage,quota_total"
+          },
+          "payload": null,
+          "url": "https://graph.instagram.com/<IG_USER_ID>/content_publishing_limit"
+        },
+        {
+          "channel": "instagram",
+          "headers": {},
+          "label": "IG \u00b7 create child container 1/3",
+          "method": "POST",
+          "params": {
+            "access_token": "<REDACTED>",
+            "image_url": "<PUBLIC_ASSET_BASE_URL>/2026-07-09-anarock-vs-propequity/format-01.png",
+            "is_carousel_item": "true"
+          },
+          "payload": null,
+          "url": "https://graph.instagram.com/<IG_USER_ID>/media"
+        },
+        {
+          "channel": "instagram",
+          "headers": {},
+          "label": "IG \u00b7 create child container 2/3",
+          "method": "POST",
+          "params": {
+            "access_token": "<REDACTED>",
+            "image_url": "<PUBLIC_ASSET_BASE_URL>/2026-07-09-anarock-vs-propequity/format-02.png",
+            "is_carousel_item": "true"
+          },
+          "payload": null,
+          "url": "https://graph.instagram.com/<IG_USER_ID>/media"
+        },
+        {
+          "channel": "instagram",
+          "headers": {},
+          "label": "IG \u00b7 create child container 3/3",
+          "method": "POST",
+          "params": {
+            "access_token": "<REDACTED>",
+            "image_url": "<PUBLIC_ASSET_BASE_URL>/2026-07-09-anarock-vs-propequity/format-03.png",
+            "is_carousel_item": "true"
+          },
+          "payload": null,
+          "url": "https://graph.instagram.com/<IG_USER_ID>/media"
+        },
+        {
+          "channel": "instagram",
+          "headers": {},
+          "label": "IG \u00b7 create parent carousel container",
+          "method": "POST",
+          "params": {
+            "access_token": "<REDACTED>",
+            "caption": "ANAROCK says Bengaluru housing sales grew 1% last quarter. PropEquity says 47%. Same city, same three months. Swipe for all four cities \u2014 and the three checks that tell you which headline to trust.\n\nhttps://intel.terrem.in/markets?utm_source=instagram&utm_medium=social&utm_campaign=anarock-vs-propequity",
+            "children": "<ig-child-container-id-1>,<ig-child-container-id-2>,<ig-child-container-id-3>",
+            "media_type": "CAROUSEL"
+          },
+          "payload": null,
+          "url": "https://graph.instagram.com/<IG_USER_ID>/media"
+        },
+        {
+          "channel": "instagram",
+          "headers": {},
+          "label": "IG \u00b7 poll container status",
+          "method": "GET",
+          "params": {
+            "access_token": "<REDACTED>",
+            "fields": "status_code"
+          },
+          "payload": null,
+          "url": "https://graph.instagram.com/<ig-parent-creation-id>"
+        },
+        {
+          "channel": "instagram",
+          "headers": {},
+          "label": "IG \u00b7 publish media",
+          "method": "POST",
+          "params": {
+            "access_token": "<REDACTED>",
+            "creation_id": "<ig-parent-creation-id>"
+          },
+          "payload": null,
+          "url": "https://graph.instagram.com/<IG_USER_ID>/media_publish"
+        },
+        {
+          "channel": "instagram",
+          "headers": {},
+          "label": "IG \u00b7 fetch permalink",
+          "method": "GET",
+          "params": {
+            "access_token": "<REDACTED>",
+            "fields": "permalink"
+          },
+          "payload": null,
+          "url": "https://graph.instagram.com/<ig-media-id>"
+        }
+      ]
+    },
+    {
+      "channel": "linkedin",
+      "note": "linkedin adapter (member profile, api.linkedin.com; document flow); 3 HTTP calls; verified R4-B4/R5-6",
+      "package_path": "content/2026-07-09-anarock-vs-propequity/publish/linkedin.json",
+      "slug": "2026-07-09-anarock-vs-propequity",
+      "steps": [
+        {
+          "channel": "linkedin",
+          "headers": {
+            "Authorization": "Bearer <REDACTED>",
+            "Content-Type": "application/json",
+            "LinkedIn-Version": "202506",
+            "X-Restli-Protocol-Version": "2.0.0"
+          },
+          "label": "LI \u00b7 initialize document upload",
+          "method": "POST",
+          "params": {
+            "action": "initializeUpload"
+          },
+          "payload": {
+            "initializeUploadRequest": {
+              "owner": "<LI_PERSON_URN>"
+            }
+          },
+          "url": "https://api.linkedin.com/rest/documents"
+        },
+        {
+          "channel": "linkedin",
+          "headers": {
+            "Authorization": "Bearer <REDACTED>"
+          },
+          "label": "LI \u00b7 upload document bytes",
+          "method": "PUT",
+          "params": {},
+          "payload": "<binary PDF: carousel.pdf>",
+          "url": "<li-upload-url-1>"
+        },
+        {
+          "channel": "linkedin",
+          "headers": {
+            "Authorization": "Bearer <REDACTED>",
+            "Content-Type": "application/json",
+            "LinkedIn-Version": "202506",
+            "X-Restli-Protocol-Version": "2.0.0"
+          },
+          "label": "LI \u00b7 create document post",
+          "method": "POST",
+          "params": {},
+          "payload": {
+            "author": "<LI_PERSON_URN>",
+            "commentary": "ANAROCK says Bengaluru housing sales grew 1% last quarter. PropEquity says 47%. Same city, same three months. Swipe for all four cities \u2014 and the three checks that tell you which headline to trust.\n\nhttps://intel.terrem.in/markets?utm_source=instagram&utm_medium=social&utm_campaign=anarock-vs-propequity",
+            "content": {
+              "media": {
+                "id": "<li-document-urn>",
+                "title": "2026-07-09-anarock-vs-propequity"
+              }
+            },
+            "distribution": {
+              "feedDistribution": "MAIN_FEED",
+              "targetEntities": [],
+              "thirdPartyDistributionChannels": []
+            },
+            "lifecycleState": "PUBLISHED",
+            "visibility": "PUBLIC"
+          },
+          "url": "https://api.linkedin.com/rest/posts"
+        }
+      ]
+    }
+  ],
+  "schema_version": "1",
+  "week": "2026-W28"
+}

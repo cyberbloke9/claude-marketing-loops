@@ -27,7 +27,8 @@ if str(_HERE) not in sys.path:
 import utm  # noqa: E402
 
 # Canonical channel order, derived from the shared map: instagram, youtube,
-# linkedin. The channel *ordinal* used below is this tuple's index — no fork.
+# linkedin, facebook. The channel *ordinal* used below is this tuple's index —
+# no fork (facebook is ordinal 3, appended last so 0/1/2 are unchanged).
 CANONICAL_CHANNELS = tuple(utm.CHANNEL_SOURCE_MAP.keys())
 
 _WEEK_RE = re.compile(r"^\d{4}-W\d{2}$")
@@ -43,6 +44,10 @@ _TIMES = {
     "instagram": {BUCKET_MORNING: "09:00", BUCKET_EVENING: "18:00"},
     "youtube":   {BUCKET_MORNING: "11:00", BUCKET_EVENING: "20:00"},
     "linkedin":  {BUCKET_MORNING: "08:30", BUCKET_EVENING: "17:30"},
+    # facebook (spec B35): ordinal 3 in the canonical order. Fixed documented
+    # A/B-hypothesis times (same shape as the three above; NOT wall-clock derived).
+    # Both buckets present so neither morning nor evening KeyErrors.
+    "facebook":  {BUCKET_MORNING: "10:00", BUCKET_EVENING: "19:00"},
 }
 
 

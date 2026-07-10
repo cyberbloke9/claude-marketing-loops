@@ -31,6 +31,11 @@ CHANNEL_SOURCE_MAP = {
     "instagram": "instagram",
     "youtube": "youtube",   # "YouTube community" maps to utm_source=youtube (A-2)
     "linkedin": "linkedin",
+    # facebook appended LAST (Sprint 001 of the publish-loop run; spec B33) so the
+    # existing ordinals instagram=0/youtube=1/linkedin=2 are preserved and the
+    # schedule.py bucket math for those three stays byte-identical. Reserves the
+    # slot in the channel universe; the FB adapter itself is a later round-5 gap.
+    "facebook": "facebook",
 }
 
 # Allowed utm_source values, derived (never a second literal list).

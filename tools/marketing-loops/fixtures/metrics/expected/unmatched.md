@@ -30,6 +30,7 @@ Loop 5 output. Compiled from platform exports + site analytics. Retention first;
 | instagram | | | |
 | youtube | | | |
 | linkedin | | | |
+| facebook | | | |
 
 ## Vanity (tracked, never optimized)
 

@@ -18,3 +18,360 @@ Contract gate = 3 clauses: (1) 5 channel-map files fully green; (2) failing(afte
 Known risk: hyphen in `tools/marketing-loops` breaks dotted `-m unittest` module paths; contract §7 gives
   discover/direct-run fallbacks. `facebook` appended LAST (B33) to preserve ordinals 0/1/2 for schedule bucket math.
 Next: await contract_review.md; then BUILD (utm.py + channels.py + schedule.py + test updates).
+
+[2026-07-09 16:40]
+Action: CONTRACT revision per orchestrator — baseline now green (commit 201456c).
+Files changed: .harness/sprints/sprint_001/contract.md
+Command: python3 -m unittest discover -s tools/marketing-loops/tests -p 'test_*.py' => 254 OK.
+Result: Removed diff-against-red-baseline gate + out-of-scope drift section. Gate now = "both suites
+  stay green or are consciously extended" (§4a updates + new facebook regression cases). Added §12 risk:
+  render.py re-render wipes render/qa-verdict.json => must re-validate after any re-render (Sprint 001 not exposed).
+Next: await contract_review.md; then BUILD.
+
+[2026-07-09 00:00]
+Action: CONTRACT mode revise — resolve REJECT blocker C-001 (contradictory baseline claim in §4d).
+Files changed: .harness/sprints/sprint_001/contract.md (§4d rewritten)
+Command: python3 -m unittest discover -s tools/marketing-loops/tests -p 'test_*.py'; grep -in 'channels:' content/2026-07-03-tgrera-enforcement-wave/meta.md
+Result: baseline = 254 OK, zero failures (Option A). tgrera Channels line = "IG reel, YT short (LinkedIn text post variant included)" — no Facebook, so test_enqueue.py:44 stays green (3 rows).
+Evidence path/output: unittest -> "Ran 254 tests ... OK"; meta.md line 8 confirms no Facebook token.
+Known risk: none for this edit; §6 and gate clause 2 already stated "zero failures" — only §4d was inconsistent, now aligned.
+Next: await CONTRACT_REVIEW re-route.
+
+[2026-07-09 --:--]
+Action: BUILD Sprint 001 — frozen-module extension: add `facebook` as a first-class channel (spec B33-B37).
+Files changed:
+  Production seam (3): tools/marketing-loops/utm.py (CHANNEL_SOURCE_MAP += "facebook":"facebook", appended LAST, ordinals 0/1/2 preserved),
+    channels.py (_ALIASES += "facebook","fb"), schedule.py (_TIMES["facebook"]={morning:"10:00",evening:"19:00"}).
+  Verified no-edit (map-derived, confirmed): queue.py:59 VALID_CHANNELS, captions.py:120 body_for — both derive from utm.CHANNEL_SOURCE_MAP, pick facebook up automatically.
+  Tests (edit §4a exact-set literals + new regression cases): test_utm.py, test_channels.py, test_queue.py, test_schedule.py, test_captions.py.
+  BLAST-RADIUS (contract §4c triage MISS, resolved under B37): tools/marketing-loops/scorecard.py:65 derives CANONICAL_CHANNELS = schedule.CANONICAL_CHANNELS (= the map), and iterates it at :315/:321 to render the posting-time A/B table. The contract triaged scorecard as "pure iteration, unaffected" but missed the :65 map derivation feeding the golden markdown. Adding facebook made every scorecard emit a facebook A/B row. Resolution per spec §9 (single source of truth, NEVER fork the channel map) + advisor: regenerate the 6 golden fixtures, do NOT fork scorecard. Regenerated: fixtures/metrics/expected/{full,partial,empty,wrong-utm,wrr-partial,unmatched}.md.
+  NOTE (left unchanged, non-goal): acceptance.py:149 CHANNEL_SOURCE is a 3-entry lookup subset used only for the 3 tgrera-enqueued channels (chain/package passed); its "must equal map" comment is now a subset — editing acceptance.py logic is a stated non-goal; functionally correct, left as-is.
+Command:
+  python3 -m unittest discover -s tools/marketing-loops/tests -p 'test_*.py'
+  python3 tools/marketing-loops/acceptance.py
+  python3 -m unittest discover -s tools/marketing-render/tests -p 'test_*.py'
+  python3 /scratchpad/regen_goldens.py  (diff-guard: added lines must all contain "facebook", zero removals)
+Result:
+  loops suite: Ran 271 tests — OK (baseline 254 + 17 new facebook regression cases).
+  acceptance runner: ACCEPTANCE: PASS (50/50 expectations met).
+  render suite: Ran 266 tests — OK (untouched; VERDICT:FAIL lines are stdout from a negative-fixture validator test, not unittest failures).
+  Golden regen diff-guard: all 6 files +facebook-only lines, 0 removals, existing 3 channels byte-identical (full.md +3: blank fb A/B row + 2 miss-lines; others +1).
+  Contract gate clause-1 (map-touching files green): covered by full loops suite OK.
+  Contract gate clause-3 inline probe: prints OK exit 0.
+  Import silence: `import utm, channels, schedule` exit 0, empty stdout.
+Evidence path/output:
+  Regen guard output: "OK full.md: +3 facebook-only lines, 0 removals (2693->2821 bytes)" ... "ALL_GUARDS_PASSED".
+  Facebook additions in full.md: "| facebook | | | |", "- no facebook slot recorded for 2026-W27", "- posting-time A/B verdict for facebook needs cross-week comparison".
+Known risk:
+  - The contract's §4c triage did not anticipate scorecard.py:65; the golden fixtures now differ from the accepted contract's "scorecard unaffected" claim. Disclosed here for Evaluator scrutiny — resolution follows spec §9 (no map fork) rather than the triage note. If the Evaluator prefers scorecard decoupled from the map, that is a contract revision, not a code fix (forking the map is spec-forbidden).
+  - facebook now appears as a blank row in every scorecard until a facebook posting slot/analytics feed exists; intended ("reserve the slot", populates when FB goes live). ingest.py analytics source set is hand-authored (instagram/youtube/linkedin/site) and deliberately unchanged — no facebook analytics ingestion this run.
+Next: Evaluator verification. Sprint 002 (transport seam + CLI) is the next build.
+
+[2026-07-09 17:05]
+Action: CONTRACT mode — authored Sprint 002 contract (transport seam + dry-run plan renderer + CLI skeleton). Read spec.md, PIPELINE-V2 §6, RESEARCH R4-B/R5, queue.py, mark_posted.py, publish-queue.json, both package JSONs, manifest.json, test conventions + existing AST test. Consulted advisor; incorporated: (1) empty-but-valid plan = 2-row envelope with steps:[], §6 empty-scope = no plan write; (2) package-content reading deferred to adapter sprints; (3) locked post-gate --live honest no-op (no fake posted/permalink); (4) dead-flag [F]/[P] tagging + validation of inert flags; (5) AST test as inversion (urlopen count==1 inside Transport, dry-run transport call-count==0); (6) fixed step schema keys; (7) generic placeholder formatter only, no dead adapter constants.
+Files changed: .harness/sprints/sprint_002/contract.md (created)
+Command: n/a (contract authoring)
+Result: contract written; 14 sections, 11 evaluator gate clauses, explicit non-goals separating skeleton (002) from adapters (003-006).
+Evidence path/output: /Users/prithviputta/Downloads/terrem-marketing-loops/.harness/sprints/sprint_002/contract.md
+Known risk: scope-boundary judgment calls (defer package-content, empty-scope no-write, live no-op) are disclosed choices the Evaluator/Planner may want reshaped; placeholder-name specifics intentionally deferred to 003/004.
+Next: await contract routing to Evaluator; on acceptance, BUILD publish_api.py + test_publish_api.py.
+
+[2026-07-09 16:30]
+Action: CONTRACT mode — revised sprint_002/contract.md in place per contract_review.md (REJECT, 5 blockers + 5 high).
+Files changed: /Users/prithviputta/Downloads/terrem-marketing-loops/.harness/sprints/sprint_002/contract.md
+Command: (no code) grounded fixes against tools/marketing-loops/{mark_posted,queue}.py + content/publish-queue.json
+Result: All 10 findings resolved:
+  F-001 pkg validation: added §5.1a (validate existence+JSON-parseability now, exit 2 on fail, no field consumption); reconciled §13 non-goal.
+  F-002 transport injection: added §8.1 — run(...,transport=None) constructor injection, main never sets it.
+  F-003 response shape: added §8.2 — Response{status,headers,body,json()}; RecordingTransport(responses=[...]) canned queue.
+  F-004 stdout format: §7.2 exact frozen template for real 2-row asset + format rules.
+  F-005 in-scope channels: §4(a) explicit definition = distinct channels of rows AFTER --week/--slug/--channel filtering.
+  F-006 --max-per-day: §3.1 optional, default 3, int>=1 else exit 2.
+  F-007 AST both forms: §8.2 union of ast.Attribute(.attr) + ast.Name(.id) urlopen == 1; gate-9 snippet updated.
+  F-008 .env parsing: §4 exact algorithm + 9 frozen worked cases.
+  F-009 asset precondition: §10 precondition block + verify commands + SKIP semantics.
+  F-010 signatures: §1.1 exact run()/main() signatures (house tuple pattern from mark_posted.py).
+Evidence path/output: contract.md sections §1.1, §3.1, §4, §5.1a, §5.2, §7.2, §8/§8.1/§8.2, §10 precondition+gate9, §13, §14.
+Known risk: run() returns 3-tuple (house pattern) rather than reviewer's suggested ->int; documented as the frozen downstream contract. Note channel→sprint map (linkedin=004+) must match stdout+JSON note; BUILD must keep single source.
+Next: await Evaluator re-review of contract.
+[2026-07-10 10:50]
+Action: CONTRACT R3 — applied F-001-R2 exact fix (§7.1 second bullet now aligns with §5.1a/§13: package file IS opened for existence/JSON validation, no field consumption)
+Files changed: .harness/sprints/sprint_002/contract.md
+Command: n/a
+Result: single-blocker edit applied, nothing else changed
+Evidence path/output: .harness/sprints/sprint_002/contract.md §7.1
+Known risk: none — targeted one-bullet edit per review Required Fix
+Next: await Evaluator re-review
+
+
+[2026-07-10 00:00]
+Action: BUILD Sprint 002 — transport seam + dry-run plan renderer + CLI skeleton for publish_api.py
+Files changed:
+  - tools/marketing-loops/publish_api.py (NEW; CLI + Transport/Recording/Raising + Response + plan model + helpers + .env loader + live gate)
+  - tools/marketing-loops/tests/test_publish_api.py (NEW; 39 tests, mocked transport only)
+  - .gitignore (added content/publish-plan.json)
+Command: python3 -m unittest discover -s tools/marketing-loops/tests -p 'test_*.py'
+Result: OK — 310 tests (271 prior + 39 new), 0 failures/errors. New suite alone: OK 39.
+Evidence path/output:
+  - Gate3 dry-run real asset: exit 0; plan mode=dry-run, 2 rows (instagram,0)(linkedin,0); QUEUE-UNCHANGED
+  - Gate4 determinism: DETERMINISTIC (byte-identical publish-plan.json on repeat)
+  - Gate5 empty scope (2026-W01): exit 0, "nothing queued for 2026-W01", no plan written
+  - Gate6 malformed (bad week / unknown channel / both modes / bad date / bad linkedin-type): each exit 2, cited ERROR on stderr
+  - Gate7 live no creds: exit 2, all four preconditions cited independently (date, env file, PUBLIC_ASSET_BASE_URL, ack flag)
+  - Gate8 live gate PASS no adapter: exit 0, per-channel "nothing posted" notice, SENTINEL count 0, no fake posted/permalink line, QUEUE-UNCHANGED
+  - Gate9 AST: urlopen call sites = 1 (inside Transport)
+  - Gate10 import silence: import-ok-silent, stdlib only
+  - Gate11 hygiene: publish-plan.json absent from git status (gitignored); only publish_api.py + test file untracked new
+Known risk:
+  - package_path resolved relative to CWD per contract's literal Path(package_path); Evaluator must run from repo root (gate probes do). run()-direct tests use absolute package paths to stay self-contained.
+  - Adapter registry intentionally EMPTY (steps: []) per contract §13; live is an honest no-op this sprint.
+  - Live gate collects+cites ALL failing preconditions (not first-only) for operator clarity.
+Next: Sprint 003 Instagram adapter fills steps[] via the same code path.
+
+[2026-07-10 00:10]
+Action: Post-build disclosures for Evaluator (no code change)
+Note-1 (Gate 8 grep semantics): the mandated no-op notice string (§5.3, verbatim, unchanged) contains the substring "posted" ("nothing posted"), so `grep -Ei 'posted|permalink'` WILL match. This is NOT a fake success line. Discriminator: a fake success would be on STDOUT (like mark_posted's "posted <slug> <channel> <date>"); here STDOUT is EMPTY (verified 0 bytes) and the notices are STDERR no-op diagnostics. Clean re-run: `python3 ... --live ... 1>/tmp/live.out 2>/tmp/live.err; echo exit=$?` -> exit=0, stdout 0 bytes, SENTINEL count 0.
+Note-2 (shell): earlier probe loop used zsh; unquoted $a did not word-split (all showed argparse usage) and PIPESTATUS[0] was empty. Re-verified individually: --channel twitter / --date 2026-13-40 / --dry-run --live / --week 2026-28 each exit 2 with a cited ERROR. Live no-op re-run without a pipe confirms exit 0.
+Note-3 (git status): ~17 modified files (channels.py, utm.py, schedule.py, tests/*, fixtures/*, .harness/*) are PRE-EXISTING Sprint-001 changes, NOT this sprint's work — do not attribute as scope creep. Sprint-002 additions: tools/marketing-loops/publish_api.py, tools/marketing-loops/tests/test_publish_api.py, and a .gitignore line for content/publish-plan.json. No .env/secret/db/upload staged; content/publish-plan.json is gitignored (absent from git status).
+
+[2026-07-10 11:10]
+Action: CONTRACT mode — authored Sprint 003 contract (Instagram adapter, B19-B24).
+Files changed: .harness/sprints/sprint_003/contract.md (created)
+Command: read spec.md, sprint_002 contract/findings, publish_api.py, IG package, RESEARCH R4-B/R5 + blacklist §9
+Result: contract written — 15 sections. Locks: shared-flow (plan_steps+execute from one definition) + parity test; graph.instagram.com Instagram-Login flow (limit-check, N child containers, parent CAROUSEL, poll, media_publish, permalink) = 8 steps for the real 3-image asset; named placeholders (ig-child-container-id-N/ig-parent-creation-id/ig-media-id); access_token as REDACTED query param (headers {}); exit-1 refusals (container ERROR/EXPIRED/poll-exhausted, rate-limit) and exit-2 usage (0 or >10 attachments) via typed exceptions; live-CLI posting + queue transition DEFERRED to 006 (execute() unit-tested via mock, honest no-op in run() live); conscious 002-test update enumerated (instagram row steps 0->8 + note); caption \n escaped in stdout, verbatim in JSON; blacklist guard (no ..._publishing).
+Evidence path/output: contract §11 gate clauses 1-8 (unittest + CLI probes; Playwright N/A)
+Known risk: content_publishing_limit response shape is a documented assumption (flattened data[0].quota_usage/quota_total) — live-pending, isolated in one parse helper; day-cap/live-transition are 006 not this sprint.
+Next: orchestrator routes contract to Evaluator; on accept -> BUILD.
+
+[2026-07-10 00:00]
+Action: BUILD Sprint 003 — Instagram adapter (B19–B24) in publish_api.py
+Files changed:
+  - tools/marketing-loops/publish_api.py (added: AdapterRefusal/AdapterUsageError,
+    _Step, _read_* response helpers, _ig_flow single shared generator, _drive_plan,
+    _drive_execute, InstagramAdapter, _ADAPTERS registry, _load_package; wired
+    plan_steps into _build_plan(base) dry-run dispatch; per-step stdout render via
+    _render_plan_stdout/_render_step_params/_escape_stdout; instagram live no-op
+    notice; IG constants _IG_HOST/MAX_POLL_ATTEMPTS/POLL_DELAY_SECONDS/_default_sleep;
+    imports time, urllib.parse)
+  - tools/marketing-loops/tests/test_publish_api.py (seed helper now replicates the
+    real 3-image carousel + verbatim caption; CONSCIOUSLY updated the 2 Sprint-002
+    assertions per contract s7: test_default_mode_is_dry_run_two_rows steps 0->8 +
+    note, test_stdout_template_exact -> exact 8-step IG block; added Sprint-003
+    suites: dry-run fidelity, execute happy carousel, parity, container ERROR/EXPIRED,
+    poll-exhausted, rate-limit-before-media, unexpected-response refusal, >10/0
+    attachment guard (dry-run + execute), single-image, live no-op, blacklist)
+Command: python3 -m unittest discover -s tools/marketing-loops/tests -p 'test_*.py'
+Result: OK — 329 tests, 0 failures/errors (full regression incl. Sprint-001 facebook
+  + Sprint-002). Sprint-003 suite alone: 60 tests OK.
+Evidence path/output:
+  - Gate 3: dry-run real asset -> instagram 8 steps in exact s4 order (GET limit;
+    3x POST /media child; POST /media parent CAROUSEL; GET /<ig-parent-creation-id>;
+    POST /media_publish; GET /<ig-media-id>); QUEUE-UNCHANGED; exit 0.
+  - Gate 4: REDACTED-only-token, has-placeholders, base-placeholder, DETERMINISTIC;
+    blacklist grep 'media_publishing|content_publishing"' = 0.
+  - Gate 5: --public-asset-base-url -> image_url
+    https://assets.example/social-assets/2026-07-09-anarock-vs-propequity/format-01.png
+  - Gate 6: --live --channel instagram (gate passing) -> exit 0, stderr notice
+    "instagram adapter ready; ... Sprint 006; nothing posted", stdout empty,
+    SENTINEL count 0, queue unchanged. NOTE: the contract-mandated notice text
+    (contract s1.2) contains the word "posted" ("nothing posted"), so a literal
+    grep -Ei 'posted' matches the NOTICE line — this is the honest no-op notice,
+    NOT a fake success/permalink line (no permalink string present).
+  - Gate 7: exactly 1 urlopen call site (inside Transport); import silent, exit 0.
+  - Gate 8: content/publish-plan.json is gitignored (git check-ignore confirms);
+    .env gitignored; only new untracked files this sprint are publish_api.py +
+    test_publish_api.py. No secret/db/upload staged.
+Known risk / disclosure:
+  - CONTRACT TEXT CONFLICT (single-image degrade, s4.2): the prose enumerates 5
+    stages (limit -> create container -> poll -> publish -> permalink) and says
+    "NO separate parent step / no is_carousel_item / no media_type=CAROUSEL", but
+    the parenthetical says "(6 steps)" (echoed by s8.7 / s15.5 "6-step"). The only
+    FAITHFUL reading is 5: carousel is N+5 (=8 for N=3, locked by the s7.2 template);
+    dropping the parent for a single image yields N+4 = 5. Reaching 6 would require
+    restoring the parent (contradicts the explicit prose) or inventing a phantom call
+    (violates spec s7 "no invented endpoints"). Built as 5; test asserts the exact
+    label sequence (encodes "no parent, no carousel flags"). This is a likely
+    contract-text fix (N+5-vs-N+4 slip), not a code change. Single-image is NOT in
+    the Evaluator's s11 gate commands (those exercise the real 3-image carousel);
+    it is covered only via gate-1 (this suite). If a literal Evaluator hard-asserts
+    6, route to findings adjudication of the contract text.
+  - Response shapes parsed by execute() are DOCUMENTED ASSUMPTIONS (live-pending,
+    contract s6): content_publishing_limit flattened data[0], {"id":...},
+    {"status_code":...}, {"permalink":...}. Isolated in _read_* helpers; a founder's
+    live nesting change touches one place. No credentials exist yet (dry-run-first).
+Next: Sprint 004 (LinkedIn adapter) wires the second channel's steps; Sprint 006
+  wires execute() into the live run() path + queue transition + day-cap.
+
+[2026-07-10 12:05]
+Action: CONTRACT mode — authored sprint_004 contract (LinkedIn adapter, B25–B29).
+Files changed: .harness/sprints/sprint_004/contract.md (new)
+Command: (contract authoring; no build)
+Result: Contract written. Mirrors the PASSED sprint_003 structure. Key decisions:
+  - Two flows: Document (DEFAULT, PDF from render/manifest.json, 3 steps) +
+    MultiImage (attachments, 7 steps for N=3); exactly one executed per row (R4-B4:
+    organic carousel post type IMPOSSIBLE — never emitted).
+  - Member-profile / person-URN owner only (R5-6); NO company page (R5-5 gated).
+  - Versioned /rest/* headers (Authorization Bearer <REDACTED>, LinkedIn-Version
+    fixed constant + --linkedin-version flag, X-Restli-Protocol-Version 2.0.0).
+  - Permalink CONSTRUCTED from <li-post-urn> (no 4th call, unlike IG B24).
+  - Post-URN reader: x-restli-id header first, then body id (keeps frozen
+    RecordingTransport untouched; live-faithful).
+  - _drive_execute generalized to send real bodies (JSON / file bytes) + tolerate
+    empty upload responses; IG-safe (upload_path None + payload None + non-empty
+    JSON => identical). Explicit regression guard.
+  - Conditional stdout headers:/payload: render (only when non-empty/non-null) =>
+    IG block stays byte-identical to sprint_003 frozen template. Linchpin property.
+  - Enumerated conscious sprint-003 test updates: two-row plan assert (~L284-290),
+    stdout template linkedin block (~L347-351), ~L698-700; + _seed_workspace must
+    write render/manifest.json (+ carousel.pdf/PNGs for execute tests).
+  - Body extras (distribution, title, Content-Type) flagged live-pending, not
+    claimed verified; tests assert only B26/B27-mandated fields.
+Evidence path/output: RESEARCH.md R4-B4/R5-5/R5-6 read; linkedin.json + render/
+  manifest.json (pdf=carousel.pdf) inspected; current dry-run shows linkedin
+  steps=0 note "lands in Sprint 004+"; publish_api.py structure (_ig_flow,
+  _drive_plan/_drive_execute, _Step, registry, run() live dispatch) reviewed.
+Known risk: exact LinkedIn JSON body/header shapes are live-pending (no credentials
+  yet) — isolated in single builders/readers per the sprint-003 pattern. The chosen
+  LINKEDIN_VERSION_DEFAULT (YYYYMM) is a documented fixed constant.
+Next: Evaluator reviews contract; on accept, BUILD sprint_004.
+
+[2026-07-10 12:20]
+Action: CONTRACT revision after advisor review — fixed byte-assertion traps.
+Files changed: .harness/sprints/sprint_004/contract.md
+Result:
+  - §6/§6.1: payload dict renders via json.dumps(sort_keys, separators) with DEFAULT
+    ensure_ascii=True (em-dash -> —); dropped the confusing _escape_stdout
+    clause (json.dumps already encodes newlines). BUILD must construct expected
+    stdout payload via the identical json.dumps, never hand-typed.
+  - Pinned LINKEDIN_VERSION_DEFAULT to "202506" (§4.4, §6.1 are exact byte blocks).
+  - §4.5: clarified <li-post-urn> is plan_response-only, not a serialized plan key.
+  - §8.7: added a direct empty-body (b"") tolerance test via an inline fake so the
+    §5.3 safety branch is exercised (RecordingTransport always emits b"{}").
+Evidence path/output: contract.md updated in place.
+Known risk: same live-pending body/header shapes as prior entry.
+Next: hand off to Evaluator for contract review.
+
+[2026-07-10 00:00]
+Action: BUILD Sprint 004 — LinkedIn adapter (B25–B29), both organic flows (document DEFAULT + multi-image), exactly one executed per row. Shared plan/execute flow generators; conditional headers/payload stdout render; --linkedin-version flag; generalized _drive_execute (request bodies + empty-response tolerance) IG-safe.
+Files changed:
+  - tools/marketing-loops/publish_api.py (LinkedIn constants, _Step.upload_path/execute_body, _LiResult, _RespView, _li_* readers/body-builders/header-builders, _li_document_flow/_li_multiimage_flow, LinkedInAdapter, registry, _build_plan LI dispatch, conditional stdout headers/payload render, run() linkedin_version param+validation+live-notice, main() --linkedin-version)
+  - tools/marketing-loops/tests/test_publish_api.py (_seed_workspace writes render/manifest.json; 3 conscious Sprint-003 updates at the two-row tuple/note, stdout template linkedin block §6.1, and the li steps/note assertion; new LinkedIn suite: dry-run fidelity, execute happy document+multiimage, parity, unexpected-response refusal, precondition guards, driver-generalization empty-body/non-JSON + IG-unchanged, version validation, live no-op, redaction)
+Command: python3 -m unittest discover -s tools/marketing-loops/tests -p 'test_*.py'
+Result: OK — 349 tests, 0 failures/errors (was 329; +20 LinkedIn cases). Sprint-004 suite alone: 78 tests OK.
+Evidence path/output:
+  - Gate 3: dry-run --week 2026-W28 -> linkedin steps 3 (POST /rest/documents; PUT <li-upload-url-1>; POST /rest/posts); IG row still 8 steps byte-identical; QUEUE-UNCHANGED; exit 0.
+  - Gate 4: REDACTED / version-hdr / placeholders / owner-ph / mandated all present; DETERMINISTIC (byte-identical repeat). carousel grep = 8 (all IG child-container refs or "carousels impossible" comments; NO LinkedIn carousel post type).
+  - Gate 5: --linkedin-post-type multi-image -> steps 7; multiImage present; rest/documents absent (exactly one flow).
+  - Gate 6: --live linkedin (SENTINEL env) -> exit 0; "linkedin adapter ready; ... Sprint 006; nothing posted"; SENTINEL count 0; no fake permalink; QUEUE-UNCHANGED.
+  - Gate 8: urlopen call sites = 1 (inside Transport); import silent.
+  - stdout linkedin block matches §6.1 (sorted headers, compact json.dumps payload with em-dash — and \n); IG block byte-identical (no headers/payload lines).
+Known risk:
+  - _read_li_post_urn x-restli-id HEADER path is live-pending (RESEARCH-cited Posts API, not independently verified); the mock (headers={}) exercises only the body-id fallback. Isolated in one helper. distribution block / content.media.title / Content-Type marked live-pending, tests assert presence of MANDATED fields only.
+  - execute() remains CLI-unreachable this sprint by design (Sprint 006 wires live posting + queue transition + permalink recording + day-cap).
+Next: Evaluator attack. Sprint 005 = Facebook adapter (round-5-gap, gated).
+
+[2026-07-10 00:10]
+Action: Close §8.6 execute-side precondition gap + hygiene clarification.
+Files changed: tools/marketing-loops/tests/test_publish_api.py (test_execute_side_precondition_guards: no-pdf / 0-attachments / >20 all raise AdapterUsageError via execute()).
+Result: OK — 350 tests, 0 failures.
+Hygiene note: `git status` lists ~12 pre-existing ` M` files (utm.py, channels.py, schedule.py, fixtures, prior test_*.py, .gitignore) from Sprint 001 frozen-module extension — these predate and are UNTOUCHED by Sprint 004 (they showed modified in the first git status before any edit; Sprints 002/003 publish files are `??` untracked, never committed). The ONLY Sprint-004 changes are tools/marketing-loops/publish_api.py + tools/marketing-loops/tests/test_publish_api.py (both untracked). No .env / secret / *.db / uploads artifact staged; content/publish-plan.json is gitignored. Gate-9 file-list intent holds for the 004 delta.
+
+[2026-07-10 13:05]
+Action: CONTRACT mode — wrote Sprint 005 contract (Facebook Page adapter, round-5-gap, gated behind --enable-facebook default OFF).
+Files changed: .harness/sprints/sprint_005/contract.md
+Command: read spec.md, RESEARCH.md (R4-B5/R5-4), publish_api.py adapters/run/gate, test_publish_api.py helpers; consulted advisor.
+Result: Contract specifies B30/B31/B32 — photos+feed best-documented-guess flow (N+1 calls), skip-with-notice when flag OFF (exact plan note + stderr NOTICE + exit 0), shared-flow anti-stub via _fb_flow, execute CLI-unreachable (Sprint 006), non-regression of real 2-row asset byte-identical to Sprint 004. 8 verification gates + 10 unit scenarios. Playwright N/A (CLI tool).
+Evidence path/output: .harness/sprints/sprint_005/contract.md
+Known risk: Threading enable_facebook through _build_plan could perturb IG/LI rows — pinned as named non-regression Gate 6/§12.7. FB endpoints are unverified guess (R4-B5) — mitigated by flag-OFF default + round-5-gap labels; contract forbids asserting them authoritative.
+Next: Await Evaluator routing of contract_review.md; then BUILD.
+
+[2026-07-10 00:00]
+Action: CONTRACT-mode revision of sprint_005/contract.md per contract_review.md (REJECT: 1 blocker, 1 high)
+Files changed: /Users/prithviputta/Downloads/terrem-marketing-loops/.harness/sprints/sprint_005/contract.md
+Command: (Edit tool, 2 targeted edits)
+Result: C-001 fixed — §4.4 note template now uses {TOTAL}=N+1 (Option B), explicitly stating N photo uploads + 1 feed post, with N=3 => "4 HTTP calls" example, resolving the {N} vs flow-count contradiction. C-002 fixed — §11 Gate 6 rewritten to load Sprint-004 golden, run Sprint-005 gen with --week 2026-W28 and no --enable-facebook, assert byte-identical; fallback baseline capture noted.
+Evidence path/output: contract.md §4.4 and §11 Gate 6 updated in place
+Known risk: none new; Gate 3 already uses {N+1} for step count, consistent with note {TOTAL}.
+Next: await Evaluator/contract re-review routing.
+
+[2026-07-10 13:05]
+Action: BUILD Sprint 005 — Facebook Page adapter (round-5-gap, gated behind --enable-facebook default OFF). B30/B31/B32 + step-rendering for facebook rows.
+Files changed:
+  - tools/marketing-loops/publish_api.py (new: _FB_* constants, _FbResult, _read_fb_id, _fb_flow, FacebookAdapter, _fb_skip_notice; changed: _ADAPTERS registry adds facebook, _build_plan gains enable_facebook kwarg + facebook-disabled/enabled branches, run() threads enable_facebook into _build_plan + emits skip NOTICE dry-run + facebook live no-op branch)
+  - tools/marketing-loops/tests/test_publish_api.py (+16 tests: disabled skip, enabled fidelity, concrete base, no version prefix, 0-attach usage error x2, execute happy/parity/refusal/token, secrets, determinism, non-regression golden, live no-op flag on/off)
+  - tools/marketing-loops/tests/golden/publish-plan-sprint004-2026-W28.json (NEW golden captured from pre-Sprint-005 tree for Gate 6 non-regression)
+Command: python3 -m unittest discover -s tools/marketing-loops/tests
+Result: OK — Ran 366 tests (350 pre-existing + 16 new), 0 failures / 0 errors, none skipped.
+Evidence path/output:
+  - Gate 1: 366 green.
+  - Gate 2 (flag OFF, mixed IG+FB fixture): exit 0; facebook row steps:0 + exact disabled note; stderr exact NOTICE; IG row 8 steps. (CLI probe captured.)
+  - Gate 3 (flag ON): exit 0; facebook row 4 steps (3 photos + 1 feed); labels/urls/params exact; attached_media threads <fb-photo-id-1..3>; note has round-5-gap + best-documented-guess + "4 HTTP calls".
+  - Gate 4: grep 'graph.facebook.com/v[0-9]' -> none; round-5-gap count = 10 (>=1); plan contains best-documented-guess.
+  - Gate 5/6/7/8 covered by passing unit tests (no_secret_in_output, non_regression golden byte-identical, determinism byte-identical, live no-op flag on/off with RaisingTransport + queue untouched).
+Known risk:
+  - A flag-OFF facebook row with a MISSING package still hits run()'s universal B4 package-existence check (exit 2) BEFORE the disabled-skip branch. This is spec-consistent (B4 is universal) and all contract fixtures seed a package, so no gate breaks — but a disabled row with no package file exits 2 rather than skipping. Disclosed, not "fixed" (building to contract).
+  - FacebookAdapter.execute is CLI-unreachable this sprint by design (live posting/queue transition = Sprint 006); exercised only by unit + parity tests. Honest no-op on --live.
+  - The entire FB flow (endpoints/params/response/permalink) is an UNVERIFIED round-5-gap guess (R4-B5); labeled as such in code + output, not asserted canonical.
+Next: Sprint 006 — live transition, day-cap, permalink write, real-asset end-to-end.
+
+[2026-07-10 13:25]
+Action: CONTRACT mode — wrote Sprint 006 contract (Live transition, no-regress, day-cap, end-to-end).
+Files changed: .harness/sprints/sprint_006/contract.md (created)
+Command: (contract authoring; read spec.md, sprint_005 contract/findings, mark_posted.py, queue.py, publish_api.py run/main/_live_gate/adapters)
+Result: Contract specifies B14/B15/B16 live path — mark_posted.transition reuse, ctx builder from .env, day-cap single-baseline+run-counter, incremental queue write (prior posts stand), targeted already-posted exit-1 vs B16 coexistence reconciled, missing-upload-bytes exit-2, FB live gated behind --enable-facebook, live-writes-queue-only (no plan), no-secret-in-queue, real-asset dry-run regression + determinism + raising-transport proof. 11 gates, 19 unit scenarios. Playwright N/A (CLI tool).
+Evidence path/output: .harness/sprints/sprint_006/contract.md
+Known risk: no-regress exit-1 scope (B15 vs B16) is a documented interpretation — pinned by two tests (targeted->exit1, rerun-week->exit0); day-cap counting is a documented assumption; FB live is round-5-gap guess. Advisor consulted before authoring; confirmed design + flagged incremental-write/single-baseline/no-plan-write/missing-bytes edges, all incorporated.
+Next: await Evaluator routing of contract_review.md; then BUILD.
+
+[2026-07-10 00:00]
+Action: CONTRACT revision — sprint 006, fixed rejected B-001 (§4.1 vs Gate 4 contradiction)
+Files changed: /Users/prithviputta/Downloads/terrem-marketing-loops/.harness/sprints/sprint_006/contract.md
+Command: (contract mode, no code)
+Result: Added filter-specificity discriminator to §4.1 — exit-1 already-posted refusal fires ONLY when BOTH --slug and --channel supplied (uniquely pins one posted row, zero queued in scope); any broader scope resolving to zero queued rows → exit 0 "nothing queued for <week>". Reconciled §4.1 parenthetical + §10.1 risk note to the same rule. Makes Gate 3 (targeted → exit 1) and Gate 4 (broad week re-run → exit 0) consistent.
+Evidence path/output: contract.md §4.1 discriminator paragraph; §10.1 updated
+Known risk: none for the spec fix; implementation must gate on presence of both filter args, not on row-count heuristics.
+Next: await contract re-review / route to BUILD.
+
+[2026-07-10 00:00]
+Action: BUILD Sprint 006 — wired the frozen adapter execute() flows + mark_posted.transition into the real --live path (queued->posted transition, permalink+posted_date recording, per-day cap B16, no-regress B15, incremental persistence, FB gated). Replaced the Sprint-005 "honest no-op" live branch. Dry-run path untouched (guarded by mode=="live").
+Files changed:
+  - tools/marketing-loops/publish_api.py (import mark_posted; _live_gate now returns (failures,env,base); new _build_ctx, _required_upload_paths, _run_live; run(): targeted already-posted exit-1 at empty-state [live+slug+channel], §4.3 usage pre-validation via _build_plan discarded, §4.4 up-front upload-byte precondition, live dispatch -> _run_live; module docstring + argparse help refreshed)
+  - tools/marketing-loops/tests/test_publish_api.py (consciously updated 8 obsolete no-op tests that asserted the Sprint-005 honest no-op — they now assert real posting with injected transports; +19 new Sprint-006 named tests §12.1a–19)
+Command: python3 -m unittest discover -s tools/marketing-loops/tests
+Result: OK — Ran 386 tests (was 366; +20), 0 failures / 0 errors / 0 skips.
+Evidence path/output:
+  - Gate 1: full suite green (386 tests).
+  - Gate 7 (real-asset dry-run CLI): `python3 tools/marketing-loops/publish_api.py --week 2026-W28` -> exit 0; 2 rows (instagram 8-step container flow + linkedin 3-step document flow) for 2026-07-09-anarock-vs-propequity in (slug,channel) order; caption+UTM link verbatim; access_token=<REDACTED>; queue states remain {queued}; empty stderr. (/tmp/gate7_stdout.txt)
+  - Gate 8 (determinism): two CLI dry-runs -> content/publish-plan.json BYTE-IDENTICAL; raising-transport dry-run still exit 0 with full plan + no queue write (test_dryrun_raising_transport_still_exit0).
+  - Live gates via unit tests: happy IG+LI transition (11 transport calls, both rows posted w/ posted_date+permalink, no plan written); targeted already-posted -> exit1 byte-identical queue, 0 network; re-run posted week -> exit0 "nothing queued"; day-cap breach -> exit1 (day-cap), prior post persisted; existing-posted-today counts baseline; container ERROR / rate-limit -> exit1 no transition; incremental persistence (row2 refusal, row1 stays posted); missing PDF bytes -> exit2 no write; FB enabled posts / disabled skipped-no-cap-consumption; >10 children pre-validation -> exit2; secrets absent from stdout/stderr/queue.
+  - AST single-urlopen-site test green after additions (mark_posted adds no urlopen).
+Hygiene: .gitignore covers .env + content/publish-plan.json; no .env present; secret scan of changed source clean; main() still never injects a transport.
+Known risk:
+  - Facebook live remains a round-5-gap best-documented guess (R4-B5); gated behind --enable-facebook; label preserved on adapter note(); not treated as verified.
+  - §4.4 missing-byte precondition checked UP FRONT (preferred path) so a single-LI missing-PDF run is exit2 with no write; a mid-flow OSError race is also caught -> exit2 with prior siblings persisted.
+  - mark_posted.transition reuse means this path tracks any future queue/transition change (intended single source of truth).
+Next: Evaluator to attack — Gates 1–11 (§11), especially real-asset CLI dry-run fidelity/determinism and the exit-code map (0/1/2). Sprint 007 (skill+README) is out of scope.
+
+[2026-07-10 00:05]
+Action: Post-build safety/disclosure pass (advisor-directed).
+Result:
+  - Transport-injection audit: every GATE-PASSING live run() call injects a Recording/RaisingTransport. The only 4 live calls without one are the gate-FAIL tests (no-env / missing-token / missing-base / missing-date) which exit 2 at _live_gate BEFORE any transport.request(); test_live_gate_still_exit2 (§12.14) carries the RaisingTransport zero-network proof for those paths. No real socket anywhere (full suite green corroborates).
+Known risk (disclosed):
+  - _required_upload_paths returns package["attachments"] verbatim for the LinkedIn MULTI-IMAGE live path; those are repo-relative in _seed_workspace, so a multi-image live run via run() would resolve them against CWD. Non-blocking: linkedin default is `document` (absolute PDF via manifest) — the path exercised by every test and Gate 7; no gate runs multi-image live. Flagged for Sprint 007+ if multi-image live is ever wired to the CLI as default.
+[2026-07-10 14:11]
+Action: CONTRACT mode - wrote Sprint 007 contract (docs-only: /loop-publish SKILL.md + README publish_api section)
+Files changed: .harness/sprints/sprint_007/contract.md
+Command: read spec.md, publish_api.py --help, existing SKILL.md + README + queue
+Result: contract written; scope = documentation only, two files, no code change
+Evidence path/output: /Users/prithviputta/Downloads/terrem-marketing-loops/.harness/sprints/sprint_007/contract.md
+Known risk: docs-drift if flag defaults change; contract pins a --help value table + stale-claim reconciliation to block that
+Next: Evaluator reviews contract; then BUILD mode
+
+[2026-07-10 14:20]
+Action: BUILD Sprint 007 — documentation-only. Reconciled the stale "no posting API" claims and documented publish_api.py (dry-run default + gated live) in both docs.
+Files changed: .claude/skills/loop-publish/SKILL.md, README.md
+Command: python3 tools/marketing-loops/publish_api.py --help; python3 tools/marketing-loops/publish_api.py --week 2026-W28 --dry-run; python3 -m unittest discover -s tools/marketing-loops/tests; §8 grep suite
+Result: --help matches §5 value table verbatim (max-per-day=3, linkedin-post-type default document, linkedin-version 202506, env default .env). Real-asset dry-run exits 0, prints 2-row plan, writes content/publish-plan.json (gitignored); publish-queue.json unchanged. 386 unittests OK. §8.2 negative greps: 0 hits ("no live posting API" / "no posting APIs" both reworded, not appended). §8.3 positive greps all hit. §8.7 secret scan: 0 hits.
+Evidence path/output: SKILL grep counts publish_api.py=7 --dry-run=5 --i-have-verified-dry-run=2 PUBLIC_ASSET_BASE_URL=5 SETUP-CHECKLIST=2 --enable-facebook=2 round-5-gap=1 REDACTED=3; README publish_api.py=5 --live=4 SETUP-CHECKLIST=2 --enable-facebook=2. git diff --stat: only the two doc files (144 insertions).
+Known risk: git status --porcelain shows ~12 pre-existing dirty files under tools/, tests/, fixtures/ from prior UNCOMMITTED sprints 001-006 (git log HEAD=201456c predates publish_api.py). My delta is EXACTLY the two doc files; I did not touch tools/ (non-goal §7/§10). If the Evaluator reads §8.1 as an absolute-only-two-files check, the baseline tools/ dirt predates this sprint and must not be reverted (it is prior passed work). publish-plan.json is gitignored so it does not appear.
+Next: hand to Evaluator.
