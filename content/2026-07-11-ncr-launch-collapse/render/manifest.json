@@ -1,0 +1,312 @@
+{
+  "pdf": "carousel.pdf",
+  "schema_version": "2",
+  "slug": "2026-07-11-ncr-launch-collapse",
+  "surfaces": [
+    {
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            215,
+            567,
+            200,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "NCR launches",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            712,
+            567,
+            145,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "NCR sales",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            123,
+            625,
+            383,
+            158
+          ],
+          "bg": "#faf8f3",
+          "color": "#0f766e",
+          "font_px": 132,
+          "role": "dominant",
+          "text": "−40%",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            668,
+            721,
+            234,
+            62
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 52,
+          "role": "headline",
+          "text": "only −6%",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            883,
+            1240,
+            107,
+            31
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 26,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "format": "VS-CONTRAST",
+      "has_axis": false,
+      "id": "format-01",
+      "png": "format-01.png",
+      "role": "format-slide"
+    },
+    {
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            90,
+            357,
+            684,
+            62
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 52,
+          "role": "headline",
+          "text": "Supply fell. Prices climbed.",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            437,
+            355,
+            158
+          ],
+          "bg": "#faf8f3",
+          "color": "#0f766e",
+          "font_px": 132,
+          "role": "dominant",
+          "text": "+13%",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            118,
+            661,
+            547,
+            36
+          ],
+          "bg": "#ffffff",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Launches −40% YoY · to 11,205 units",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            118,
+            753,
+            602,
+            36
+          ],
+          "bg": "#ffffff",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Noida-Greater Noida launches −72% YoY",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            118,
+            845,
+            467,
+            36
+          ],
+          "bg": "#ffffff",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Sales −6% YoY · to 13,365 units",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            118,
+            937,
+            463,
+            36
+          ],
+          "bg": "#ffffff",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "13,365 sold vs 11,205 launched",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            883,
+            1240,
+            107,
+            31
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 26,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "format": "RECEIPTS",
+      "has_axis": false,
+      "id": "format-02",
+      "png": "format-02.png",
+      "role": "format-slide"
+    },
+    {
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            90,
+            444,
+            87,
+            158
+          ],
+          "bg": "#faf8f3",
+          "color": "#0f766e",
+          "font_px": 132,
+          "role": "dominant",
+          "text": "3",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            648,
+            732,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Supply — not demand — is setting NCR prices now",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            694,
+            895,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Waiting assumes new launches will cool prices; 40% fewer did",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            740,
+            694,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Watch the launch pipeline, not just asking prices",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            786,
+            880,
+            78
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "so-what",
+          "text": "In a supply squeeze, waiting doesn't lower the price — check NCR supply → intel.terrem.in",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            874,
+            892,
+            31
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 26,
+          "role": "source-stamp",
+          "text": "ANAROCK Q2 2026 via Storyboard18 · BusinessToday, both 2026-07-01",
+          "weight": 400
+        },
+        {
+          "bbox": [
+            883,
+            1240,
+            107,
+            31
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 26,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "format": "CHECKLIST",
+      "has_axis": false,
+      "id": "format-03",
+      "png": "format-03.png",
+      "role": "format-slide"
+    }
+  ]
+}

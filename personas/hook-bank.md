@@ -45,10 +45,16 @@ Legend: **[P1]** Upgrader · **[P2]** Investor · pain codes: PRICE (81% anxiety
 
 22. **[P2·EXIT/PRICE]** "<Source A> says <+X%>. <Source B> says <+Y%>. Same city, same quarter." — *two authorities contradicting each other; TERREM resolves. First used: 2026-07-09 Ledger #2 (ANAROCK/PropEquity, VS-CONTRAST cover).* NEW
 
+## Supply-squeeze / false-safety-of-waiting (loss-aversion #1 family) — NEW
+
+23. **[P1·PRICE]** "You waited for a price dip. <City> builders cut supply __%." — *the safety of waiting is an illusion when a supply squeeze — not demand — is moving price against the buyer. First used: 2026-07-11 Weekly Ledger #3 (NCR launches −40%, VS-CONTRAST cover).* NEW
+
 ## Challenge / utility CTA
 
 19. **[P1·all]** "Check your builder in 2 minutes. If this chart is red, walk."
 20. **[P2·YIELD]** "Run your locality through this before your next site visit."
+
+24. **[P1·RERA/QUALITY]** "<City> builders can now be fined ₹__L for a lie in an ad. Scan the QR." — *a statutory fine opens the gap, the mandatory QR closes it; regulatory utility CTA (adapted from #19). First used: 2026-07-11 (TNRERA ad-compliance, ₹5L / Chennai).* NEW
 
 ## Format notes
 

@@ -1,0 +1,326 @@
+{
+  "pdf": "carousel.pdf",
+  "schema_version": "2",
+  "slug": "2026-07-11-chennai-completion-ad-ban",
+  "surfaces": [
+    {
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            90,
+            421,
+            842,
+            208
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 52,
+          "role": "headline",
+          "text": "Since 1 July, one false claim in a Chennai property ad can cost the builder",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            647,
+            555,
+            158
+          ],
+          "bg": "#faf8f3",
+          "color": "#0f766e",
+          "font_px": 132,
+          "role": "dominant",
+          "text": "₹5 LAKH",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            851,
+            836,
+            78
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "so-what",
+          "text": "Fines run ₹50,000–₹5L. Every ad now needs a RERA QR — verify any project free → intel.terrem.in",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            883,
+            1240,
+            107,
+            31
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 26,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "format": "BIG-NUMBER",
+      "has_axis": false,
+      "id": "format-01",
+      "png": "format-01.png",
+      "role": "format-slide"
+    },
+    {
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            90,
+            403,
+            697,
+            62
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 52,
+          "role": "headline",
+          "text": "Now finable, per false claim",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            483,
+            397,
+            158
+          ],
+          "bg": "#faf8f3",
+          "color": "#0f766e",
+          "font_px": 132,
+          "role": "dominant",
+          "text": "3 LIES",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            118,
+            707,
+            315,
+            36
+          ],
+          "bg": "#ffffff",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Fake completion date",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            118,
+            799,
+            273,
+            36
+          ],
+          "bg": "#ffffff",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Wrong carpet area",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            118,
+            891,
+            282,
+            36
+          ],
+          "bg": "#ffffff",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "Invented amenities",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            883,
+            1240,
+            107,
+            31
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 26,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "format": "RECEIPTS",
+      "has_axis": false,
+      "id": "format-02",
+      "png": "format-02.png",
+      "role": "format-slide"
+    },
+    {
+      "canvas": {
+        "h": 1350,
+        "w": 1080
+      },
+      "elements": [
+        {
+          "bbox": [
+            90,
+            340,
+            85,
+            158
+          ],
+          "bg": "#faf8f3",
+          "color": "#0f766e",
+          "font_px": 132,
+          "role": "dominant",
+          "text": "5",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            544,
+            845,
+            62
+          ],
+          "bg": "#faf8f3",
+          "color": "#1c1917",
+          "font_px": 52,
+          "role": "headline",
+          "text": "On every Chennai ad, since 1 July",
+          "weight": 700
+        },
+        {
+          "bbox": [
+            90,
+            624,
+            585,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "1 · TNRERA registration number is shown",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            670,
+            706,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "2 · Form-C QR code — scan it, confirm it resolves",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            716,
+            401,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "3 · TNRERA website is listed",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            762,
+            406,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "4 · Accurate project location",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            808,
+            548,
+            36
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "body",
+          "text": "5 · Promoter name and contact details",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            854,
+            861,
+            78
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 30,
+          "role": "so-what",
+          "text": "Scan the ad's RERA QR before trusting any completion date. Market context → intel.terrem.in",
+          "weight": 500
+        },
+        {
+          "bbox": [
+            90,
+            942,
+            891,
+            67
+          ],
+          "bg": "#faf8f3",
+          "color": "#57534e",
+          "font_px": 26,
+          "role": "source-stamp",
+          "text": "Storyboard18 · Verified.RealEstate · TNRERA circular dated 2026-06-24, in force 2026-07-01",
+          "weight": 400
+        },
+        {
+          "bbox": [
+            883,
+            1240,
+            107,
+            31
+          ],
+          "bg": "#faf8f3",
+          "color": "#0d3d38",
+          "font_px": 26,
+          "role": "wordmark",
+          "text": "TERREM",
+          "weight": 700
+        }
+      ],
+      "format": "CHECKLIST",
+      "has_axis": false,
+      "id": "format-03",
+      "png": "format-03.png",
+      "role": "format-slide"
+    }
+  ]
+}
